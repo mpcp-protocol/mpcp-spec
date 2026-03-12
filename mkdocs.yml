@@ -13,11 +13,14 @@ plugins:
 extra:
   protocol_version: "MPCP 1.0"
 
+extra_css:
+  - stylesheets/extra.css
+
 theme:
   name: material
   palette:
     - scheme: slate
-      primary: blue
+      primary: black
       accent: blue
   features:
     - navigation.sections

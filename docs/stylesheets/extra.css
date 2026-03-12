@@ -1,0 +1,51 @@
+/* Match landing page dark theme #0f1419, #1a2332, #2d3a4d */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #0f1419;
+  --md-default-bg-color--light: #0f1419e8;
+  --md-default-bg-color--lighter: #0f1419bf;
+  --md-default-bg-color--lightest: #0f141980;
+  --md-code-bg-color: #1a2332;
+  --md-code-bg-color--light: #1a2332e6;
+  --md-code-bg-color--lighter: #1a2332bf;
+  --md-footer-bg-color: #0f1419de;
+  --md-footer-bg-color--dark: #0a0e12;
+}
+
+/* Header, tabs, search - darker surface */
+[data-md-color-scheme="slate"] .md-header,
+[data-md-color-scheme="slate"] .md-tabs,
+[data-md-color-scheme="slate"] .md-nav__source {
+  background-color: #0f1419 !important;
+  border-bottom-color: #2d3a4d !important;
+}
+
+[data-md-color-scheme="slate"] .md-search__form {
+  background-color: #1a2332 !important;
+}
+
+[data-md-color-scheme="slate"] .md-search__form:hover {
+  background-color: #2d3a4d !important;
+}
+
+[data-md-color-scheme="slate"] .md-search__input {
+  color: #e6edf3;
+}
+
+[data-md-color-scheme="slate"] .md-search__input::placeholder {
+  color: #8b9cb7;
+}
+
+[data-md-color-scheme="slate"] .md-search__icon {
+  color: #8b9cb7 !important;
+}
+
+/* Sidebar */
+[data-md-color-scheme="slate"] .md-nav--primary .md-nav__title {
+  background-color: #0f1419 !important;
+}
+
+@media screen and (min-width: 76.25em) {
+  [data-md-color-scheme="slate"] .md-sidebar--primary {
+    background-color: #0f1419;
+  }
+}
