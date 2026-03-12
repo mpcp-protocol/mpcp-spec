@@ -24,7 +24,7 @@ MPCP is not a settlement rail — it is the authorization layer above settlement
 - **Architecture** — [Authorization Chain](architecture/authorization-chain.md), [System Model](architecture/system-model.md), [Actors](architecture/actors.md), [Reference Flow](architecture/reference-flow.md)
 - **Protocol** — [MPCP Spec](protocol/mpcp.md), [Artifacts](protocol/artifacts.md), and artifact definitions (PolicyGrant, SBA, SPA, SettlementIntent, etc.)
 - **Guides** — [Build a Machine Wallet](guides/build-a-machine-wallet.md), [Fleet Payments](guides/fleet-payments.md), [Dispute Resolution](guides/dispute-resolution.md)
-- **Diagrams** — [Visual reference](diagrams/README.md)
+- **Diagrams** — [Visual reference](diagrams/)
 - **Roadmap** — [Implementation roadmap](roadmap.md)
 
 ## Reference Implementation

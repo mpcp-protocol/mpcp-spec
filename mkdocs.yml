@@ -30,6 +30,7 @@ nav:
   - Home: index.md
   - Overview:
     - What is MPCP: overview/what-is-mpcp.md
+    - Problem: overview/problem.md
     - Problem Statement: overview/problem-statement.md
     - Design Goals: overview/design-goals.md
     - Comparison: overview/comparison-with-agent-protocols.md
@@ -56,7 +57,7 @@ nav:
     - Build a Machine Wallet: guides/build-a-machine-wallet.md
     - Fleet Payments: guides/fleet-payments.md
     - Dispute Resolution: guides/dispute-resolution.md
-  - Diagrams: diagrams/README.md
+  - Diagrams: diagrams/index.md
   - Roadmap: roadmap.md
 
 markdown_extensions:
