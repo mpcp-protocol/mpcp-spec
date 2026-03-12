@@ -16,9 +16,9 @@ extra:
 theme:
   name: material
   palette:
-    - scheme: default
-      primary: slate
-      accent: indigo
+    - scheme: slate
+      primary: blue
+      accent: blue
   features:
     - navigation.sections
     - navigation.expand
