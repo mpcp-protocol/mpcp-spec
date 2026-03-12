@@ -1,0 +1,65 @@
+# MkDocs config for MPCP Specification
+# Built and deployed under /spec at mpcp-protocol.github.io
+site_name: MPCP Spec
+site_description: Machine Payment Control Protocol — specification
+site_url: https://mpcp-protocol.github.io/spec/
+repo_url: https://github.com/mpcp-protocol/mpcp-spec
+repo_name: mpcp-spec
+edit_uri: edit/main/docs/
+
+plugins:
+  - search
+
+extra:
+  protocol_version: "MPCP 1.0"
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: slate
+      accent: indigo
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Overview:
+    - What is MPCP: overview/what-is-mpcp.md
+    - Problem Statement: overview/problem-statement.md
+    - Design Goals: overview/design-goals.md
+    - Comparison: overview/comparison-with-agent-protocols.md
+  - Architecture:
+    - System Model: architecture/system-model.md
+    - Actors: architecture/actors.md
+    - Authorization Chain: architecture/authorization-chain.md
+    - Reference Flow: architecture/reference-flow.md
+    - Artifact Lifecycle: architecture/artifact-lifecycle.md
+  - Protocol:
+    - MPCP: protocol/mpcp.md
+    - Artifacts: protocol/artifacts.md
+    - Hashing: protocol/hashing.md
+    - Verification: protocol/verification.md
+    - Anchoring: protocol/anchoring.md
+    - PolicyGrant: protocol/PolicyGrant.md
+    - SBA: protocol/SignedBudgetAuthorization.md
+    - SPA: protocol/SignedPaymentAuthorization.md
+    - SettlementIntent: protocol/SettlementIntent.md
+    - SettlementIntentHash: protocol/SettlementIntentHash.md
+    - FleetPolicyAuthorization: protocol/FleetPolicyAuthorization.md
+    - ArtifactBundle: protocol/ArtifactBundle.md
+  - Guides:
+    - Build a Machine Wallet: guides/build-a-machine-wallet.md
+    - Fleet Payments: guides/fleet-payments.md
+    - Dispute Resolution: guides/dispute-resolution.md
+  - Diagrams: diagrams/README.md
+  - Roadmap: roadmap.md
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - pymdownx.superfences
