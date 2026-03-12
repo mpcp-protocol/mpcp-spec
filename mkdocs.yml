@@ -23,10 +23,13 @@ theme:
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.tabs
     - search.highlight
     - content.code.copy
 
 nav:
+  - MPCP: https://mpcp-protocol.github.io/
+  - Reference: https://mpcp-protocol.github.io/reference/
   - Home: index.md
   - Overview:
     - What is MPCP: overview/what-is-mpcp.md
