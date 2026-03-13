@@ -38,32 +38,29 @@ Examples:
 - delivery fleet
 - autonomous logistics fleet
 
-In this reference flow, the fleet operator is identified by an **XRPL DID** and issues fleet charging policy credentials signed under that DID.
+In this reference flow, the fleet operator issues signed PolicyGrant artifacts. Optionally, the fleet operator may be identified by an **XRPL DID** for portable issuer identity.
 
 ## Identity & Credential Layer
 
-This scenario assumes an optional **identity and credential layer** based on:
+This scenario optionally uses an **identity and credential layer** for issuer key discovery.
 
-- XRPL DID
-- Verifiable Credentials (VCs)
+The **baseline key resolution mechanism** is HTTPS well-known:
 
-In this model:
+```
+https://{issuerDomain}/.well-known/mpcp-keys.json
+```
 
-- the fleet operator has a DID
-- the charging network operator has a DID
-- the vehicle wallet may have its own DID
-- selected MPCP policy artifacts may be issued as VCs
+This allows any MPCP verifier to look up the issuer's public key using a stable HTTPS URL without any dependency on DID infrastructure.
 
-MPCP remains the **runtime payment authorization protocol**.
+An optional **DID/VC layer** may supplement this in deployments that require:
 
-DIDs and VCs provide:
+- portable issuer identity across organizations
+- verifiable credential metadata
+- decentralized key discovery via XRPL DID or similar
 
-- issuer identity
-- public key discovery
-- portable trust metadata
-- credential verification across organizations
+DIDs and VCs do **not** replace MPCP artifacts such as `SignedBudgetAuthorization`, `SignedPaymentAuthorization`, or `SettlementIntent`.
 
-They do **not** replace MPCP artifacts such as `SignedBudgetAuthorization`, `SignedPaymentAuthorization`, or `SettlementIntent`.
+MPCP remains the **runtime payment authorization protocol** regardless of which key resolution method is used.
 
 ## Vehicle Wallet
 
@@ -78,6 +75,11 @@ The wallet is the MPCP actor that signs:
 
 - SignedBudgetAuthorization (SBA)
 - SignedPaymentAuthorization (SPA)
+
+In this autonomous deployment model, the vehicle wallet **embeds both the session authority and the payment decision service roles**:
+
+- **session authority**: creates and signs the SBA, defining the session-level budget and permitted destinations
+- **payment decision service**: evaluates each quote against the policy, assigns a `decisionId`, and signs the SPA
 
 ---
 
@@ -116,9 +118,11 @@ The physical charger interacting with the EV.
 
 Responsibilities:
 
-- request payment authorization
-- verify MPCP artifact chain
-- begin charging once verification passes
+- request payment authorization from the vehicle
+- relay the authorization bundle to the operator backend
+- begin energy delivery once the operator backend confirms verification
+
+Note: MPCP artifact verification is performed by the **Charging Operator Backend**, not the physical station. The station acts as a relay and executes the outcome (begin or deny charging) based on the backend's decision.
 
 ---
 
@@ -183,7 +187,7 @@ Allowed charging hours:
 
 This policy is translated into a **PolicyGrant** artifact.
 
-In this DID/VC-enabled version of the flow, the PolicyGrant is issued as an MPCP-native policy artifact that may also be wrapped or represented as a **Verifiable Credential**.
+The PolicyGrant is issued as an MPCP-native policy artifact. In deployments using the optional DID/VC layer, it may also be wrapped or represented as a **Verifiable Credential**.
 
 This allows the EV wallet and charging infrastructure to verify:
 
@@ -200,9 +204,8 @@ The EV charging flow uses the following MPCP artifacts.
 | Artifact | Issued By | Purpose |
 |--------|--------|--------|
 | PolicyGrant | Fleet policy service | Defines global payment constraints |
-| PolicyGrant VC (optional) | Fleet policy service | Encodes issuer identity and verifiable policy metadata |
-| SignedBudgetAuthorization | Vehicle wallet | Defines session‑level spending limits |
-| SignedPaymentAuthorization | Vehicle wallet | Authorizes a specific payment |
+| SignedBudgetAuthorization | Vehicle wallet (session authority role) | Defines session‑level spending limits |
+| SignedPaymentAuthorization | Vehicle wallet (payment decision service role) | Authorizes a specific payment |
 | SettlementIntent | Vehicle wallet | Defines settlement parameters |
 | Settlement Result | Settlement rail | Confirms payment execution |
 
@@ -235,25 +238,31 @@ Vehicle Wallet
         │ 5. Validate policy
         │ 6. Create SignedBudgetAuthorization
         │ 7. Create SettlementIntent
-        │ 8. Create SignedPaymentAuthorization
+        │ 8. Apply payment decision logic
+        │    Create SignedPaymentAuthorization
         ▼
-Charging Station / Operator Backend
+Charging Operator Backend
         │
         │ 9. Verify MPCP artifact chain
         │
-        │   - resolve issuer DID
+        │   - resolve issuer public keys
+        │     (HTTPS well-known or DID)
         │   - verify PolicyGrant
         │   - verify SignedBudgetAuthorization
         │   - verify SPA
         │
         ▼
+Charging Station
+        │
+        │ 10. Begin energy delivery
+        ▼
 Vehicle Wallet
         │
-        │ 10. Submit payment to XRPL / settlement rail
+        │ 11. Submit payment to XRPL / settlement rail
         ▼
 Charging Operator Backend
         │
-        │ 11. Verify settlement tx
+        │ 12. Verify settlement tx
         │     Bind tx to decisionId
         │     Mark authorization consumed
         │     Store audit bundle
@@ -275,7 +284,6 @@ The following table summarizes **where each artifact typically resides**.
 | Artifact | Fleet Backend | Vehicle Wallet | Charging Operator | Settlement Rail |
 |---|---|---|---|---|
 | PolicyGrant | Authoritative copy | Operational copy | Optional reference | — |
-| PolicyGrant VC | Optional | Optional | Optional | — |
 | SignedBudgetAuthorization | Optional audit | Active session artifact | Received during authorization | — |
 | SignedPaymentAuthorization | Optional audit | Created and signed | Received and verified | — |
 | SettlementIntent | Optional audit | Runtime artifact | Optional (for verification) | — |
@@ -292,7 +300,7 @@ This matrix helps implementers understand **where artifacts should be persisted 
 Issued by:
 
 ```
-Fleet Policy Service (identified by XRPL DID)
+Fleet Policy Service
 ```
 
 Contains:
@@ -323,22 +331,25 @@ A PolicyGrant is a **signed JSON authorization artifact** issued by the fleet op
 
 It is **not an NFT and does not require a blockchain token**. MPCP treats the PolicyGrant as a verifiable authorization credential that can be validated using the fleet operator's public key.
 
-In this reference flow, the fleet operator is identified by an **XRPL DID**.
-
-Example issuer:
+Example issuer key identifiers:
 
 ```
+issuer: fleet-operator.example.com          (baseline: HTTPS well-known)
+issuerKeyId: fleet-policy-key-1
+
+-- or with DID (optional) --
+
 issuer: did:xrpl:rFleetOperator...
 issuerKeyId: did:xrpl:rFleetOperator...#key-1
 ```
 
-The EV wallet resolves the fleet DID to obtain the current public verification key.
+The EV wallet resolves the public verification key using the baseline HTTPS well-known endpoint, or optionally via DID resolution.
 
 Verification model:
 
 ```
-resolve DID
-↓
+resolve issuerKeyId
+↓ (via HTTPS well-known or DID)
 get issuer public key
 ↓
 verify signature on PolicyGrant
@@ -346,29 +357,23 @@ verify signature on PolicyGrant
 
 This allows the EV wallet to confirm that the policy was issued by an authorized fleet authority.
 
-Example structure:
+Example `PolicyGrant` structure:
 
-```
+```json
 {
-  "artifact": "PolicyGrant",
-  "version": "1.0",
   "grantId": "pg-983745",
-  "issuer": "did:xrpl:rFleetOperator...",
-  "issuerKeyId": "did:xrpl:rFleetOperator...#key-1",
+  "policyHash": "abc123...",
   "allowedRails": ["xrpl"],
   "allowedAssets": [
     { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
   ],
-  "vendorAllowlist": ["ChargeNet","FastVolt"],
-  "capPerSessionMinor": "2500",
-  "capPerDayMinor": "8000",
-  "expiresAt": "2026-03-13T23:59:00Z",
-  "policyHash": "abc123...",
-  "signature": "ed25519:..."
+  "expiresAt": "2026-03-13T23:59:00Z"
 }
 ```
 
-A VC representation may also be used for issuer portability.
+The `issuer`, `issuerKeyId`, and `signature` fields belong to the **signed envelope** that wraps the grant payload, not the grant itself.
+
+A VC representation may also be used for issuer portability in DID/VC-enabled deployments.
 
 Example conceptual VC envelope:
 
@@ -622,20 +627,22 @@ Vehicle checks:
 - asset is allowed
 - amount fits session budget
 - amount fits daily limit
-- fleet issuer DID resolves correctly
-- policy credential signature verifies successfully
+- policy issuer public key resolves (via HTTPS well-known, or DID if configured)
+- PolicyGrant signature verifies successfully
 
 ---
 
 ## T+15s — Budget Authorization
 
-Vehicle creates or loads an active **SignedBudgetAuthorization**.
+The vehicle wallet **creates** a fresh `SignedBudgetAuthorization` for this session (or **loads** an existing one if this session is already active).
 
 Example:
 
 ```
-maxAmount: $25
+maxAmountMinor: 2500   (USD, minor units)
+budgetScope: SESSION
 session: charging-session-847
+grantId: pg-983745
 ```
 
 ---
@@ -647,7 +654,7 @@ Vehicle constructs a **SettlementIntent**:
 ```
 rail: XRPL
 asset: RLUSD
-amount: 7.80
+amount: 780000   (atomic units, 6 decimal places = 0.78 RLUSD)
 destination: ChargeNet account
 ```
 
@@ -655,15 +662,20 @@ An **intentHash** may be generated.
 
 ---
 
-## T+22s — Payment Authorization
+## T+22s — Payment Decision and Authorization
 
-Vehicle signs a **SignedPaymentAuthorization**.
+The vehicle wallet's payment decision logic evaluates the quote:
 
-This authorization binds:
+- confirms the destination is on the SBA `destinationAllowlist`
+- confirms the amount fits within the session budget
+- assigns a `decisionId` and links it to the `quoteId`
 
-- session ID
-- settlement parameters
-- optional intent hash
+The wallet then signs a **SignedPaymentAuthorization** (SPA) binding:
+
+- `decisionId` and `quoteId`
+- session ID and budget ID
+- settlement parameters (rail, asset, amount, destination)
+- optional `intentHash` (SHA-256 of the SettlementIntent)
 
 ---
 
@@ -678,22 +690,26 @@ The charger receives:
 
 ---
 
-## T+27s — Charger Verification
+## T+27s — Charging Operator Verification
 
-Charging network verifies:
+The **charging operator backend** verifies:
 
-1. fleet issuer DID resolves correctly
-2. PolicyGrant or PolicyGrant VC is valid
-3. SignedBudgetAuthorization is valid
+1. issuer public key resolves (via HTTPS well-known, or DID if configured)
+2. PolicyGrant is valid and not expired
+3. SignedBudgetAuthorization signature and constraints are valid
 4. SPA signature is valid
 5. SPA parameters match the quote
-6. settlement parameters match allowed policy
+6. settlement parameters match the allowed policy
 
-If verification passes:
+If verification passes, the backend signals the physical charging station to begin.
 
-```
-Charging session begins
-```
+---
+
+## T+30s — Energy Delivery Begins
+
+The charging station begins delivering energy to the vehicle.
+
+The payment is pre-authorized and will be settled at session end.
 
 ---
 
@@ -764,44 +780,48 @@ Charging operator backend then:
 
 Verification happens in several places.
 
-## Trust Model and DID Resolution
+## Key Resolution and Trust Model
 
-When XRPL DID integration is used, MPCP verification includes **issuer identity validation**.
+MPCP verifiers must resolve the issuer's public key to verify signed artifacts.
 
-Typical resolution process:
+**Baseline mechanism — HTTPS well-known:**
 
 ```
-PolicyGrant issuer DID
+https://{issuerDomain}/.well-known/mpcp-keys.json
+```
+
+The verifier fetches the key document and looks up the key by `issuerKeyId`.
+
+**Optional — DID resolution:**
+
+```
+issuerKeyId (DID URL fragment)
       ↓
 DID resolver
       ↓
-XRPL DID document
+DID document
       ↓
-public verification keys
+public verification key
 ```
 
-The verifier then confirms:
+When `issuerKeyId` is a DID URL fragment, the verifier may use DID resolution instead of or in addition to HTTPS well-known.
 
-- the DID document is valid
-- the referenced verification key exists
-- the PolicyGrant signature matches that key
+The verifier confirms:
 
-This allows the charging operator to confirm that:
+- the signing key matches the `issuerKeyId` declared in the artifact
+- the artifact signature is valid under that key
 
-- the fleet operator actually issued the policy
-- the authorization chain originates from a trusted authority
-
-If DID resolution fails, the charging operator should treat the PolicyGrant as **untrusted** and reject the authorization.
+If the key cannot be resolved by any available method, the authorization should be rejected as **unverifiable**.
 
 ## Vehicle Verification
 
 Before authorizing payment:
 
-- vendor allowed
-- station allowed
-- destination allowed
-- budget sufficient
-- quote valid
+- destination is on the SBA `destinationAllowlist`
+- settlement rail and asset are allowed
+- amount is within session budget
+- quote has not expired
+- PolicyGrant signature is valid
 
 ---
 
@@ -809,11 +829,11 @@ Before authorizing payment:
 
 Before charging begins:
 
-- issuer DID resolves and credential proof is valid
-- PolicyGrant valid
-- SignedBudgetAuthorization valid
+- issuer public key resolved and PolicyGrant signature is valid
+- PolicyGrant not expired and constraints match
+- SignedBudgetAuthorization signature and constraints are valid
 - SPA signature valid
-- payment parameters match quote
+- payment parameters match the quote
 - authorization not expired
 
 ---
@@ -823,7 +843,6 @@ Before charging begins:
 After settlement:
 
 - settlement matches authorization
-- station vendor allowed
 - policy constraints respected
 - budgets not exceeded
 
@@ -860,14 +879,13 @@ Verifier flags payment as invalid.
 For audit or dispute resolution, the following bundle may be stored:
 
 - PolicyGrant
-- optional PolicyGrant VC
-- issuer DID metadata or resolution record
 - SignedBudgetAuthorization
 - SignedPaymentAuthorization
 - SettlementIntent
 - charging quote metadata
 - settlement receipt
-- optional intent anchor
+- optional intent anchor (ledger hash for tamper-detection)
+- optional issuer DID resolution record (when DID/VC layer is used)
 
 This bundle allows full replay of the authorization chain.
 
@@ -879,73 +897,41 @@ The following example shows the kind of **self-contained authorization bundle** 
 
 This example is intentionally simplified, but it illustrates how the full MPCP chain may be packaged.
 
-> Note: The example below uses display-friendly amounts (e.g., "7.80") for readability.  
-> Real MPCP artifacts typically encode amounts in atomic units.
+> Note: Amounts are encoded in atomic units. For example, `"780000"` represents 0.78 RLUSD with 6 decimal places, consistent with XRPL IOU conventions.
 
 ```json
 {
-  "bundleType": "MPCPChargingAuthorizationBundle",
-  "version": "1.0",
-
-  "issuerDid": "did:xrpl:rFleetOperator...",
-  "vehicleDid": "did:xrpl:rVehicleWallet...",
-  "chargingOperatorDid": "did:xrpl:rChargeNet...",
-
   "policyGrant": {
-    "artifact": "PolicyGrant",
-    "version": "1.0",
     "grantId": "pg-983745",
-    "issuer": "did:xrpl:rFleetOperator...",
-    "issuerKeyId": "did:xrpl:rFleetOperator...#key-1",
+    "policyHash": "abc123...",
     "allowedRails": ["xrpl"],
     "allowedAssets": [
       { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
     ],
-    "vendorAllowlist": ["ChargeNet", "FastVolt"],
-    "capPerSessionMinor": "2500",
-    "capPerDayMinor": "8000",
-    "expiresAt": "2026-03-13T23:59:00Z",
-    "policyHash": "abc123...",
-    "signature": "ed25519:..."
+    "expiresAt": "2026-03-13T23:59:00Z"
   },
 
-  "policyGrantVc": {
-    "@context": ["https://www.w3.org/2018/credentials/v1"],
-    "type": ["VerifiableCredential", "MPCPPolicyGrant"],
-    "issuer": "did:xrpl:rFleetOperator...",
-    "issuanceDate": "2026-03-12T00:00:00Z",
-    "expirationDate": "2026-03-13T23:59:00Z",
-    "credentialSubject": {
+  "sba": {
+    "authorization": {
+      "version": "1.0",
+      "budgetId": "bud-session-847",
+      "grantId": "pg-983745",
+      "sessionId": "charging-session-847",
       "vehicleId": "EV-847",
       "policyHash": "abc123...",
+      "currency": "USD",
+      "minorUnit": 2,
+      "budgetScope": "SESSION",
+      "maxAmountMinor": "2500",
       "allowedRails": ["xrpl"],
-      "vendorAllowlist": ["ChargeNet", "FastVolt"],
-      "capPerSessionMinor": "2500"
+      "allowedAssets": [
+        { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
+      ],
+      "destinationAllowlist": ["rChargeNetDestination"],
+      "expiresAt": "2026-03-12T15:00:00Z"
     },
-    "proof": {
-      "type": "Ed25519Signature2020",
-      "verificationMethod": "did:xrpl:rFleetOperator...#key-1",
-      "signature": "..."
-    }
-  },
-
-  "signedBudgetAuthorization": {
-    "artifact": "SignedBudgetAuthorization",
-    "issuer": "did:xrpl:rVehicleWallet...",
-    "issuerKeyId": "did:xrpl:rVehicleWallet...#key-1",
-    "version": "1.0",
-    "sessionId": "charging-session-847",
-    "vehicleId": "EV-847",
-    "policyHash": "abc123...",
-    "currency": "USD",
-    "maxAmountMinor": "2500",
-    "allowedRails": ["xrpl"],
-    "allowedAssets": [
-      { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
-    ],
-    "destinationAllowlist": ["rChargeNetDestination"],
-    "expiresAt": "2026-03-12T15:00:00Z",
-    "signature": "ed25519:..."
+    "issuerKeyId": "mpcp-sba-signing-key-1",
+    "signature": "base64encodedSignature..."
   },
 
   "chargingQuote": {
@@ -955,96 +941,74 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
     "connectorId": "DC-FAST-2",
     "destination": "rChargeNetDestination",
     "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
-    "priceFiat": {
-      "amountMinor": "780",
-      "currency": "USD"
-    },
+    "amount": { "amount": "780000", "decimals": 6 },
+    "priceFiat": { "amountMinor": "780", "currency": "USD" },
     "expiresAt": "2026-03-12T14:35:00Z"
   },
 
   "settlementIntent": {
-    "artifact": "SettlementIntent",
     "version": "1.0",
     "rail": "xrpl",
-    "amount": "7.80",
+    "amount": "780000",
     "destination": "rChargeNetDestination",
     "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
     "createdAt": "2026-03-12T14:30:20Z"
   },
 
-  "signedPaymentAuthorization": {
-    "artifact": "SignedPaymentAuthorization",
-    "issuer": "did:xrpl:rVehicleWallet...",
-    "issuerKeyId": "did:xrpl:rVehicleWallet...#key-1",
-    "version": "1.0",
-    "sessionId": "charging-session-847",
-    "decisionId": "dec-9001",
-    "intentHash": "intenthash123...",
-    "settlement": {
+  "spa": {
+    "authorization": {
+      "version": "1.0",
+      "decisionId": "dec-9001",
+      "sessionId": "charging-session-847",
+      "policyHash": "abc123...",
+      "budgetId": "bud-session-847",
+      "quoteId": "quote-4421",
       "rail": "xrpl",
+      "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
+      "amount": "780000",
       "destination": "rChargeNetDestination",
-      "amount": "7.80",
-      "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
+      "intentHash": "sha256ofSettlementIntent...",
+      "expiresAt": "2026-03-12T14:35:00Z"
     },
-    "signature": "ed25519:..."
+    "issuerKeyId": "mpcp-spa-signing-key-1",
+    "signature": "base64encodedSignature..."
   },
 
-  "settlementResult": {
+  "settlement": {
     "rail": "xrpl",
-    "txHash": "ABCDEF123456...",
-    "amount": "7.80",
-    "destination": "rChargeNetDestination",
+    "amount": "780000",
     "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
+    "destination": "rChargeNetDestination",
     "nowISO": "2026-03-12T14:31:10Z"
-  },
-
-  "intentAnchor": {
-    "rail": "hedera-hcs",
-    "topicId": "0.0.123456",
-    "sequenceNumber": "88",
-    "intentHash": "intenthash123...",
-    "anchoredAt": "2026-03-12T14:30:25Z"
-  },
-
-  "verificationMaterial": {
-    "fleetDidResolution": {
-      "did": "did:xrpl:rFleetOperator...",
-      "resolvedAt": "2026-03-12T14:30:21Z",
-      "verificationMethod": "did:xrpl:rFleetOperator...#key-1"
-    },
-    "chargingOperatorDidResolution": {
-      "did": "did:xrpl:rChargeNet...",
-      "resolvedAt": "2026-03-12T14:30:23Z",
-      "verificationMethod": "did:xrpl:rChargeNet...#key-1"
-    },
-    "vehicleDidResolution": {
-      "did": "did:xrpl:rVehicleWallet...",
-      "resolvedAt": "2026-03-12T14:30:22Z",
-      "verificationMethod": "did:xrpl:rVehicleWallet...#key-1"
-    }
   }
 }
 ```
 
 ## Notes on the Example Bundle
 
-This bundle illustrates several important modeling choices:
+This bundle illustrates the canonical MPCP artifact structure:
 
-- the **canonical MPCP artifacts** remain the primary runtime objects
-- the `policyGrantVc` is optional and exists to carry issuer identity and trust metadata
-- DID resolution metadata for the fleet issuer, vehicle wallet, and charging operator may be stored alongside the bundle to support later audit or dispute replay
-- the `chargingQuote` is not itself an MPCP artifact, but it is operationally important because the charging operator must verify that the SPA matches the quote
-- the `intentAnchor` is optional and provides additional auditability without changing the core MPCP authorization chain
+- `policyGrant` contains only the MPCP-native grant fields (`grantId`, `policyHash`, `allowedRails`, `allowedAssets`, `expiresAt`)
+- `sba` uses the signed envelope format: `{ authorization: {...}, issuerKeyId, signature }` — the `authorization` object is what gets hashed and signed
+- `spa` uses the same signed envelope format; `authorization.budgetId` links to `sba.authorization.budgetId`; `authorization.grantId` in the SBA links to `policyGrant.grantId`
+- `chargingQuote` is not an MPCP artifact but is operationally important — the operator must verify that the SPA `amount` and `destination` match the quote
+- amounts are encoded in atomic units (e.g., `"780000"` for 0.78 RLUSD with 6 decimal places)
+- `settlement` records what was actually submitted to the settlement rail; the operator verifies it matches the SPA
 
 In a production deployment, the exact bundle shape may vary, but it should preserve the same key property:
 
 **a verifier must be able to reconstruct and validate the full authorization chain from policy issuance to settlement.**
 
+Optional additions (not shown above):
+- `issuer` field on `sba` or `spa` envelopes (HTTPS domain or DID for key discovery)
+- intent anchor (ledger hash of the `settlementIntent`)
+- DID resolution records (when DID/VC layer is used)
+
 # Summary
 
 This scenario demonstrates how MPCP enables **safe autonomous charging payments**.
 
-In this version of the flow, MPCP authorization can be anchored in a portable trust model using **XRPL DID** and optional **Verifiable Credentials**, while keeping runtime payment control artifacts lightweight and MPCP-native.
+Runtime payment control artifacts remain lightweight and MPCP-native. Key resolution uses HTTPS well-known as the baseline, with optional DID/VC support for deployments that require portable issuer identity or verifiable credential metadata.
 
 Infrastructure can answer the critical question:
 
