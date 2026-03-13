@@ -76,6 +76,103 @@ Intent commitments can optionally be anchored to a public ledger for additional 
 
 ---
 
+## Identity and Credentials
+
+MPCP verification is identity-agnostic.
+
+The protocol verifies authorization through cryptographic signatures on MPCP artifacts
+(PolicyGrant → BudgetAuthorization → PaymentAuthorization → SettlementIntent).
+
+Deployments MAY associate MPCP keys with decentralized identifiers (DIDs) or
+Verifiable Credentials (VCs) to bind artifacts to real-world entities such as
+fleet operators, charging networks, or infrastructure providers.
+
+However, MPCP verification itself requires only artifact validation and signature
+verification. DID resolution or VC verification is optional and outside the core
+protocol.
+
+---
+
+---
+
+# Artifact Issuance and Signature Verification
+
+Each MPCP artifact is created and signed by a specific authority responsible for that stage of the authorization pipeline.
+
+The protocol requires that every artifact signature be independently verifiable using the public key of the issuing authority.
+
+This ensures that authorization can be validated without contacting the original issuer.
+
+## Artifact Authority Model
+
+The MPCP artifact pipeline assigns responsibility for creation and signing as follows:
+
+| Artifact | Created By | Signed By | Verified By |
+|--------|-------------|-----------|-------------|
+| PolicyGrant | Policy engine / operator system | Policy authority key | Machine wallet / verifier |
+| SignedBudgetAuthorization (SBA) | Session authority (fleet or operator backend) | Budget authorization key | Machine wallet / verifier |
+| SignedPaymentAuthorization (SPA) | Payment decision service | Payment authorization key | Machine wallet / verifier |
+| SettlementIntent | Wallet or payment execution service | (not signed — canonical payload) | Verifier |
+| IntentCommitment (optional) | Attestation service | (not signed — hash-derived artifact; may be anchored or attested externally) | External verifiers |
+
+Each artifact constrains the parameters of the next stage in the protocol.
+
+## Authority Domains
+
+MPCP separates authority across multiple domains to reduce risk and improve auditability.
+
+Typical deployments may use the following signing authorities:
+
+| Authority | Example Owner |
+|-----------|---------------|
+| Policy authority | fleet operator or infrastructure provider |
+| Budget authority | fleet backend or session controller |
+| Payment authorization authority | charging station operator or payment service |
+| Wallet key | machine wallet or embedded secure element |
+
+No single key is required to control the entire payment pipeline.
+
+## Signature Verification Requirements
+
+Implementations MUST verify signatures for the following artifacts:
+
+- PolicyGrant
+- SignedBudgetAuthorization
+- SignedPaymentAuthorization
+
+Signature verification MUST confirm:
+
+- payload integrity
+- signature validity
+- that the signer is an authorized issuer for the artifact
+
+Public keys MAY be distributed through several mechanisms including:
+
+- configuration registries
+- decentralized identifiers (DIDs)
+- verifiable credentials (VCs)
+- trusted infrastructure directories
+
+However, MPCP verification itself only requires that the correct public key be available to validate the signature.
+
+## Verification Chain
+
+The authorization chain verified during settlement is:
+
+PolicyGrant.signature
+↓
+SignedBudgetAuthorization.signature
+↓
+SignedPaymentAuthorization.signature
+↓
+SettlementIntentHash
+↓
+Settlement Transaction
+
+Each stage constrains the next stage and ensures that settlement parameters cannot be modified without invalidating the authorization chain.
+
+---
+
 # Protocol Versioning & Compatibility
 
 ## Version Field
@@ -230,9 +327,9 @@ SHA256("MPCP:SettlementIntent:1.0:" || canonical_json(canonicalPayload))
 
 The MPCP pipeline produces a series of structured artifacts. Each artifact constrains the next stage of the protocol and can be independently verified.
 
-### PolicyGrant
+### PolicyGrant (signed by policy authority)
 
-The **PolicyGrant** represents the admission of a machine into a controlled payment context.
+The **PolicyGrant** represents the admission of a machine into a controlled payment context. It is signed by the policy authority; verifiers resolve the public key using `issuer` and `issuerKeyId`.
 
 Example structure:
 
@@ -246,17 +343,20 @@ Example structure:
   "allowedRails": ["xrpl"],
   "allowedAssets": ["RLUSD"],
   "policyHash": "sha256(...)",
-  "expiresAt": "2026-03-08T14:00:00Z"
+  "expiresAt": "2026-03-08T14:00:00Z",
+  "issuer": "did:web:operator.example.com",
+  "issuerKeyId": "policy-auth-key-1",
+  "signature": "..."
 }
 ```
 
-The PolicyGrant defines the operational scope in which further authorizations may be issued.
+The PolicyGrant defines the operational scope in which further authorizations may be issued. **Who signed:** policy authority (identified by `issuer`). **Which key:** `issuerKeyId` selects the signing key. **Verification:** resolve `policyAuthorityPublicKey` from `issuer` + `issuerKeyId` (config, DID, or registry), then verify `signature` over the canonical payload (all fields except `signature`).
 
 ---
 
-### SignedBudgetAuthorization (SBA)
+### SignedBudgetAuthorization (SBA) (signed by budget authority)
 
-The **SignedBudgetAuthorization (SBA)** establishes the maximum spending envelope available to the machine.
+The **SignedBudgetAuthorization (SBA)** establishes the maximum spending envelope available to the machine. It is signed by the budget (session) authority; verifiers resolve the public key using SBA issuer fields or deployment configuration.
 
 Example structure:
 
@@ -278,13 +378,13 @@ Example structure:
 }
 ```
 
-The SBA ensures that spending remains within defined limits.
+The SBA ensures that spending remains within defined limits. Verification uses `budgetAuthorizationPublicKey` (resolved from issuer fields or config).
 
 ---
 
-### SignedPaymentAuthorization (SPA)
+### SignedPaymentAuthorization (SPA) (signed by payment authorization authority)
 
-The **SignedPaymentAuthorization (SPA)** authorizes a specific settlement transaction.
+The **SignedPaymentAuthorization (SPA)** authorizes a specific settlement transaction. It is signed by the payment authorization authority; verifiers resolve `paymentAuthorizationPublicKey` to verify the signature.
 
 Example structure:
 
@@ -312,9 +412,9 @@ The SPA binds the authorized payment parameters and optionally includes an `inte
 
 ---
 
-### SettlementIntent
+### SettlementIntent (not signed — canonical payload)
 
-A **SettlementIntent** describes the canonical form of the transaction that the machine wallet must execute.
+A **SettlementIntent** describes the canonical form of the transaction that the machine wallet must execute. It is not signed; verification uses the `intentHash` binding in the SPA.
 
 Example structure:
 
@@ -337,9 +437,9 @@ This structure is used to compute the `intentHash`.
 
 ---
 
-### IntentCommitment
+### IntentCommitment (hash-derived; not signed)
 
-An **IntentCommitment** represents the hashed commitment of the settlement intent.
+An **IntentCommitment** represents the hashed commitment of the settlement intent. It is not a signed artifact; any attestation or anchor signature applies to the batch or ledger inclusion, not the commitment object itself.
 
 Example:
 
@@ -405,6 +505,8 @@ These relationships ensure that each stage of MPCP cryptographically and logical
 
 Before accepting settlement, the system verifies:
 
+- PolicyGrant signature validity
+- SBA signature validity
 - SPA signature validity
 - policy hash consistency
 - asset match
@@ -419,19 +521,25 @@ Before accepting settlement, the system verifies:
 
 An MPCP verifier MUST perform the following steps before accepting settlement.
 
-### Step 1 — Verify SPA Signature
+### Step 0 — Verify Authorization Artifact Signatures
 
-Verify the cryptographic signature on the **SignedPaymentAuthorization (SPA)**.
+Verify the cryptographic signatures on all signed authorization artifacts. Resolve the public key for each authority using artifact issuer fields or deployment configuration. Use the artifact-specific key:
+
+- **PolicyGrant** — Resolve `policyAuthorityPublicKey` using `grant.issuer` and `grant.issuerKeyId` (e.g. from configuration, DID resolution, or a registry). Compute the signed payload as the canonical JSON of all grant fields except `signature`.
+- **SignedBudgetAuthorization (SBA)** — Resolve `budgetAuthorizationPublicKey` using the SBA issuer fields (if present) or deployment configuration. Compute the signed payload as the canonical JSON of all SBA fields except `signature`.
+- **SignedPaymentAuthorization (SPA)** — Resolve `paymentAuthorizationPublicKey`. Compute the signed payload and verify `spa.signature` against it.
 
 ```text
-verify_signature(spa.signature, spa.payload, policyAuthorityPublicKey)
+verify_signature(grant.signature, canonical_payload(grant), policyAuthorityPublicKey)
+verify_signature(sba.signature, canonical_payload(sba), budgetAuthorizationPublicKey)
+verify_signature(spa.signature, canonical_payload(spa), paymentAuthorizationPublicKey)
 ```
 
-If signature verification fails → **reject settlement**.
+If any signature verification fails → **reject settlement**.
 
 ---
 
-### Step 2 — Verify Grant and Budget Lineage
+### Step 1 — Verify Grant and Budget Lineage
 
 Ensure that the authorization chain is valid.
 
@@ -450,7 +558,7 @@ If lineage is invalid → **reject settlement**.
 
 ---
 
-### Step 3 — Verify Policy Constraints
+### Step 2 — Verify Policy Constraints
 
 Confirm the settlement parameters match the authorized constraints.
 
@@ -466,7 +574,7 @@ If any constraint fails → **reject settlement**.
 
 ---
 
-### Step 4 — Verify Intent Binding (Optional)
+### Step 3 — Verify Intent Binding (Optional)
 
 If the SPA contains an `intentHash`, the verifier must reconstruct the canonical payload (subset of intent fields) and compare hashes.
 
@@ -484,7 +592,7 @@ If mismatch → **reject settlement**.
 
 ---
 
-### Step 5 — Verify Expiration
+### Step 4 — Verify Expiration
 
 Check expiration fields:
 
@@ -496,7 +604,7 @@ If any artifact is expired → **reject settlement**.
 
 ---
 
-### Step 6 — Verify Settlement Transaction
+### Step 5 — Verify Settlement Transaction
 
 Extract parameters from the executed settlement transaction and confirm they match the SPA.
 
@@ -511,7 +619,7 @@ If settlement parameters differ from SPA → **reject settlement**.
 
 ---
 
-### Step 7 — Accept Settlement
+### Step 6 — Accept Settlement
 
 If all verification steps succeed:
 
@@ -745,9 +853,16 @@ All artifacts SHOULD be represented as UTF-8 JSON documents using the canonical 
   "allowedRails": ["xrpl"],
   "allowedAssets": ["RLUSD"],
   "policyHash": "sha256(...)",
-  "expiresAt": "2026-03-08T14:00:00Z"
+  "expiresAt": "2026-03-08T14:00:00Z",
+  "issuer": "did:web:operator.example.com",
+  "issuerKeyId": "policy-auth-key-1",
+  "signature": "..."
 }
 ```
+
+- `issuer` — Identifier for the policy authority (e.g. DID, domain, or registry ID). Verifiers use this to resolve the signing key.
+- `issuerKeyId` — Identifies the specific key used to sign (for deployments with multiple keys per issuer).
+- `signature` — Cryptographic signature over the canonical JSON of the grant payload (all fields except `signature`).
 
 ## SignedBudgetAuthorization Wire Format
 
@@ -836,8 +951,9 @@ Recommended codes:
 
 | Code | Meaning |
 |------|---------|
-| SPA_SIGNATURE_INVALID | SPA signature verification failed |
+| POLICY_GRANT_SIGNATURE_INVALID | PolicyGrant signature verification failed |
 | SBA_SIGNATURE_INVALID | SBA signature verification failed |
+| SPA_SIGNATURE_INVALID | SPA signature verification failed |
 | POLICY_GRANT_NOT_FOUND | Referenced PolicyGrant does not exist |
 | SBA_NOT_FOUND | Referenced SBA does not exist |
 | SPA_NOT_FOUND | Referenced SPA does not exist |
@@ -862,6 +978,8 @@ The following pseudocode illustrates a minimal verifier implementation.
 
 ```text
 function verifySettlement(grant, sba, spa, settlementTx):
+    verifySignature(grant)
+    verifySignature(sba)
     verifySignature(spa)
     verifyLineage(grant, sba, spa)
     verifyNotExpired(grant, sba, spa)
