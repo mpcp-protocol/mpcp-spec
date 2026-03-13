@@ -247,17 +247,16 @@ Charging Station / Operator Backend
         │   - verify SPA
         │
         ▼
-Charging Station
+Vehicle Wallet
         │
-        │ 10. Begin charging session
-        ▼
-Settlement Rail
-        │
-        │ 11. Execute payment
+        │ 10. Submit payment to XRPL / settlement rail
         ▼
 Charging Operator Backend
         │
-        │ 12. Store audit bundle
+        │ 11. Verify settlement tx
+        │     Bind tx to decisionId
+        │     Mark authorization consumed
+        │     Store audit bundle
 ```
 
 This diagram highlights the **separation of roles**:
@@ -712,16 +711,19 @@ Payment may be:
 
 ## T+Session End — Settlement
 
-Settlement occurs.
-
-Example:
+Vehicle wallet submits payment to the settlement rail:
 
 ```
 XRPL payment
 vehicle_wallet → ChargeNet account
 ```
 
-Settlement result is stored.
+Charging operator backend then:
+
+- verifies the settlement transaction
+- binds the tx to the `decisionId`
+- marks the authorization consumed
+- stores the audit bundle
 
 ---
 
