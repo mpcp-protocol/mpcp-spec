@@ -6,21 +6,14 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  deploy:
+  trigger-org-site:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - name: Install dependencies
-        run: pip install -r docs-requirements.txt
-
-      - name: Deploy to GitHub Pages
-        run: mkdocs gh-deploy --force
+      - name: Trigger org site rebuild
+        run: |
+          gh api repos/mpcp-protocol/mpcp-protocol.github.io/dispatches \
+            --method POST \
+            -f event_type=deploy-docs
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_PAT }}
