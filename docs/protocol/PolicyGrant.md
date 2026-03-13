@@ -17,7 +17,7 @@ The PolicyGrant defines the **initial permission envelope** for a session or pay
 
 PolicyGrant is typically produced by a policy engine during an **entry phase** when a machine, vehicle, or agent attempts to access a service.
 
-Unlike SBA and SPA, a PolicyGrant is usually **internal to the policy engine boundary** and may or may not be signed.
+The PolicyGrant is a **signed artifact**. It is signed by the policy authority; verifiers use `issuer` and `issuerKeyId` to resolve the policy authority public key for signature verification.
 
 ---
 
@@ -80,6 +80,9 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | expiresAt | string | yes | ISO 8601 expiration timestamp |
 | requireApproval | boolean | optional | Indicates that further approval is required before payment |
 | reasons | string[] | optional | Policy evaluation reasons |
+| issuer | string | yes | Identifier for the policy authority (e.g. DID, domain, or registry ID). Verifiers use this to resolve the signing key. |
+| issuerKeyId | string | yes | Identifies the specific key used to sign (for deployments with multiple keys per issuer). |
+| signature | string | yes | Cryptographic signature over the canonical JSON of the grant payload (all fields except `signature`). |
 
 ---
 
@@ -107,7 +110,10 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
   },
   "expiresAt": "2026-03-08T14:00:00Z",
   "requireApproval": false,
-  "reasons": ["OK"]
+  "reasons": ["OK"],
+  "issuer": "did:web:operator.example.com",
+  "issuerKeyId": "policy-auth-key-1",
+  "signature": "..."
 }
 ```
 
@@ -179,17 +185,18 @@ Implementations MUST ensure:
 
 ---
 
-## Signing (Optional)
+## Signing
 
-PolicyGrant is typically an **internal artifact** and does not require cryptographic signing.
+PolicyGrant MUST be cryptographically signed. The policy authority signs the grant; verifiers resolve `policyAuthorityPublicKey` using `issuer` and `issuerKeyId` (from configuration, DID resolution, or a registry).
 
-However, MPCP implementations may optionally define a signed variant if the grant must cross trust boundaries.
-
-In such cases, the artifact would follow MPCP domain-separated hashing:
+The signed payload is the canonical JSON of all grant fields except `signature`:
 
 ```
-SHA256("MPCP:PolicyGrant:<version>:" || canonicalJson(grant))
+hash = SHA256("MPCP:PolicyGrant:<version>:" || canonicalJson(grantPayload))
+signature = sign(hash, policyAuthorityPrivateKey)
 ```
+
+If signature verification fails, the verifier MUST reject the grant.
 
 ---
 

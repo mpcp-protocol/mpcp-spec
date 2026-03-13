@@ -2,7 +2,7 @@
 
 Part of the [Machine Payment Control Protocol (MPCP)](./mpcp.md).
 
-The **intentHash** is an optional field in the SignedPaymentAuthorization (SPA) that binds the authorization to a canonical settlement intent.
+The **intentHash** is an optional field in the SignedPaymentAuthorization (SPA) that binds the authorization to a canonical settlement intent. `intentHash` is the serialized field name; this document refers to that value conceptually as the **SettlementIntentHash** (see [mpcp.md](mpcp.md) §Canonical JSON Definition).
 
 When present, it ensures the executed settlement matches the authorized intent.
 

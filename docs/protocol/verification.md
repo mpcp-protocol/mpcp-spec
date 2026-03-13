@@ -7,9 +7,10 @@ MPCP settlement verification ensures that an executed transaction matches the au
 The verifier runs checks in order:
 
 1. **Schema** — All artifacts parse and validate against expected structure
-2. **Linkage** — PolicyGrant → SBA → SPA chain is consistent (sessionId, policyHash, constraints)
-3. **Hash** — If intentHash is present, it matches `computeSettlementIntentHash(settlementIntent)`
-4. **Policy** — Budget limits, rail/asset/destination constraints, expiration
+2. **Signatures** — PolicyGrant, SBA, and SPA signatures are valid (resolve public keys via `issuer` + `issuerKeyId` or deployment config)
+3. **Linkage** — PolicyGrant → SBA → SPA chain is consistent (sessionId, policyHash, constraints)
+4. **Hash** — If intentHash is present, it matches `computeSettlementIntentHash(settlementIntent)`
+5. **Policy** — Budget limits, rail/asset/destination constraints, expiration
 
 If any check fails, verification fails with a specific reason.
 
@@ -17,7 +18,7 @@ If any check fails, verification fails with a specific reason.
 
 | Check | Description |
 |-------|-------------|
-| PolicyGrant | ExpiresAt not passed; constraints valid |
+| PolicyGrant | Signature valid; expiresAt not passed; constraints valid |
 | SBA | Signature valid; expiresAt not passed; sessionId, policyHash match |
 | SBA → decision | Budget not exceeded; rail, asset, destination in allowlists |
 | SPA | Signature valid; expiresAt not passed |

@@ -44,8 +44,9 @@ It is issued after a PolicyGrant and constrains subsequent SignedPaymentAuthoriz
 | Field | Type | Description |
 |-------|------|-------------|
 | authorization | BudgetAuthorization | The budget payload |
+| issuer | string | Identifier for the budget authority (e.g. DID, domain, or registry ID). Verifiers use this to resolve the signing key. |
+| issuerKeyId | string | Identifies the specific key used to sign (alias: `keyId` retained for backward compatibility) |
 | signature | string | Base64-encoded signature over SHA256("MPCP:SBA:1.0:" || canonicalJson(authorization)) |
-| keyId | string | Signing key identifier for verification |
 
 ---
 
@@ -87,8 +88,9 @@ Examples:
     "destinationAllowlist": ["rDest..."],
     "expiresAt": "2026-03-08T14:00:00Z"
   },
-  "signature": "base64...",
-  "keyId": "mpcp-sba-signing-key-1"
+  "issuer": "did:web:fleet.example.com",
+  "issuerKeyId": "budget-auth-key-1",
+  "signature": "base64..."
 }
 ```
 
@@ -114,7 +116,7 @@ This prevents cross-protocol and cross-artifact hash collisions and ensures comp
 
 A verifier MUST:
 
-1. Validate the signature over SHA256("MPCP:SBA:<version>:" || canonicalJson(authorization)) using the public key for `keyId`
+1. Resolve `budgetAuthorizationPublicKey` using `issuer` and `issuerKeyId` (or `keyId` if present), then validate the signature over SHA256("MPCP:SBA:<version>:" || canonicalJson(authorization))
 2. Check `expiresAt` has not passed
 3. When verifying against a payment decision or settlement context: ensure sessionId, policyHash, budgetScope, allowedRails, allowedAssets, optional destination constraints, and amount constraints match
 

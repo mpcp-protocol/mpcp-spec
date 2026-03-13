@@ -29,7 +29,7 @@ The **PolicyGrant** is the result of policy evaluation at session entry. It defi
 - **policyHash** — Hash of the policy snapshot
 - **expiresAt** — Maximum validity for downstream artifacts
 
-The PolicyGrant is typically internal to the policy engine and may not be signed. Downstream artifacts (SBA, SPA) must reference the same `policyHash` and remain within these constraints.
+The PolicyGrant is signed by the policy authority; verifiers use `issuer` and `issuerKeyId` to resolve the policy authority public key. Downstream artifacts (SBA, SPA) must reference the same `policyHash` and remain within these constraints.
 
 ---
 
@@ -82,7 +82,7 @@ A verifier checks:
 
 1. **Schema** — All artifacts are valid
 2. **Linkage** — PolicyGrant → SBA → SPA are consistent (sessionId, policyHash, constraints)
-3. **Signatures** — SBA and SPA signatures are valid
+3. **Signatures** — PolicyGrant, SBA, and SPA signatures are valid
 4. **Expiration** — No artifact is expired
 5. **Settlement match** — Executed settlement matches SPA (and intentHash if present)
 

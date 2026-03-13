@@ -46,8 +46,9 @@ SPA is a protocol artifact and is not tied to any specific application implement
 | Field | Type | Description |
 |-------|------|-------------|
 | authorization | PaymentAuthorization | The payment payload |
+| issuer | string | Identifier for the payment authorization authority (e.g. DID, domain, or registry ID). Verifiers use this to resolve the signing key. |
+| issuerKeyId | string | Identifies the specific key used to sign (alias: `keyId` retained for backward compatibility) |
 | signature | string | Base64-encoded signature over SHA256("MPCP:SPA:1.0:" || canonicalJson(authorization)) |
-| keyId | string | Signing key identifier for verification |
 
 ---
 
@@ -68,8 +69,9 @@ SPA is a protocol artifact and is not tied to any specific application implement
     "intentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "expiresAt": "2026-03-08T14:00:00Z"
   },
-  "signature": "base64...",
-  "keyId": "mpcp-spa-signing-key-1"
+  "issuer": "did:web:payments.example.com",
+  "issuerKeyId": "payment-auth-key-1",
+  "signature": "base64..."
 }
 ```
 
@@ -112,7 +114,7 @@ This prevents cross‑artifact and cross‑protocol hash collisions.
 
 A verifier MUST:
 
-1. Validate the signature over SHA256("MPCP:SPA:<version>:" || canonicalJson(authorization)) using the public key for `keyId`
+1. Resolve `paymentAuthorizationPublicKey` using `issuer` and `issuerKeyId` (or `keyId` if present), then validate the signature over SHA256("MPCP:SPA:<version>:" || canonicalJson(authorization))
 2. Check `expiresAt` has not passed
 3. When verifying against a SettlementResult: ensure decisionId, rail, amount, destination, and asset match
 4. If `intentHash` is present: verify it equals `computeIntentHash(settlementIntent)` for the provided intent

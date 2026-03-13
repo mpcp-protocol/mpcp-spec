@@ -1,6 +1,6 @@
 # MPCP Authorization Chain
 
-The **authorization chain** is the core visual model for MPCP. Each step produces a verifiable artifact that constrains the next. Machines spend within bounds established upstream—no per-transaction approval required.
+The **authorization chain** is the core visual model for MPCP. Each step produces a verifiable artifact that constrains the next. PolicyGrant, SignedBudgetAuthorization, and SignedPaymentAuthorization are cryptographically signed; verifiers validate all three signatures before accepting settlement. Machines spend within bounds established upstream—no per-transaction approval required.
 
 ```
 PolicyGrant
