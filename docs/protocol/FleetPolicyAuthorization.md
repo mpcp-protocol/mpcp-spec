@@ -107,7 +107,7 @@ Example:
     "minorUnit": 2,
     "maxAmountMinor": "50000000",
     "allowedRails": ["xrpl", "stripe"],
-    "allowedAssets": [{ "symbol": "RLUSD", "namespace": "rIssuer..." }],
+    "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
     "allowedOperators": ["operator_42", "operator_77"],
     "geoFence": ["sf_zone_a"],
     "expiresAt": "2026-03-09T23:59:59Z"

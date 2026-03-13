@@ -111,7 +111,7 @@ Verifiers MUST NOT attempt to track or reconstruct cumulative session spending.
     "budgetScope": "SESSION",
     "maxAmountMinor": "30000000",
     "allowedRails": ["xrpl"],
-    "allowedAssets": [{ "symbol": "USDC", "namespace": "rIssuer..." }],
+    "allowedAssets": [{ "kind": "IOU", "currency": "USDC", "issuer": "rIssuer..." }],
     "destinationAllowlist": ["rDest..."],
     "expiresAt": "2026-03-08T14:00:00Z"
   },

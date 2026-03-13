@@ -31,7 +31,7 @@ import { createPolicyGrant } from "mpcp-service/sdk";
 const policyGrant = createPolicyGrant({
   policyHash: "fleet-policy-v1",
   allowedRails: ["xrpl", "evm"],
-  allowedAssets: [{ symbol: "RLUSD", namespace: "rIssuer" }],
+  allowedAssets: [{ kind: "IOU", currency: "RLUSD", issuer: "rIssuer" }],
   expiresAt: "2030-12-31T23:59:59Z",
 });
 

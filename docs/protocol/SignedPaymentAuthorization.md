@@ -65,7 +65,7 @@ SPA is a protocol artifact and is not tied to any specific application implement
     "budgetId": "budget_123",
     "quoteId": "quote_789",
     "rail": "xrpl",
-    "asset": { "symbol": "USDC", "namespace": "rIssuer..." },
+    "asset": { "kind": "IOU", "currency": "USDC", "issuer": "rIssuer..." },
     "amount": "19440000",
     "destination": "rDest...",
     "intentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

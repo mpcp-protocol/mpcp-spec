@@ -342,7 +342,7 @@ Example structure:
   "operatorId": "operator_42",
   "scope": "SESSION",
   "allowedRails": ["xrpl"],
-  "allowedAssets": [{ "symbol": "RLUSD", "namespace": "rIssuer..." }],
+  "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
   "policyHash": "sha256(...)",
   "expiresAt": "2026-03-08T14:00:00Z",
   "issuer": "did:web:operator.example.com",
@@ -376,7 +376,7 @@ Example structure:
     "minorUnit": 2,
     "maxAmountMinor": "30000000",
     "allowedRails": ["xrpl"],
-    "allowedAssets": [{ "symbol": "RLUSD", "namespace": "rIssuer..." }],
+    "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
     "expiresAt": "2026-03-08T14:00:00Z"
   },
   "issuer": "did:web:fleet.example.com",
@@ -405,7 +405,7 @@ Example structure:
     "quoteId": "quote_789",
     "budgetId": "budget_123",
     "rail": "xrpl",
-    "asset": { "symbol": "RLUSD", "namespace": "rIssuer..." },
+    "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
     "amount": "19440000",
     "destination": "rDest...",
     "intentHash": "sha256(...)",
@@ -431,7 +431,7 @@ Example structure:
 {
   "version": "1.0",
   "rail": "xrpl",
-  "asset": { "symbol": "RLUSD", "namespace": "rIssuer..." },
+  "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
   "amount": "19440000",
   "destination": "rDest...",
   "referenceId": "quote_17",
@@ -577,7 +577,7 @@ Confirm the settlement parameters match the authorized constraints.
 Checks include:
 
 - rail match: `SPA.rail ∈ SBA.allowedRails`
-- asset match: `SPA.asset ∈ SBA.allowedAssets` — `symbol` must match; if `namespace` is present in the allowlist entry, it must also match exactly. See [Asset Matching](#asset).
+- asset match: `SPA.asset ∈ SBA.allowedAssets` — `kind` and all kind-specific fields must match exactly. See [Asset Matching](#asset).
 - destination match
 - amount ≤ authorized limit (`SPA.amount ≤ SBA.maxAmountMinor`) — both values are in the on-chain asset's atomic units; no currency conversion is required at verification time
 - policyHash consistency: the verifier confirms `PolicyGrant.policyHash` matches the expected policy for this deployment context. Because the chain is linked by ID references (`SPA.authorization.budgetId → SBA`, `SBA.authorization.grantId → PolicyGrant`), `policyHash` is the single authoritative value carried on the PolicyGrant. A verifier MAY recompute it as `SHA256("MPCP:Policy:<version>:" || canonicalJson(policyDocument))` when the policy document is available.
@@ -748,7 +748,7 @@ Example:
 {
   "version": "1.0",
   "rail": "xrpl",
-  "asset": { "symbol": "USDC", "namespace": "rIssuer..." },
+  "asset": { "kind": "IOU", "currency": "USDC", "issuer": "rIssuer..." },
   "amount": "19440000",
   "destination": "rDest..."
 }
@@ -757,7 +757,7 @@ Example:
 Canonical form (keys sorted, no whitespace):
 
 ```text
-{"amount":"19440000","asset":{"namespace":"rIssuer...","symbol":"USDC"},"destination":"rDest...","rail":"xrpl","version":"1.0"}
+{"amount":"19440000","asset":{"currency":"USDC","issuer":"rIssuer...","kind":"IOU"},"destination":"rDest...","rail":"xrpl","version":"1.0"}
 ```
 
 ---
@@ -929,30 +929,45 @@ All artifacts SHOULD be represented as UTF-8 JSON documents using the canonical 
 
 ### Asset
 
-An `Asset` is a structured object that fully identifies a payment asset. String-only asset references are not valid — structured `Asset` objects MUST be used in all `allowedAssets` arrays and `asset` fields throughout the protocol.
+An `Asset` is a discriminated union object that fully identifies a payment asset by kind. String-only asset references are not valid — structured `Asset` objects MUST be used in all `allowedAssets` arrays and `asset` fields throughout the protocol.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `symbol` | string | yes | Asset symbol or currency code (e.g. `"RLUSD"`, `"USDC"`, `"ETH"`, `"USD"`) |
-| `namespace` | string | conditional | Issuer or contract address qualifying `symbol` within the rail. Required when the same symbol can exist under multiple issuers or contracts on the same rail. |
+The `kind` field is the discriminator. Three variants are defined:
 
-The `namespace` field carries whatever the rail needs to disambiguate the asset — an issuer address on XRPL, a contract address on EVM chains, or omitted entirely for native and fiat assets.
+**XRPL IOU**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `kind` | `"IOU"` | Discriminator |
+| `currency` | string | Currency code (e.g. `"RLUSD"`, `"USDC"`) |
+| `issuer` | string | XRPL issuer address |
+
+**XRP (native)**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `kind` | `"XRP"` | Discriminator |
+
+**EVM ERC-20**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `kind` | `"ERC20"` | Discriminator |
+| `chainId` | number | EVM chain ID (e.g. `1` for Ethereum mainnet) |
+| `token` | string | ERC-20 contract address |
 
 Examples:
 
 ```json
-{ "symbol": "RLUSD", "namespace": "rIssuer..." }
-{ "symbol": "XRP" }
-{ "symbol": "USDC", "namespace": "0xContractAddress..." }
-{ "symbol": "ETH" }
-{ "symbol": "USD" }
+{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }
+{ "kind": "XRP" }
+{ "kind": "ERC20", "chainId": 1, "token": "0xContractAddress..." }
 ```
 
 #### Asset Matching
 
-Two `Asset` objects match when `symbol` is equal and — when `namespace` is present in the `allowedAssets` entry — `namespace` also matches exactly. An `allowedAssets` entry without `namespace` matches any asset with that symbol regardless of qualifier.
+Two `Asset` objects match when their `kind` is equal and all kind-specific fields match exactly.
 
-The `∈` operator used in artifact relationship rules (`SPA.asset ∈ SBA.allowedAssets`) means: at least one entry in `allowedAssets` field-matches `SPA.asset` using the rules above.
+The `∈` operator used in artifact relationship rules (`SPA.asset ∈ SBA.allowedAssets`) means: at least one entry in `allowedAssets` matches `SPA.asset` using the rules above.
 
 ---
 
@@ -966,7 +981,7 @@ The `∈` operator used in artifact relationship rules (`SPA.asset ∈ SBA.allow
   "operatorId": "operator_42",
   "scope": "SESSION",
   "allowedRails": ["xrpl"],
-  "allowedAssets": [{ "symbol": "RLUSD", "namespace": "rIssuer..." }],
+  "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
   "policyHash": "sha256(...)",
   "expiresAt": "2026-03-08T14:00:00Z",
   "issuer": "did:web:operator.example.com",
@@ -996,7 +1011,7 @@ The `∈` operator used in artifact relationship rules (`SPA.asset ∈ SBA.allow
     "minorUnit": 2,
     "maxAmountMinor": "30000000",
     "allowedRails": ["xrpl"],
-    "allowedAssets": [{ "symbol": "RLUSD", "namespace": "rIssuer..." }],
+    "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
     "expiresAt": "2026-03-08T14:00:00Z"
   },
   "issuer": "did:web:fleet.example.com",
@@ -1017,7 +1032,7 @@ The `∈` operator used in artifact relationship rules (`SPA.asset ∈ SBA.allow
     "quoteId": "quote_789",
     "budgetId": "budget_123",
     "rail": "xrpl",
-    "asset": { "symbol": "RLUSD", "namespace": "rIssuer..." },
+    "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
     "amount": "19440000",
     "destination": "rDest...",
     "intentHash": "sha256(...)",
@@ -1035,7 +1050,7 @@ The `∈` operator used in artifact relationship rules (`SPA.asset ∈ SBA.allow
 {
   "version": "1.0",
   "rail": "xrpl",
-  "asset": { "symbol": "RLUSD", "namespace": "rIssuer..." },
+  "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
   "amount": "19440000",
   "destination": "rDest...",
   "referenceId": "quote_17",

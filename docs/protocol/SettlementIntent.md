@@ -60,7 +60,7 @@ SettlementIntent solves this by defining a **canonical payment description** who
 {
   "version": "1.0",
   "rail": "xrpl",
-  "asset": { "symbol": "RLUSD", "namespace": "rIssuer..." },
+  "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
   "amount": "19440000",
   "destination": "rDestination...",
   "referenceId": "quote_17",
@@ -111,7 +111,7 @@ Example canonical payload:
 {
   "version": "1.0",
   "rail": "xrpl",
-  "asset": { "symbol": "RLUSD", "namespace": "rIssuer..." },
+  "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
   "amount": "19440000",
   "destination": "rDestination...",
   "referenceId": "quote_17"

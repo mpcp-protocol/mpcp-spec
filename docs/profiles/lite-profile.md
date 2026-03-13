@@ -75,7 +75,7 @@ A Lite profile SPA omits `intentHash`:
     "policyHash": "a1b2c3...",
     "quoteId": "quote_789",
     "rail": "xrpl",
-    "asset": { "symbol": "RLUSD", "namespace": "rIssuer..." },
+    "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
     "amount": "19440000",
     "destination": "rDest...",
     "expiresAt": "2026-03-08T14:00:00Z"

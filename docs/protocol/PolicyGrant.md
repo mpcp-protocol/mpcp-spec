@@ -97,7 +97,7 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
   "operatorId": "operator_12",
   "scope": "SESSION",
   "allowedRails": ["xrpl", "stripe"],
-  "allowedAssets": [{ "symbol": "RLUSD", "namespace": "rIssuer..." }],
+  "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
   "maxSpend": {
     "perTxMinor": "5000",
     "perSessionMinor": "20000"

@@ -25,7 +25,7 @@ Each artifact is a subset of the constraints defined by the previous one.
 The **PolicyGrant** is the result of policy evaluation at session entry. It defines the initial permission envelope:
 
 - **allowedRails** — Which payment rails (xrpl, evm, stripe, hosted) are permitted
-- **allowedAssets** — Which assets may be used (array of `Asset` objects with `symbol` and optional `namespace`)
+- **allowedAssets** — Which assets may be used (array of `Asset` objects with `kind`, and kind-specific fields)
 - **policyHash** — Hash of the policy snapshot
 - **expiresAt** — Maximum validity for downstream artifacts
 
@@ -68,7 +68,7 @@ The **SettlementIntent** describes what will be (or was) executed. It is hashed 
   "rail": "xrpl",
   "amount": "19440000",
   "destination": "rDest...",
-  "asset": { "symbol": "RLUSD", "namespace": "rIssuer" }
+  "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
 }
 ```
 

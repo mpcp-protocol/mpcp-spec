@@ -44,7 +44,7 @@ Example canonical payload:
 {
   "version": "1.0",
   "rail": "xrpl",
-  "asset": { "symbol": "USDC", "namespace": "rIssuer..." },
+  "asset": { "kind": "IOU", "currency": "USDC", "issuer": "rIssuer..." },
   "amount": "19440000",
   "destination": "rDest...",
   "referenceId": "quote_17"
@@ -84,7 +84,7 @@ Per the MPCP spec, canonicalJson is applied to the canonical payload defined abo
   "rail": "xrpl",
   "destination": "rDest...",
   "amount": "19440000",
-  "asset": { "symbol": "USDC", "namespace": "rIssuer..." },
+  "asset": { "kind": "IOU", "currency": "USDC", "issuer": "rIssuer..." },
   "createdAt": "2026-03-08T13:55:00Z"
 }
 ```
@@ -111,7 +111,7 @@ intentHash = sha256Hex("MPCP:SettlementIntent:1.0:" || canonicalIntent)
     "decisionId": "dec_123",
     "sessionId": "sess_456",
     "rail": "xrpl",
-    "asset": { "symbol": "USDC", "namespace": "rIssuer..." },
+    "asset": { "kind": "IOU", "currency": "USDC", "issuer": "rIssuer..." },
     "amount": "19440000",
     "destination": "rDest...",
     "intentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

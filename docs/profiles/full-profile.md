@@ -64,7 +64,7 @@ A Full profile SPA includes `intentHash`:
     "policyHash": "a1b2c3...",
     "quoteId": "quote_789",
     "rail": "xrpl",
-    "asset": { "symbol": "RLUSD", "namespace": "rIssuer..." },
+    "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
     "amount": "19440000",
     "destination": "rDest...",
     "intentHash": "e3b0c44298fc1c149afbf4c8996fb924...",
