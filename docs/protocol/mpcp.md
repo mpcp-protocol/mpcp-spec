@@ -81,7 +81,7 @@ Intent commitments can optionally be anchored to a public ledger for additional 
 MPCP verification is identity-agnostic.
 
 The protocol verifies authorization through cryptographic signatures on MPCP artifacts
-(PolicyGrant → BudgetAuthorization → PaymentAuthorization → SettlementIntent).
+(PolicyGrant → SignedBudgetAuthorization → SignedPaymentAuthorization → SettlementIntent).
 
 Deployments MAY associate MPCP keys with decentralized identifiers (DIDs) or
 Verifiable Credentials (VCs) to bind artifacts to real-world entities such as
@@ -93,9 +93,7 @@ protocol.
 
 ---
 
----
-
-# Artifact Issuance and Signature Verification
+## Artifact Issuance and Signature Verification
 
 Each MPCP artifact is created and signed by a specific authority responsible for that stage of the authorization pipeline.
 
@@ -159,6 +157,7 @@ However, MPCP verification itself only requires that the correct public key be a
 
 The authorization chain verified during settlement is:
 
+```text
 PolicyGrant.signature
 ↓
 SignedBudgetAuthorization.signature
@@ -168,6 +167,7 @@ SignedPaymentAuthorization.signature
 SettlementIntentHash
 ↓
 Settlement Transaction
+```
 
 Each stage constrains the next stage and ensures that settlement parameters cannot be modified without invalidating the authorization chain.
 
@@ -374,6 +374,8 @@ Example structure:
   "allowedRails": ["xrpl"],
   "allowedAssets": ["RLUSD"],
   "expiresAt": "2026-03-08T14:00:00Z",
+  "issuer": "did:web:fleet.example.com",
+  "issuerKeyId": "budget-auth-key-1",
   "signature": "..."
 }
 ```
@@ -404,6 +406,8 @@ Example structure:
   "destination": "rDest...",
   "intentHash": "sha256(...)",
   "expiresAt": "2026-03-08T14:00:00Z",
+  "issuer": "did:web:payments.example.com",
+  "issuerKeyId": "payment-auth-key-1",
   "signature": "..."
 }
 ```
@@ -523,7 +527,11 @@ An MPCP verifier MUST perform the following steps before accepting settlement.
 
 ### Step 0 — Verify Authorization Artifact Signatures
 
-Verify the cryptographic signatures on all signed authorization artifacts. Resolve the public key for each authority using artifact issuer fields or deployment configuration. Use the artifact-specific key:
+Verify the cryptographic signatures on all signed authorization artifacts.
+
+For signed artifacts, `canonical_payload(x)` means the canonical JSON serialization of all artifact fields except `signature`.
+
+Resolve the public key for each authority using artifact issuer fields or deployment configuration. Use the artifact-specific key:
 
 - **PolicyGrant** — Resolve `policyAuthorityPublicKey` using `grant.issuer` and `grant.issuerKeyId` (e.g. from configuration, DID resolution, or a registry). Compute the signed payload as the canonical JSON of all grant fields except `signature`.
 - **SignedBudgetAuthorization (SBA)** — Resolve `budgetAuthorizationPublicKey` using the SBA issuer fields (if present) or deployment configuration. Compute the signed payload as the canonical JSON of all SBA fields except `signature`.
@@ -672,7 +680,7 @@ Implementations MUST apply the same domain prefix rules when generating and veri
 
 The version component in the domain prefix MUST use the same semantic version string carried in the artifact, for example `1.0`, `1.1`, or `2.0`. This keeps hashing behavior aligned with MPCP version negotiation and prevents ambiguity between artifact formats.
 
-To ensure deterministic hashing across systems, MPCP defines a **canonical JSON encoding** used when computing hashes such as `intentHash`.
+To ensure deterministic hashing across systems, MPCP defines a **canonical JSON encoding** used when computing hashes such as `intentHash`. The `intentHash` is the serialized field name that carries the hash of the canonical SettlementIntent payload; this document refers to that value conceptually as the SettlementIntentHash.
 
 All implementations MUST apply the same canonicalization rules before hashing.
 
@@ -880,6 +888,8 @@ All artifacts SHOULD be represented as UTF-8 JSON documents using the canonical 
   "allowedRails": ["xrpl"],
   "allowedAssets": ["RLUSD"],
   "expiresAt": "2026-03-08T14:00:00Z",
+  "issuer": "did:web:fleet.example.com",
+  "issuerKeyId": "budget-auth-key-1",
   "signature": "..."
 }
 ```
@@ -902,6 +912,8 @@ All artifacts SHOULD be represented as UTF-8 JSON documents using the canonical 
   "destination": "rDest...",
   "intentHash": "sha256(...)",
   "expiresAt": "2026-03-08T14:00:00Z",
+  "issuer": "did:web:payments.example.com",
+  "issuerKeyId": "payment-auth-key-1",
   "signature": "..."
 }
 ```
