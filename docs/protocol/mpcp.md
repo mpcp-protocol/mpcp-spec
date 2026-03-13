@@ -101,7 +101,7 @@ The protocol requires that every artifact signature be independently verifiable 
 
 This ensures that authorization can be validated without contacting the original issuer.
 
-## Artifact Authority Model
+### Artifact Authority Model
 
 The MPCP artifact pipeline assigns responsibility for creation and signing as follows:
 
@@ -115,7 +115,7 @@ The MPCP artifact pipeline assigns responsibility for creation and signing as fo
 
 Each artifact constrains the parameters of the next stage in the protocol.
 
-## Authority Domains
+### Authority Domains
 
 MPCP separates authority across multiple domains to reduce risk and improve auditability.
 
@@ -130,7 +130,7 @@ Typical deployments may use the following signing authorities:
 
 No single key is required to control the entire payment pipeline.
 
-## Signature Verification Requirements
+### Signature Verification Requirements
 
 Implementations MUST verify signatures for the following artifacts:
 
@@ -153,7 +153,7 @@ Public keys MAY be distributed through several mechanisms including:
 
 However, MPCP verification itself only requires that the correct public key be available to validate the signature.
 
-## Verification Chain
+### Verification Chain
 
 The authorization chain verified during settlement is:
 
@@ -329,7 +329,7 @@ The MPCP pipeline produces a series of structured artifacts. Each artifact const
 
 ### PolicyGrant (signed by policy authority)
 
-The **PolicyGrant** represents the admission of a machine into a controlled payment context. It is signed by the policy authority; verifiers resolve the public key using `issuer` and `issuerKeyId`.
+The **PolicyGrant** represents the admission of a machine into a controlled payment context. It is signed by the policy authority; verifiers use `issuer` and `issuerKeyId` to resolve the policy authority public key.
 
 Example structure:
 
@@ -356,7 +356,7 @@ The PolicyGrant defines the operational scope in which further authorizations ma
 
 ### SignedBudgetAuthorization (SBA) (signed by budget authority)
 
-The **SignedBudgetAuthorization (SBA)** establishes the maximum spending envelope available to the machine. It is signed by the budget (session) authority; verifiers resolve the public key using SBA issuer fields or deployment configuration.
+The **SignedBudgetAuthorization (SBA)** establishes the maximum spending envelope available to the machine. It is signed by the budget (session) authority; verifiers use SBA issuer fields or deployment configuration to resolve the budget authority public key.
 
 Example structure:
 
@@ -386,7 +386,7 @@ The SBA ensures that spending remains within defined limits. Verification uses `
 
 ### SignedPaymentAuthorization (SPA) (signed by payment authorization authority)
 
-The **SignedPaymentAuthorization (SPA)** authorizes a specific settlement transaction. It is signed by the payment authorization authority; verifiers resolve `paymentAuthorizationPublicKey` to verify the signature.
+The **SignedPaymentAuthorization (SPA)** authorizes a specific settlement transaction. It is signed by the payment authorization authority; verifiers use `issuer` and `issuerKeyId` to resolve the payment authorization public key.
 
 Example structure:
 
@@ -990,9 +990,9 @@ The following pseudocode illustrates a minimal verifier implementation.
 
 ```text
 function verifySettlement(grant, sba, spa, settlementTx):
-    verifySignature(grant)
-    verifySignature(sba)
-    verifySignature(spa)
+    verifySignature(grant, policyAuthorityPublicKey)
+    verifySignature(sba, budgetAuthorizationPublicKey)
+    verifySignature(spa, paymentAuthorizationPublicKey)
     verifyLineage(grant, sba, spa)
     verifyNotExpired(grant, sba, spa)
     verifyPolicyHash(grant, spa)
