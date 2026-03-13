@@ -51,6 +51,7 @@ nav:
     - Artifacts: protocol/artifacts.md
     - Hashing: protocol/hashing.md
     - Verification: protocol/verification.md
+    - Key Resolution: protocol/key-resolution.md
     - Anchoring: protocol/anchoring.md
     - PolicyGrant: protocol/PolicyGrant.md
     - SBA: protocol/SignedBudgetAuthorization.md
@@ -59,6 +60,9 @@ nav:
     - SettlementIntentHash: protocol/SettlementIntentHash.md
     - FleetPolicyAuthorization: protocol/FleetPolicyAuthorization.md
     - ArtifactBundle: protocol/ArtifactBundle.md
+  - Profiles:
+    - Lite Profile: profiles/lite-profile.md
+    - Full Profile: profiles/full-profile.md
   - Guides:
     - Build a Machine Wallet: guides/build-a-machine-wallet.md
     - Fleet Payments: guides/fleet-payments.md

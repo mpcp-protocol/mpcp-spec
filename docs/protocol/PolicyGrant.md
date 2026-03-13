@@ -17,7 +17,7 @@ The PolicyGrant defines the **initial permission envelope** for a session or pay
 
 PolicyGrant is typically produced by a policy engine during an **entry phase** when a machine, vehicle, or agent attempts to access a service.
 
-Unlike SBA and SPA, a PolicyGrant is usually **internal to the policy engine boundary** and may or may not be signed.
+The PolicyGrant is a **signed artifact**. It is signed by the policy authority; verifiers use `issuer` and `issuerKeyId` to resolve the policy authority public key for signature verification.
 
 ---
 
@@ -70,7 +70,7 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 |------|------|----------|-------------|
 | version | string | yes | MPCP semantic version (e.g. "1.0") |
 | grantId | string | yes | Unique identifier for the grant |
-| policyHash | string | yes | Hash of the evaluated policy snapshot |
+| policyHash | string | yes | SHA-256 hash of the canonical policy document from which this grant was issued. Computed as `SHA256("MPCP:Policy:<version>:" \|\| canonicalJson(policyDocument))`. Downstream artifacts (SBA, SPA) MUST carry the same value. |
 | subjectId | string | yes | Identifier of the entity receiving the grant (vehicle, agent, wallet, etc.) |
 | operatorId | string | optional | Service operator identifier |
 | scope | string | yes | Scope of the grant (SESSION, VEHICLE, FLEET, etc.) |
@@ -80,6 +80,9 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | expiresAt | string | yes | ISO 8601 expiration timestamp |
 | requireApproval | boolean | optional | Indicates that further approval is required before payment |
 | reasons | string[] | optional | Policy evaluation reasons |
+| issuer | string | yes | Identifier for the policy authority (e.g. DID, domain, or registry ID). Verifiers use this to resolve the signing key. |
+| issuerKeyId | string | yes | Identifies the specific key used to sign (for deployments with multiple keys per issuer). |
+| signature | string | yes | Cryptographic signature over the canonical JSON of the grant payload (all fields except `signature`). |
 
 ---
 
@@ -94,20 +97,17 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
   "operatorId": "operator_12",
   "scope": "SESSION",
   "allowedRails": ["xrpl", "stripe"],
-  "allowedAssets": [
-    {
-      "kind": "IOU",
-      "currency": "RLUSD",
-      "issuer": "rIssuer..."
-    }
-  ],
+  "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
   "maxSpend": {
     "perTxMinor": "5000",
     "perSessionMinor": "20000"
   },
   "expiresAt": "2026-03-08T14:00:00Z",
   "requireApproval": false,
-  "reasons": ["OK"]
+  "reasons": ["OK"],
+  "issuer": "did:web:operator.example.com",
+  "issuerKeyId": "policy-auth-key-1",
+  "signature": "..."
 }
 ```
 
@@ -179,17 +179,42 @@ Implementations MUST ensure:
 
 ---
 
-## Signing (Optional)
+## Policy Hashing
 
-PolicyGrant is typically an **internal artifact** and does not require cryptographic signing.
+`policyHash` is the SHA-256 hash of the canonical policy document from which the PolicyGrant was issued.
 
-However, MPCP implementations may optionally define a signed variant if the grant must cross trust boundaries.
+The policy document is the structured representation of the rules evaluated to produce the grant (operator policy, fleet policy, regulatory constraints, etc.). It MUST be serialized using MPCP canonical JSON before hashing.
 
-In such cases, the artifact would follow MPCP domain-separated hashing:
+Computation:
 
 ```
-SHA256("MPCP:PolicyGrant:<version>:" || canonicalJson(grant))
+policyHash = SHA256("MPCP:Policy:<version>:" || canonicalJson(policyDocument))
 ```
+
+Example:
+
+```
+policyHash = SHA256("MPCP:Policy:1.0:" || '{"allowedAssets":[...],"allowedRails":[...],...}')
+```
+
+The `policyHash` is not a hash of the PolicyGrant artifact itself — it is a hash of the **source policy** that the grant was derived from.
+
+Downstream artifacts (SBA and SPA) MUST carry the same `policyHash`. During settlement verification, the verifier checks that `PolicyGrant.policyHash`, `SBA.policyHash`, and `SPA.policyHash` are all equal, confirming the entire authorization chain derives from the same policy snapshot.
+
+---
+
+## Signing
+
+PolicyGrant MUST be cryptographically signed. The policy authority signs the grant; verifiers resolve the public key (as JWK) using `issuer` and `issuerKeyId` via the HTTPS well-known endpoint or pre-configured keys. See [Key Resolution](./key-resolution.md).
+
+The signed payload is the canonical JSON of all grant fields except `signature`:
+
+```
+hash = SHA256("MPCP:PolicyGrant:<version>:" || canonicalJson(grantPayload))
+signature = sign(hash, policyAuthorityPrivateKey)
+```
+
+If signature verification fails, the verifier MUST reject the grant.
 
 ---
 

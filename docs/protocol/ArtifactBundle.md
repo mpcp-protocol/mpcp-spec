@@ -27,10 +27,11 @@ Optional fields:
 | `settlementIntent` | object | Settlement intent (required when SPA has intentHash) |
 | `paymentPolicyDecision` | object | Payment policy decision (derived from SPA if omitted) |
 | `ledgerAnchor` | object | Optional ledger attestation for disputed settlements |
+| `policyGrantPublicKeyPem` | string | PolicyGrant signing public key PEM — makes bundle self-contained |
 | `sbaPublicKeyPem` | string | SBA signing public key PEM — makes bundle self-contained |
 | `spaPublicKeyPem` | string | SPA signing public key PEM — makes bundle self-contained |
 
-When `sbaPublicKeyPem` and `spaPublicKeyPem` are present, verification can run without `MPCP_SBA_SIGNING_PUBLIC_KEY_PEM` and `MPCP_SPA_SIGNING_PUBLIC_KEY_PEM` environment variables.
+When `policyGrantPublicKeyPem`, `sbaPublicKeyPem`, and `spaPublicKeyPem` are present, verification can run without the corresponding environment variables.
 
 ## Example
 
@@ -41,10 +42,13 @@ When `sbaPublicKeyPem` and `spaPublicKeyPem` are present, verification can run w
     "policyHash": "a1b2c3",
     "expiresAt": "2030-12-31T23:59:59Z",
     "allowedRails": ["xrpl"],
-    "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }]
+    "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }],
+    "issuer": "did:web:operator.example.com",
+    "issuerKeyId": "policy-auth-key-1",
+    "signature": "..."
   },
-  "sba": { "authorization": {...}, "signature": "...", "keyId": "..." },
-  "spa": { "authorization": {...}, "signature": "...", "keyId": "..." },
+  "sba": { "authorization": {...}, "issuer": "did:web:fleet.example.com", "issuerKeyId": "budget-auth-key-1", "signature": "..." },
+  "spa": { "authorization": {...}, "issuer": "did:web:payments.example.com", "issuerKeyId": "payment-auth-key-1", "signature": "..." },
   "settlement": {
     "amount": "19440000",
     "rail": "xrpl",
@@ -53,6 +57,7 @@ When `sbaPublicKeyPem` and `spaPublicKeyPem` are present, verification can run w
     "nowISO": "2026-01-15T12:00:00Z"
   },
   "settlementIntent": { "version": "1.0", "rail": "xrpl", "amount": "19440000", ... },
+  "policyGrantPublicKeyPem": "-----BEGIN PUBLIC KEY-----\n...",
   "sbaPublicKeyPem": "-----BEGIN PUBLIC KEY-----\n...",
   "spaPublicKeyPem": "-----BEGIN PUBLIC KEY-----\n..."
 }

@@ -19,6 +19,7 @@ MPCP prefixes hash inputs with a domain string to prevent cross-artifact and cro
 
 | Artifact | Domain Prefix |
 |----------|---------------|
+| PolicyGrant | `MPCP:PolicyGrant:1.0:` |
 | SBA | `MPCP:SBA:1.0:` |
 | SPA | `MPCP:SPA:1.0:` |
 | SettlementIntent | `MPCP:SettlementIntent:1.0:` |

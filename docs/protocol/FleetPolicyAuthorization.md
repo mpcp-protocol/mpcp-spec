@@ -105,9 +105,9 @@ Example:
     "scope": "DAY",
     "currency": "USD",
     "minorUnit": 2,
-    "maxAmountMinor": "5000",
+    "maxAmountMinor": "50000000",
     "allowedRails": ["xrpl", "stripe"],
-    "allowedAssets": ["RLUSD"],
+    "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
     "allowedOperators": ["operator_42", "operator_77"],
     "geoFence": ["sf_zone_a"],
     "expiresAt": "2026-03-09T23:59:59Z"
@@ -130,7 +130,7 @@ Fields:
 | minorUnit | decimal scale |
 | maxAmountMinor | maximum spend allowed |
 | allowedRails | permitted payment rails |
-| allowedAssets | permitted payment assets |
+| allowedAssets | permitted payment assets — array of structured `Asset` objects; see [Asset type](./mpcp.md#asset) |
 | allowedOperators | service operators allowed |
 | geoFence | optional geographic restrictions |
 | expiresAt | expiration timestamp |
