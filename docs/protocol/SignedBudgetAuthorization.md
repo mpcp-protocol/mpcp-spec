@@ -26,14 +26,15 @@ It is issued after a PolicyGrant and constrains subsequent SignedPaymentAuthoriz
 |-------|------|----------|-------------|
 | version | string | yes | MPCP semantic version (e.g. "1.0") |
 | budgetId | string | yes | Unique identifier for this budget |
+| grantId | string | yes | References the `PolicyGrant.grantId` from which this budget was derived. Verifiers use this to resolve the grant and confirm policy chain linkage. |
 | sessionId | string | yes | Session this budget applies to |
 | vehicleId | string | yes | Vehicle identifier |
 | scopeId | string | no | Optional scope identifier |
-| policyHash | string | yes | Hash of the policy that authorized this budget |
-| currency | string | yes | Reference currency (e.g. "USD") |
-| minorUnit | number | yes | Decimal scale (e.g. 2) |
+| policyHash | string | yes | SHA-256 hash of the canonical policy document under which this budget was authorized. Computed as `SHA256("MPCP:Policy:<version>:" \|\| canonicalJson(policyDocument))`. |
+| currency | string | yes | Informational: the fiat reference currency from which this budget was derived (e.g. `"USD"`). Not used in verification arithmetic. |
+| minorUnit | number | yes | Informational: decimal scale of the fiat reference currency (e.g. `2` for USD cents). Not used in verification arithmetic. |
 | budgetScope | string | yes | SESSION \| DAY \| VEHICLE \| FLEET |
-| maxAmountMinor | string | yes | Maximum spend in minor units |
+| maxAmountMinor | string | yes | Maximum authorized spend expressed in the **on-chain asset's atomic units** — the same denomination as `SPA.amount`. The session authority converts the fiat budget to on-chain units at SBA issuance time. |
 | allowedRails | Rail[] | yes | Permitted payment rails (xrpl, evm, stripe, hosted) |
 | allowedAssets | Asset[] | yes | Permitted assets |
 | destinationAllowlist | string[] | no | Optional allowed destination addresses |
@@ -52,12 +53,12 @@ It is issued after a PolicyGrant and constrains subsequent SignedPaymentAuthoriz
 
 ## Scope Model
 
-SBA supports multiple budget scopes.
+SBA supports multiple budget scopes. All scopes are cumulative — `maxAmountMinor` represents the total authorized spending across all payments (SPAs) within the scope, regardless of how many individual payments are made.
 
 | Scope | Meaning |
-|------|---------|
+|-------|---------|
 | SESSION | Budget applies to a single session |
-| DAY | Budget applies across sessions for a day |
+| DAY | Budget applies across sessions for a calendar day |
 | VEHICLE | Budget applies across sessions for a specific vehicle |
 | FLEET | Budget applies across vehicles within a fleet authority |
 
@@ -69,6 +70,31 @@ Examples:
 - `budgetScope: "VEHICLE"` with `scopeId` = vehicle identifier
 - `budgetScope: "FLEET"` with `scopeId` = fleet identifier
 
+## Stateless Verification Model
+
+MPCP verifiers are stateless. They do not track cumulative spending across payments.
+
+This ensures that MPCP verification is deployable across independent, parallel, or ephemeral verifier instances without shared state.
+
+Budget enforcement is split between two roles:
+
+| Role | Responsibility |
+|------|----------------|
+| Session authority | Tracks cumulative spending per scope. Only issues SPAs within the remaining authorized envelope for the scope. |
+| Verifier | Checks that the current SPA amount does not exceed `maxAmountMinor`. Does not track prior payments. |
+
+The verifier's stateless check is:
+
+```
+SPA.amount ≤ SBA.maxAmountMinor
+```
+
+Both values are in the **on-chain asset's atomic units** — the comparison is a direct numeric check with no currency conversion required. The session authority is responsible for converting the fiat budget into on-chain units at SBA issuance time, using the exchange rate and asset precision applicable at that moment.
+
+This confirms the current payment fits within the authorized envelope. The session authority's signature on each SPA is the cryptographic attestation that cumulative spending remains within bounds — the verifier trusts this by validating the signature.
+
+Verifiers MUST NOT attempt to track or reconstruct cumulative session spending.
+
 ## Example
 
 ```json
@@ -76,15 +102,16 @@ Examples:
   "authorization": {
     "version": "1.0",
     "budgetId": "550e8400-e29b-41d4-a716-446655440000",
+    "grantId": "grant_abc123",
     "sessionId": "sess_456",
     "vehicleId": "veh_001",
     "policyHash": "a1b2c3...",
     "currency": "USD",
     "minorUnit": 2,
     "budgetScope": "SESSION",
-    "maxAmountMinor": "3000",
+    "maxAmountMinor": "30000000",
     "allowedRails": ["xrpl"],
-    "allowedAssets": [{ "kind": "IOU", "currency": "USDC", "issuer": "rIssuer..." }],
+    "allowedAssets": [{ "symbol": "USDC", "namespace": "rIssuer..." }],
     "destinationAllowlist": ["rDest..."],
     "expiresAt": "2026-03-08T14:00:00Z"
   },
@@ -116,7 +143,7 @@ This prevents cross-protocol and cross-artifact hash collisions and ensures comp
 
 A verifier MUST:
 
-1. Resolve `budgetAuthorizationPublicKey` using `issuer` and `issuerKeyId` (or `keyId` if present), then validate the signature over SHA256("MPCP:SBA:<version>:" || canonicalJson(authorization))
+1. Resolve the public key (as JWK) using `issuer` and `issuerKeyId` (or `keyId` if present) via the HTTPS well-known endpoint or pre-configured keys (see [Key Resolution](./key-resolution.md)), then validate the signature over SHA256("MPCP:SBA:<version>:" || canonicalJson(authorization))
 2. Check `expiresAt` has not passed
 3. When verifying against a payment decision or settlement context: ensure sessionId, policyHash, budgetScope, allowedRails, allowedAssets, optional destination constraints, and amount constraints match
 

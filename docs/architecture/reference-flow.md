@@ -358,7 +358,7 @@ Example structure:
   "issuerKeyId": "did:xrpl:rFleetOperator...#key-1",
   "allowedRails": ["xrpl"],
   "allowedAssets": [
-    { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
+    { "symbol": "RLUSD", "namespace": "rIssuer" }
   ],
   "vendorAllowlist": ["ChargeNet","FastVolt"],
   "capPerSessionMinor": "2500",
@@ -897,11 +897,7 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
     "issuerKeyId": "did:xrpl:rFleetOperator...#key-1",
     "allowedRails": ["xrpl"],
     "allowedAssets": [
-      {
-        "kind": "IOU",
-        "currency": "RLUSD",
-        "issuer": "rIssuer"
-      }
+      { "symbol": "RLUSD", "namespace": "rIssuer" }
     ],
     "vendorAllowlist": ["ChargeNet", "FastVolt"],
     "capPerSessionMinor": "2500",
@@ -943,11 +939,7 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
     "maxAmountMinor": "2500",
     "allowedRails": ["xrpl"],
     "allowedAssets": [
-      {
-        "kind": "IOU",
-        "currency": "RLUSD",
-        "issuer": "rIssuer"
-      }
+      { "symbol": "RLUSD", "namespace": "rIssuer" }
     ],
     "destinationAllowlist": ["rChargeNetDestination"],
     "expiresAt": "2026-03-12T15:00:00Z",
@@ -960,11 +952,7 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
     "operator": "ChargeNet",
     "connectorId": "DC-FAST-2",
     "destination": "rChargeNetDestination",
-    "asset": {
-      "kind": "IOU",
-      "currency": "RLUSD",
-      "issuer": "rIssuer"
-    },
+    "asset": { "symbol": "RLUSD", "namespace": "rIssuer" },
     "priceFiat": {
       "amountMinor": "780",
       "currency": "USD"
@@ -978,11 +966,7 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
     "rail": "xrpl",
     "amount": "7.80",
     "destination": "rChargeNetDestination",
-    "asset": {
-      "kind": "IOU",
-      "currency": "RLUSD",
-      "issuer": "rIssuer"
-    },
+    "asset": { "symbol": "RLUSD", "namespace": "rIssuer" },
     "createdAt": "2026-03-12T14:30:20Z"
   },
 
@@ -998,11 +982,7 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
       "rail": "xrpl",
       "destination": "rChargeNetDestination",
       "amount": "7.80",
-      "asset": {
-        "kind": "IOU",
-        "currency": "RLUSD",
-        "issuer": "rIssuer"
-      }
+      "asset": { "symbol": "RLUSD", "namespace": "rIssuer" }
     },
     "signature": "ed25519:..."
   },
@@ -1012,11 +992,7 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
     "txHash": "ABCDEF123456...",
     "amount": "7.80",
     "destination": "rChargeNetDestination",
-    "asset": {
-      "kind": "IOU",
-      "currency": "RLUSD",
-      "issuer": "rIssuer"
-    },
+    "asset": { "symbol": "RLUSD", "namespace": "rIssuer" },
     "nowISO": "2026-03-12T14:31:10Z"
   },
 

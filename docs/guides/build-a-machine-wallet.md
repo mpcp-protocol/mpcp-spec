@@ -48,7 +48,7 @@ import {
 const policyGrant = createPolicyGrant({
   policyHash: "a1b2c3d4",
   allowedRails: ["xrpl"],
-  allowedAssets: [{ kind: "IOU", currency: "RLUSD", issuer: "rIssuer" }],
+  allowedAssets: [{ symbol: "RLUSD", namespace: "rIssuer" }],
   expiresAt: "2030-12-31T23:59:59Z",
 });
 
@@ -61,7 +61,7 @@ const sba = createSignedBudgetAuthorization({
   currency: "USD",
   maxAmountMinor: "3000",
   allowedRails: ["xrpl"],
-  allowedAssets: [{ kind: "IOU", currency: "RLUSD", issuer: "rIssuer" }],
+  allowedAssets: [{ symbol: "RLUSD", namespace: "rIssuer" }],
   destinationAllowlist: ["rParking"],
   expiresAt: "2030-12-31T23:59:59Z",
 });
@@ -83,7 +83,7 @@ const intent = createSettlementIntent({
   rail: "xrpl",
   amount: "1000",
   destination: "rParking",
-  asset: { kind: "IOU", currency: "RLUSD", issuer: "rIssuer" },
+  asset: { symbol: "RLUSD", namespace: "rIssuer" },
 });
 
 // 2. Create SPA (requires MPCP_SPA_SIGNING_PRIVATE_KEY_PEM)
@@ -93,7 +93,7 @@ const spa = createSignedPaymentAuthorization({
   policyHash: sba.authorization.policyHash,
   quoteId: "quote-17",
   rail: "xrpl",
-  asset: { kind: "IOU", currency: "RLUSD", issuer: "rIssuer" },
+  asset: { symbol: "RLUSD", namespace: "rIssuer" },
   amount: "1000",
   destination: "rParking",
   intentHash: computeSettlementIntentHash(intent),

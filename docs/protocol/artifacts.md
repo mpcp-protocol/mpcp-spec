@@ -25,11 +25,11 @@ Each artifact is a subset of the constraints defined by the previous one.
 The **PolicyGrant** is the result of policy evaluation at session entry. It defines the initial permission envelope:
 
 - **allowedRails** — Which payment rails (xrpl, evm, stripe, hosted) are permitted
-- **allowedAssets** — Which assets (IOU, ERC20, etc.) may be used
+- **allowedAssets** — Which assets may be used (array of `Asset` objects with `symbol` and optional `namespace`)
 - **policyHash** — Hash of the policy snapshot
 - **expiresAt** — Maximum validity for downstream artifacts
 
-The PolicyGrant is signed by the policy authority; verifiers use `issuer` and `issuerKeyId` to resolve the policy authority public key. Downstream artifacts (SBA, SPA) must reference the same `policyHash` and remain within these constraints.
+The PolicyGrant is signed by the policy authority; verifiers use `issuer` and `issuerKeyId` to resolve the policy authority public key. Downstream artifacts (SBA, SPA) must reference this PolicyGrant via `SBA.authorization.grantId` and remain within its constraints.
 
 ---
 
@@ -37,7 +37,7 @@ The PolicyGrant is signed by the policy authority; verifiers use `issuer` and `i
 
 The **SBA** defines a signed spending envelope for a session or scope:
 
-- **maxAmountMinor** — Maximum spend in minor units (e.g., 3000 = $30.00)
+- **maxAmountMinor** — Maximum spend in the on-chain asset's atomic units (same denomination as `SPA.amount`). The session authority converts the fiat budget to on-chain units at SBA issuance time.
 - **allowedRails**, **allowedAssets** — Must be subsets of PolicyGrant
 - **destinationAllowlist** — Optional list of permitted destination addresses
 - **budgetScope** — SESSION, DAY, VEHICLE, or FLEET
@@ -68,7 +68,7 @@ The **SettlementIntent** describes what will be (or was) executed. It is hashed 
   "rail": "xrpl",
   "amount": "19440000",
   "destination": "rDest...",
-  "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
+  "asset": { "symbol": "RLUSD", "namespace": "rIssuer" }
 }
 ```
 
@@ -81,7 +81,7 @@ The intentHash binds the SPA to this exact settlement, enabling deterministic ve
 A verifier checks:
 
 1. **Schema** — All artifacts are valid
-2. **Linkage** — PolicyGrant → SBA → SPA are consistent (sessionId, policyHash, constraints)
+2. **Linkage** — `SBA.authorization.grantId` references a valid PolicyGrant; `SPA.authorization.budgetId` references the issuing SBA; constraint subsets are respected
 3. **Signatures** — PolicyGrant, SBA, and SPA signatures are valid
 4. **Expiration** — No artifact is expired
 5. **Settlement match** — Executed settlement matches SPA (and intentHash if present)

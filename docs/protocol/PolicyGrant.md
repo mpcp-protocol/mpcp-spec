@@ -70,7 +70,7 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 |------|------|----------|-------------|
 | version | string | yes | MPCP semantic version (e.g. "1.0") |
 | grantId | string | yes | Unique identifier for the grant |
-| policyHash | string | yes | Hash of the evaluated policy snapshot |
+| policyHash | string | yes | SHA-256 hash of the canonical policy document from which this grant was issued. Computed as `SHA256("MPCP:Policy:<version>:" \|\| canonicalJson(policyDocument))`. Downstream artifacts (SBA, SPA) MUST carry the same value. |
 | subjectId | string | yes | Identifier of the entity receiving the grant (vehicle, agent, wallet, etc.) |
 | operatorId | string | optional | Service operator identifier |
 | scope | string | yes | Scope of the grant (SESSION, VEHICLE, FLEET, etc.) |
@@ -97,13 +97,7 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
   "operatorId": "operator_12",
   "scope": "SESSION",
   "allowedRails": ["xrpl", "stripe"],
-  "allowedAssets": [
-    {
-      "kind": "IOU",
-      "currency": "RLUSD",
-      "issuer": "rIssuer..."
-    }
-  ],
+  "allowedAssets": [{ "symbol": "RLUSD", "namespace": "rIssuer..." }],
   "maxSpend": {
     "perTxMinor": "5000",
     "perSessionMinor": "20000"
@@ -185,9 +179,33 @@ Implementations MUST ensure:
 
 ---
 
+## Policy Hashing
+
+`policyHash` is the SHA-256 hash of the canonical policy document from which the PolicyGrant was issued.
+
+The policy document is the structured representation of the rules evaluated to produce the grant (operator policy, fleet policy, regulatory constraints, etc.). It MUST be serialized using MPCP canonical JSON before hashing.
+
+Computation:
+
+```
+policyHash = SHA256("MPCP:Policy:<version>:" || canonicalJson(policyDocument))
+```
+
+Example:
+
+```
+policyHash = SHA256("MPCP:Policy:1.0:" || '{"allowedAssets":[...],"allowedRails":[...],...}')
+```
+
+The `policyHash` is not a hash of the PolicyGrant artifact itself — it is a hash of the **source policy** that the grant was derived from.
+
+Downstream artifacts (SBA and SPA) MUST carry the same `policyHash`. During settlement verification, the verifier checks that `PolicyGrant.policyHash`, `SBA.policyHash`, and `SPA.policyHash` are all equal, confirming the entire authorization chain derives from the same policy snapshot.
+
+---
+
 ## Signing
 
-PolicyGrant MUST be cryptographically signed. The policy authority signs the grant; verifiers resolve `policyAuthorityPublicKey` using `issuer` and `issuerKeyId` (from configuration, DID resolution, or a registry).
+PolicyGrant MUST be cryptographically signed. The policy authority signs the grant; verifiers resolve the public key (as JWK) using `issuer` and `issuerKeyId` via the HTTPS well-known endpoint or pre-configured keys. See [Key Resolution](./key-resolution.md).
 
 The signed payload is the canonical JSON of all grant fields except `signature`:
 

@@ -30,15 +30,16 @@ SPA is a protocol artifact and is not tied to any specific application implement
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | version | string | yes | MPCP semantic version (e.g. "1.0") |
-| decisionId | string | yes | Payment policy decision identifier |
+| decisionId | string | yes | Payment policy decision identifier. Uniqueness is scoped to the issuer namespace — the replay key is `(issuer, decisionId)`. The SPA issuer MUST never issue two SPAs with the same `(issuer, decisionId)` pair. |
 | sessionId | string | yes | Session identifier |
-| policyHash | string | yes | Hash of the policy |
+| policyHash | string | yes | SHA-256 hash of the canonical policy document under which this payment was authorized. Computed as `SHA256("MPCP:Policy:<version>:" \|\| canonicalJson(policyDocument))`. |
+| budgetId | string | yes | References the `SBA.authorization.budgetId` that authorized the spending envelope for this payment. Verifiers use this to resolve the SBA and confirm policy chain linkage. |
 | quoteId | string | yes | Settlement quote identifier |
 | rail | Rail | yes | Payment rail (xrpl, evm, stripe, hosted) |
 | asset | Asset | conditional | Required for on-chain rails (xrpl, evm); omitted for hosted rails |
 | amount | string | yes | Amount in atomic units |
 | destination | string | conditional | Required for on-chain rails; not required for hosted rails |
-| intentHash | string | no | SHA256 hex of canonical settlement intent (optional) |
+| intentHash | string | no | SHA256 hex of the canonical settlement intent payload. When present (Full profile), mutation of any canonical payload field invalidates the authorization binding. When omitted (Lite profile), protection is limited to the settlement fields explicitly carried in the SPA. See [Deployment Profiles](../profiles/lite-profile.md). |
 | expiresAt | string | yes | ISO 8601 expiration timestamp |
 
 ### SignedPaymentAuthorization (envelope)
@@ -61,9 +62,10 @@ SPA is a protocol artifact and is not tied to any specific application implement
     "decisionId": "dec_123",
     "sessionId": "sess_456",
     "policyHash": "a1b2c3...",
+    "budgetId": "budget_123",
     "quoteId": "quote_789",
     "rail": "xrpl",
-    "asset": { "kind": "IOU", "currency": "USDC", "issuer": "rIssuer..." },
+    "asset": { "symbol": "USDC", "namespace": "rIssuer..." },
     "amount": "19440000",
     "destination": "rDest...",
     "intentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -114,7 +116,7 @@ This prevents cross‑artifact and cross‑protocol hash collisions.
 
 A verifier MUST:
 
-1. Resolve `paymentAuthorizationPublicKey` using `issuer` and `issuerKeyId` (or `keyId` if present), then validate the signature over SHA256("MPCP:SPA:<version>:" || canonicalJson(authorization))
+1. Resolve the public key (as JWK) using `issuer` and `issuerKeyId` (or `keyId` if present) via the HTTPS well-known endpoint or pre-configured keys (see [Key Resolution](./key-resolution.md)), then validate the signature over SHA256("MPCP:SPA:<version>:" || canonicalJson(authorization))
 2. Check `expiresAt` has not passed
 3. When verifying against a SettlementResult: ensure decisionId, rail, amount, destination, and asset match
 4. If `intentHash` is present: verify it equals `computeIntentHash(settlementIntent)` for the provided intent

@@ -42,7 +42,7 @@ When `policyGrantPublicKeyPem`, `sbaPublicKeyPem`, and `spaPublicKeyPem` are pre
     "policyHash": "a1b2c3",
     "expiresAt": "2030-12-31T23:59:59Z",
     "allowedRails": ["xrpl"],
-    "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }],
+    "allowedAssets": [{ "symbol": "RLUSD", "namespace": "rIssuer" }],
     "issuer": "did:web:operator.example.com",
     "issuerKeyId": "policy-auth-key-1",
     "signature": "..."
@@ -52,7 +52,7 @@ When `policyGrantPublicKeyPem`, `sbaPublicKeyPem`, and `spaPublicKeyPem` are pre
   "settlement": {
     "amount": "19440000",
     "rail": "xrpl",
-    "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
+    "asset": { "symbol": "RLUSD", "namespace": "rIssuer" },
     "destination": "rDestination",
     "nowISO": "2026-01-15T12:00:00Z"
   },

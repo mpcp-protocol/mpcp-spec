@@ -8,7 +8,7 @@ The verifier runs checks in order:
 
 1. **Schema** — All artifacts parse and validate against expected structure
 2. **Signatures** — PolicyGrant, SBA, and SPA signatures are valid (resolve public keys via `issuer` + `issuerKeyId` or deployment config)
-3. **Linkage** — PolicyGrant → SBA → SPA chain is consistent (sessionId, policyHash, constraints)
+3. **Linkage** — `SBA.authorization.grantId` references a valid PolicyGrant; `SPA.authorization.budgetId` references the issuing SBA; constraint subsets are respected
 4. **Hash** — If intentHash is present, it matches `computeSettlementIntentHash(settlementIntent)`
 5. **Policy** — Budget limits, rail/asset/destination constraints, expiration
 
@@ -19,10 +19,10 @@ If any check fails, verification fails with a specific reason.
 | Check | Description |
 |-------|-------------|
 | PolicyGrant | Signature valid; expiresAt not passed; constraints valid |
-| SBA | Signature valid; expiresAt not passed; sessionId, policyHash match |
-| SBA → decision | Budget not exceeded; rail, asset, destination in allowlists |
+| SBA | Signature valid; expiresAt not passed; `authorization.grantId` references a valid PolicyGrant |
+| SBA → decision | Current payment amount ≤ `maxAmountMinor`; rail, asset, destination in allowlists. Check is stateless — session authority manages cumulative budget tracking. |
 | SPA | Signature valid; expiresAt not passed |
-| SPA → settlement | decisionId, rail, amount, destination, asset match executed settlement |
+| SPA → settlement | rail, amount, destination, asset match executed settlement |
 | intentHash | If present, equals hash of settlement intent |
 
 ## Usage
