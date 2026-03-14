@@ -100,6 +100,30 @@ See [Anchoring](../protocol/anchoring.md) for the IAL integration specification.
 
 ---
 
+## Full Profile Security Requirements
+
+### PolicyGrant Signing
+
+In Full Profile deployments, PolicyGrants MUST be signed by the policy authority. Configure `MPCP_POLICY_GRANT_SIGNING_PUBLIC_KEY_PEM` on the verifier; unsigned grants will be rejected.
+
+### policyHash Length
+
+`policyHash` MUST be a full SHA-256 hash (64 lowercase hex characters), computed as:
+
+```
+policyHash = SHA256("MPCP:Policy:1.0:" || canonicalJson(policyDocument))
+```
+
+Short or truncated hashes are rejected in Full Profile deployments. The minimum accepted length is 12 hex characters; the full SHA-256 output (64 chars) is strongly recommended.
+
+### SPA Nonce
+
+The `nonce` field SHOULD be present in Full Profile SPAs. The reference implementation auto-generates a UUID nonce on every `createSignedPaymentAuthorization()` call.
+
+Recipients SHOULD record nonces to detect and reject replayed SPAs within the same session. The verifier itself does not track nonces (stateless model); nonce uniqueness enforcement is the responsibility of the session authority.
+
+---
+
 ## See Also
 
 - [Lite Profile](./lite-profile.md) — SPA-only settlement binding

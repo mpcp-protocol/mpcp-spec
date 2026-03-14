@@ -894,9 +894,35 @@ Machines cannot bypass policy constraints because every authorization chain must
 PolicyGrant → SBA → SPA
 ```
 
+### Cumulative Budget Overspend
+
+The MPCP verifier is stateless and checks only that the current SPA amount does not exceed `SBA.maxAmountMinor`. It does not track prior payments in the session.
+
+**Session authority responsibility:** The session authority MUST maintain a running total of amounts spent within the budget scope and MUST only issue new SPAs within the remaining authorized envelope.
+
+The reference implementation exposes `cumulativeSpentMinor` in `SettlementVerificationContext` so callers can pass the running total to the verifier for an accurate cumulative check:
+
+```
+if (cumulativeSpentMinor + currentPayment > maxAmountMinor) → budget_exceeded
+```
+
+In offline or air-gapped deployments, the session authority cannot contact the verifier in real time. In these environments, cumulative enforcement relies on trusted wallet hardware maintaining the spending counter locally.
+
 ### Settlement Tampering
 
 Verification ensures that executed settlement transactions match authorized parameters before the session is finalized.
+
+---
+
+# Known Limitations
+
+## Grant Revocation
+
+MPCP does not define a revocation mechanism for PolicyGrants or SBAs. Once issued, an artifact remains valid until its `expiresAt` timestamp passes.
+
+**Mitigation:** Issue short-lived grants (recommended: < 15 minutes for high-risk sessions). In scenarios where immediate revocation is required, the session authority should decline to issue new SPAs; the current grant will expire naturally.
+
+**Future work:** A `revocationEndpoint` extension may be defined in a future protocol version to support real-time revocation checks by verifiers.
 
 ---
 

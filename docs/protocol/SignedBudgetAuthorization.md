@@ -95,6 +95,26 @@ This confirms the current payment fits within the authorized envelope. The sessi
 
 Verifiers MUST NOT attempt to track or reconstruct cumulative session spending.
 
+## Cumulative Enforcement
+
+To enable accurate cumulative budget enforcement within a session, callers MAY pass the running total of prior spending to the verifier via `cumulativeSpentMinor`.
+
+When provided, the verifier applies:
+
+```
+cumulativeSpentMinor + currentPayment <= maxAmountMinor
+```
+
+instead of the bare single-payment check. This allows a stateless verifier to correctly reject payments that would exceed the cumulative budget even if each individual payment would fit.
+
+**Session authority responsibility:**
+- MUST track cumulative spending per scope (SESSION, DAY, VEHICLE, FLEET)
+- MUST pass `cumulativeSpentMinor` to the verifier for correct enforcement
+- MUST NOT issue new SPAs when cumulative spending would exceed `maxAmountMinor`
+
+**Offline trust assumption:**
+In offline or air-gapped environments (e.g., vehicles without real-time connectivity), cumulative enforcement relies on the session authority (typically the vehicle wallet) maintaining the spending counter in trusted local storage. The verifier cannot independently verify the counter's accuracy in offline mode; this is an accepted trust assumption for offline deployments.
+
 ## Example
 
 ```json
