@@ -91,10 +91,10 @@ Responsibilities:
 - issues a **SignedPaymentAuthorization (SPA)** for each approved service
 - checks revocation status before each payment
 
-The agent uses `vehicleId` as its identity in MPCP artifacts (the field generalizes to any autonomous payment actor):
+The agent uses `actorId` as its identity in MPCP artifacts:
 
 ```
-vehicleId: ai-trip-planner-v2
+actorId: ai-trip-planner-v2
 ```
 
 The agent holds two signing keys:
@@ -319,7 +319,7 @@ The SBA is issued **once for the entire trip** before the first service booking.
 budgetScope: TRIP
 maxAmountMinor: "80000"   ($800.00)
 sessionId: paris-trip-2026-alice
-vehicleId: ai-trip-planner-v2
+actorId: ai-trip-planner-v2
 destinationAllowlist: [rHotelMercureParis, rEurostar, rEuropcarParis]
 ```
 
@@ -430,7 +430,7 @@ The AI agent issues a **SignedBudgetAuthorization** for the full trip before any
 budgetScope:         TRIP
 maxAmountMinor:      "80000"   ($800.00)
 sessionId:           paris-trip-2026-alice
-vehicleId:           ai-trip-planner-v2
+actorId:             ai-trip-planner-v2
 grantId:             pg-alice-paris-2026
 destinationAllowlist: [rHotelMercureParis, rEurostar, rEuropcarParis]
 expiresAt:           2026-04-13T00:00:00Z
@@ -786,7 +786,7 @@ This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel 
       "budgetId": "bud-paris-trip-2026",
       "grantId": "pg-alice-paris-2026",
       "sessionId": "paris-trip-2026-alice",
-      "vehicleId": "ai-trip-planner-v2",
+      "actorId": "ai-trip-planner-v2",
       "policyHash": "a1b2c3d4e5f6",
       "currency": "USD",
       "minorUnit": 2,
@@ -849,7 +849,7 @@ This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel 
 
 - `policyGrant.issuer` is Alice's DID — the human principal who signed the delegation
 - `sba.authorization.budgetScope` is `"TRIP"` — the budget covers the full 3-day trip, not just this session
-- `sba.authorization.vehicleId` is the AI agent identifier — the `vehicleId` field generalizes to any autonomous payment actor, not just vehicles
+- `sba.authorization.actorId` is the AI agent identifier — works for vehicles, AI agents, robots, or any autonomous payment actor
 - `spa.authorization.budgetId` links to `sba.authorization.budgetId` — tying the payment to the trip-level budget
 - `policyGrant.allowedPurposes` is enforced by the agent before signing any SPA — the hotel (`travel:hotel`) is permitted; the restaurant (`travel:dining`) would not be
 - amounts are in atomic units: `"250000000"` = 250.00 RLUSD with 6 decimal places

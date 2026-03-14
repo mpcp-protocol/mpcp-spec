@@ -101,7 +101,7 @@ Example:
     "version": "1.0",
     "fleetPolicyId": "fp_123",
     "fleetId": "fleet_waymo_sf",
-    "vehicleId": "veh_456",
+    "actorId": "veh_456",
     "scope": "DAY",
     "currency": "USD",
     "minorUnit": 2,
@@ -124,7 +124,7 @@ Fields:
 | version | MPCP semantic version |
 | fleetPolicyId | unique identifier |
 | fleetId | issuing fleet |
-| vehicleId | vehicle identifier |
+| actorId | actor identifier |
 | scope | SESSION / DAY / SHIFT |
 | currency | reference currency |
 | minorUnit | decimal scale |
@@ -182,7 +182,7 @@ The verifier must check:
 
 1. **FPA signature validity**
 2. **FPA expiration**
-3. **vehicleId consistency**
+3. **actorId consistency**
 4. **operator allowlist compliance**
 5. **rail compatibility**
 6. **asset compatibility**

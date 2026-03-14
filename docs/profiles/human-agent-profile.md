@@ -80,7 +80,7 @@ single trip or project.
   "budgetScope": "TRIP",
   "maxAmountMinor": "80000",
   "sessionId": "paris-trip-2026-alice",
-  "vehicleId": "ai-trip-planner-v2"
+  "actorId": "ai-trip-planner-v2"
 }
 ```
 

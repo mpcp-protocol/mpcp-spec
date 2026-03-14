@@ -368,7 +368,7 @@ Example structure:
     "budgetId": "budget_123",
     "grantId": "grant_abc123",
     "sessionId": "sess_456",
-    "vehicleId": "veh_001",
+    "actorId": "ev-847",
     "policyHash": "a1b2c3...",
     "scopeId": "sess_456",
     "budgetScope": "SESSION",
@@ -922,7 +922,7 @@ MPCP does not define a revocation mechanism for PolicyGrants or SBAs. Once issue
 
 **Mitigation:** Issue short-lived grants (recommended: < 15 minutes for high-risk sessions). In scenarios where immediate revocation is required, the session authority should decline to issue new SPAs; the current grant will expire naturally.
 
-**Future work:** A `revocationEndpoint` extension may be defined in a future protocol version to support real-time revocation checks by verifiers.
+**Revocation extension:** The `revocationEndpoint` field on PolicyGrant supports real-time revocation checks. See the [Human-to-Agent Profile](../profiles/human-agent-profile.md#revocation) for the full revocation contract.
 
 ---
 
@@ -1029,7 +1029,7 @@ The `∈` operator used in artifact relationship rules (`SPA.asset ∈ SBA.allow
     "budgetId": "budget_123",
     "grantId": "grant_abc123",
     "sessionId": "sess_456",
-    "vehicleId": "veh_001",
+    "actorId": "ev-847",
     "policyHash": "a1b2c3...",
     "scopeId": "sess_456",
     "budgetScope": "SESSION",

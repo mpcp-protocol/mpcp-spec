@@ -338,7 +338,7 @@ Example conceptual VC envelope:
   "issuanceDate": "2026-03-12T00:00:00Z",
   "expirationDate": "2026-03-13T23:59:00Z",
   "credentialSubject": {
-    "vehicleId": "EV-847",
+    "actorId": "EV-847",
     "policyHash": "abc123...",
     "allowedRails": ["xrpl"],
     "vendorAllowlist": ["ChargeNet","FastVolt"],
@@ -908,7 +908,7 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
       "budgetId": "bud-session-847",
       "grantId": "pg-983745",
       "sessionId": "charging-session-847",
-      "vehicleId": "EV-847",
+      "actorId": "EV-847",
       "policyHash": "abc123...",
       "currency": "USD",
       "minorUnit": 2,
