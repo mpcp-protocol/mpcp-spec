@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger org site rebuild
+        if: ${{ secrets.DEPLOY_PAT != '' }}
         run: |
           gh api repos/mpcp-protocol/mpcp-protocol.github.io/dispatches \
             --method POST \
