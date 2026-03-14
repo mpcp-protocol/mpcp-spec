@@ -208,6 +208,7 @@ The EV charging flow uses the following MPCP artifacts.
 | SignedPaymentAuthorization | Vehicle wallet (payment decision service role) | Authorizes a specific payment |
 | SettlementIntent | Vehicle wallet | Defines settlement parameters |
 | Settlement Result | Settlement rail | Confirms payment execution |
+| Intent Anchor *(optional)* | Charging Operator Backend | Anchors `intentHash` to public ledger for tamper-evident audit |
 
 
 These artifacts form the **authorization chain**.
@@ -692,6 +693,44 @@ Charging operator backend then:
 - binds the tx to the `decisionId`
 - marks the authorization consumed
 - stores the audit bundle
+
+---
+
+## T+Session End+35s — Intent Attestation *(optional)*
+
+The charging operator backend optionally anchors the `intentHash` to a public ledger for a tamper-evident audit trail.
+
+Example using Hedera Consensus Service (HCS):
+
+```
+intentHash + decisionId
+        ↓
+HCS topic submission
+        ↓
+consensus timestamp + sequence number
+        ↓
+anchor reference stored in audit bundle
+```
+
+The anchor record stored alongside the audit bundle:
+
+```json
+{
+  "intentHash": "sha256ofSettlementIntent...",
+  "ledger": "hedera-hcs",
+  "topicId": "0.0.12345",
+  "sequenceNumber": 42,
+  "consensusTimestamp": "2026-03-12T14:31:45Z"
+}
+```
+
+The anchor provides:
+
+- **tamper detection** — any modification to the settlement parameters invalidates the `intentHash`
+- **public auditability** — the anchor is visible on the public ledger to any third party
+- **dispute protection** — proves the authorized intent was committed before settlement executed
+
+Intent anchoring is **optional** and does not block or affect the payment flow. Settlement and verification are complete without it.
 
 ---
 
