@@ -28,7 +28,7 @@ It is issued after a PolicyGrant and constrains subsequent SignedPaymentAuthoriz
 | budgetId | string | yes | Unique identifier for this budget |
 | grantId | string | yes | References the `PolicyGrant.grantId` from which this budget was derived. Verifiers use this to resolve the grant and confirm policy chain linkage. |
 | sessionId | string | yes | Session this budget applies to |
-| vehicleId | string | yes | Vehicle identifier |
+| actorId | string | yes | Actor identifier (vehicle, agent, robot, or any autonomous payment actor) |
 | scopeId | string | no | Optional scope identifier |
 | policyHash | string | yes | SHA-256 hash of the canonical policy document under which this budget was authorized. Computed as `SHA256("MPCP:Policy:<version>:" \|\| canonicalJson(policyDocument))`. |
 | currency | string | yes | Informational: the fiat reference currency from which this budget was derived (e.g. `"USD"`). Not used in verification arithmetic. |
@@ -125,7 +125,7 @@ In offline or air-gapped environments (e.g., vehicles without real-time connecti
     "budgetId": "550e8400-e29b-41d4-a716-446655440000",
     "grantId": "grant_abc123",
     "sessionId": "sess_456",
-    "vehicleId": "veh_001",
+    "actorId": "ev-847",
     "policyHash": "a1b2c3...",
     "currency": "USD",
     "minorUnit": 2,
