@@ -113,10 +113,12 @@ In this scenario:
 | Stop | Provider | Purpose | Amount |
 |------|----------|---------|--------|
 | 1 | Mercure Paris (hotel) | travel:hotel | $250 |
-| 2 | Eurostar (rail) | travel:flight | $120 |
+| 2 | Eurostar (rail) | travel:flight¹ | $120 |
 | 3 | Le Jules Verne (restaurant) | travel:dining | — (skipped) |
 | 4 | Europcar (car rental) | travel:transport | $180 |
 | 5 | Hotel extra night | travel:hotel | $300 (rejected) |
+
+¹ Eurostar (Channel Tunnel rail) is categorized as `travel:flight` because many travel booking platforms classify international point-to-point journeys — including Eurostar — under the flight/air-travel category. Both `travel:flight` and `travel:transport` are in `allowedPurposes`; `travel:flight` was chosen here to reflect realistic booking system semantics.
 
 Responsibilities:
 
@@ -199,6 +201,8 @@ When `checkRevocation(endpoint, grantId)` returns `{ revoked: true }`, service p
 The following diagram summarizes the **runtime interaction flow** between Alice's wallet, the AI agent, service providers, and the settlement rail.
 
 ![MPCP Human-to-Agent Travel Budget — Runtime Sequence Diagram](human-agent-reference-flow-sequence.svg)
+
+> **Note:** The diagram shows one representative booking (Stop 1: Hotel, $250) in full detail. Stops 2 (Eurostar, $120) and 4 (Europcar, $180) follow the identical per-booking flow and are omitted for brevity. The audit phase reflects cumulative spend across all three completed stops ($550 total).
 
 This diagram highlights the **separation of roles**:
 
@@ -829,6 +833,7 @@ This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel 
       "amount": "250000000",
       "destination": "rHotelMercureParis",
       "intentHash": "sha256ofSettlementIntent...",
+      "nonce": "3794c12e-369e-4ff3-9092-b583bcb398e6",
       "expiresAt": "2026-04-13T00:00:00Z"
     },
     "issuerKeyId": "agent-spa-key-1",
@@ -852,6 +857,7 @@ This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel 
 - `sba.authorization.actorId` is the AI agent identifier — the `actorId` field generalizes to any autonomous payment actor, not just vehicles
 - `spa.authorization.budgetId` links to `sba.authorization.budgetId` — tying the payment to the trip-level budget
 - `policyGrant.allowedPurposes` is enforced by the agent before signing any SPA — the hotel (`travel:hotel`) is permitted; the restaurant (`travel:dining`) would not be
+- `spa.authorization.nonce` is a UUID generated per SPA for replay protection — each authorization is unique even if all other fields are identical
 - amounts are in atomic units: `"250000000"` = 250.00 RLUSD with 6 decimal places
 
 ## Differences from Fleet EV Charging Bundle

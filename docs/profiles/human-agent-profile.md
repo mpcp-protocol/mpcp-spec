@@ -220,6 +220,7 @@ the policy authority, connectivity assumptions, and the new fields for human use
 
 ## See Also
 
+- [Reference Flow (Human-Agent)](../architecture/human-agent-reference-flow.md) — End-to-end Paris trip scenario
 - [PolicyGrant](../protocol/PolicyGrant.md) — `revocationEndpoint`, `allowedPurposes` fields
 - [SignedBudgetAuthorization](../protocol/SignedBudgetAuthorization.md) — TRIP scope
 - [Actors](../architecture/actors.md) — AI Agent actor
