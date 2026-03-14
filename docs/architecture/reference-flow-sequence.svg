@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="980" height="1010" viewBox="0 0 980 1010"
+<svg width="980" height="1120" viewBox="0 0 980 1120"
      xmlns="http://www.w3.org/2000/svg"
      font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
 
@@ -21,7 +21,7 @@
   <!-- ========================================================= -->
   <!-- BACKGROUND -->
   <!-- ========================================================= -->
-  <rect width="980" height="1010" fill="#F8FAFC" rx="10"/>
+  <rect width="980" height="1120" fill="#F8FAFC" rx="10"/>
 
   <!-- Phase background bands -->
   <!-- Phase 1: Policy Setup -->
@@ -34,6 +34,8 @@
   <rect x="14" y="518" width="952" height="238" rx="4" fill="#FEF3C7" opacity="0.35"/>
   <!-- Phase 5: Energy + Settlement -->
   <rect x="14" y="758" width="952" height="234" rx="4" fill="#D1FAE5" opacity="0.3"/>
+  <!-- Phase 6: Intent Attestation (optional) -->
+  <rect x="14" y="992" width="952" height="100" rx="4" fill="#EDE9FE" opacity="0.15"/>
 
   <!-- Phase labels (right margin) -->
   <text x="968" y="126" text-anchor="end" fill="#93C5FD" font-size="9" font-weight="700" letter-spacing="1">POLICY</text>
@@ -41,6 +43,8 @@
   <text x="968" y="378" text-anchor="end" fill="#A78BFA" font-size="9" font-weight="700" letter-spacing="1">AUTH</text>
   <text x="968" y="630" text-anchor="end" fill="#FCD34D" font-size="9" font-weight="700" letter-spacing="1">VERIFY</text>
   <text x="968" y="875" text-anchor="end" fill="#6EE7B7" font-size="9" font-weight="700" letter-spacing="1">SETTLE</text>
+  <text x="968" y="1048" text-anchor="end" fill="#C4B5FD" font-size="9" font-weight="700" letter-spacing="1">ATTEST</text>
+  <text x="968" y="1060" text-anchor="end" fill="#C4B5FD" font-size="8" letter-spacing="1">(opt.)</text>
 
   <!-- ========================================================= -->
   <!-- ACTOR HEADER BOXES  (actor centers: 100, 300, 500, 700, 900) -->
@@ -74,11 +78,11 @@
   <!-- ========================================================= -->
   <!-- LIFELINES -->
   <!-- ========================================================= -->
-  <line x1="100" y1="66" x2="100" y2="996" stroke="#CBD5E1" stroke-dasharray="5,4" stroke-width="1.5"/>
-  <line x1="300" y1="66" x2="300" y2="996" stroke="#CBD5E1" stroke-dasharray="5,4" stroke-width="1.5"/>
-  <line x1="500" y1="66" x2="500" y2="996" stroke="#CBD5E1" stroke-dasharray="5,4" stroke-width="1.5"/>
-  <line x1="700" y1="66" x2="700" y2="996" stroke="#CBD5E1" stroke-dasharray="5,4" stroke-width="1.5"/>
-  <line x1="900" y1="66" x2="900" y2="996" stroke="#CBD5E1" stroke-dasharray="5,4" stroke-width="1.5"/>
+  <line x1="100" y1="66" x2="100" y2="1092" stroke="#CBD5E1" stroke-dasharray="5,4" stroke-width="1.5"/>
+  <line x1="300" y1="66" x2="300" y2="1092" stroke="#CBD5E1" stroke-dasharray="5,4" stroke-width="1.5"/>
+  <line x1="500" y1="66" x2="500" y2="1092" stroke="#CBD5E1" stroke-dasharray="5,4" stroke-width="1.5"/>
+  <line x1="700" y1="66" x2="700" y2="1092" stroke="#CBD5E1" stroke-dasharray="5,4" stroke-width="1.5"/>
+  <line x1="900" y1="66" x2="900" y2="1092" stroke="#CBD5E1" stroke-dasharray="5,4" stroke-width="1.5"/>
 
   <!-- ========================================================= -->
   <!-- STEP 1 — Fleet → Vehicle: Issue PolicyGrant -->
@@ -174,9 +178,19 @@
   <text x="721" y="887" fill="#78350F" font-size="10">  · store complete audit bundle</text>
 
   <!-- ========================================================= -->
+  <!-- STEP 13 — Charging Op Backend: Anchor intentHash to HCS (optional) -->
+  <!-- ========================================================= -->
+  <rect x="684" y="1005" width="30" height="72" rx="3" fill="#EDE9FE" stroke="#A78BFA" stroke-dasharray="5,3" stroke-width="2"/>
+
+  <text x="721" y="1025" fill="#6D28D9" font-size="11.5" font-weight="700">13. Anchor intentHash to HCS</text>
+  <text x="721" y="1041" fill="#7C3AED" font-size="10">  · submit intentHash to HCS topic</text>
+  <text x="721" y="1055" fill="#7C3AED" font-size="10">  · store consensus timestamp</text>
+  <text x="721" y="1069" fill="#7C3AED" font-size="10">  · add anchor ref to audit bundle</text>
+
+  <!-- ========================================================= -->
   <!-- FOOTER -->
   <!-- ========================================================= -->
-  <text x="490" y="1002" text-anchor="middle" fill="#94A3B8" font-size="9.5">
+  <text x="490" y="1112" text-anchor="middle" fill="#94A3B8" font-size="9.5">
     Machine Payment Control Protocol — Fleet EV Charging Runtime Sequence
   </text>
 

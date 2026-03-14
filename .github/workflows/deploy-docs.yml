@@ -12,6 +12,10 @@ jobs:
     steps:
       - name: Trigger org site rebuild
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "DEPLOY_PAT secret not set — skipping org site rebuild"
+            exit 0
+          fi
           gh api repos/mpcp-protocol/mpcp-protocol.github.io/dispatches \
             --method POST \
             -f event_type=deploy-docs
