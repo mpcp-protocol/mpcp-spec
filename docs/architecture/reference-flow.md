@@ -218,55 +218,7 @@ These artifacts form the **authorization chain**.
 
 The following diagram summarizes the **runtime interaction flow** between the EV, charging station, and settlement rail.
 
-```
-Fleet Policy Service
-        │
-        │ 1. Issue PolicyGrant (signed)
-        ▼
-Vehicle Wallet
-        │
-        │ 2. Store PolicyGrant
-        │
-        │ 3. Request quote
-        ▼
-Charging Station
-        │
-        │ 4. Provide charging quote
-        ▼
-Vehicle Wallet
-        │
-        │ 5. Validate policy
-        │ 6. Create SignedBudgetAuthorization
-        │ 7. Create SettlementIntent
-        │ 8. Apply payment decision logic
-        │    Create SignedPaymentAuthorization
-        ▼
-Charging Operator Backend
-        │
-        │ 9. Verify MPCP artifact chain
-        │
-        │   - resolve issuer public keys
-        │     (HTTPS well-known or DID)
-        │   - verify PolicyGrant
-        │   - verify SignedBudgetAuthorization
-        │   - verify SPA
-        │
-        ▼
-Charging Station
-        │
-        │ 10. Begin energy delivery
-        ▼
-Vehicle Wallet
-        │
-        │ 11. Submit payment to XRPL / settlement rail
-        ▼
-Charging Operator Backend
-        │
-        │ 12. Verify settlement tx
-        │     Bind tx to decisionId
-        │     Mark authorization consumed
-        │     Store audit bundle
-```
+![MPCP Fleet EV Charging — Runtime Sequence Diagram](reference-flow-sequence.svg)
 
 This diagram highlights the **separation of roles**:
 
