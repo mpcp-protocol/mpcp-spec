@@ -36,8 +36,7 @@ nav:
   - Home: index.md
   - Overview:
     - What is MPCP: overview/what-is-mpcp.md
-    - Problem: overview/problem.md
-    - Problem Statement: overview/problem-statement.md
+    - Problem: overview/problem-statement.md
     - Design Goals: overview/design-goals.md
     - Comparison: overview/comparison-with-agent-protocols.md
     - Why MPCP for Agents: overview/why-mpcp-for-agents.md
