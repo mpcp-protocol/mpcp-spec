@@ -92,6 +92,28 @@ A Lite profile SPA omits `intentHash`:
 
 Step 3 of the MPCP verification algorithm (intent binding) is skipped when `intentHash` is absent. All other verification steps apply in full.
 
+The verification report will include:
+
+```
+Hash binding: NOT CHECKED (Lite Profile — intentHash absent)
+```
+
+The `hashBindingChecked` field in `VerificationReport` will be `false` when `intentHash` is absent.
+
+---
+
+## Security Considerations
+
+### Backend Substitution Risk
+
+In Lite Profile deployments, a compromised backend can substitute payment amounts or destinations **between policy authorization and settlement execution** without invalidating the cryptographic chain. Only the fields explicitly carried in the SPA (rail, asset, amount, destination) are protected.
+
+Deployments that cannot tolerate this risk MUST use the Full Profile with `intentHash` binding.
+
+### Memo and Metadata
+
+Fields outside the SPA — memo content, ancillary metadata, extended transaction fields — receive no cryptographic protection in Lite Profile. If these fields affect business outcomes, use the Full Profile.
+
 ---
 
 ## See Also

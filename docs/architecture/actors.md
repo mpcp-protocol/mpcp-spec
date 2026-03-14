@@ -28,6 +28,8 @@ Resides in each machine (EV, robot, IoT device) and enforces MPCP constraints.
 
 The wallet is the MPCP actor that signs SignedBudgetAuthorization and SignedPaymentAuthorization.
 
+> **Note on Vehicle Identity:** The `vehicleId` field in SBA artifacts is self-reported by the wallet. Production deployments SHOULD establish vehicle attestation via device key binding (e.g., a hardware-backed key whose public key is registered with the fleet operator). Without attestation, `vehicleId` cannot be cryptographically verified and is informational only.
+
 ## Service Provider
 
 The entity that receives payment for a service (parking, charging, tolls).

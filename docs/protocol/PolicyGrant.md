@@ -203,18 +203,48 @@ Downstream artifacts (SBA and SPA) MUST carry the same `policyHash`. During sett
 
 ---
 
-## Signing
+## Signing Requirements
 
-PolicyGrant MUST be cryptographically signed. The policy authority signs the grant; verifiers resolve the public key (as JWK) using `issuer` and `issuerKeyId` via the HTTPS well-known endpoint or pre-configured keys. See [Key Resolution](./key-resolution.md).
+PolicyGrant MUST be cryptographically signed by the policy authority. Verifiers that have a public key configured MUST verify the signature and MUST reject unsigned grants.
 
-The signed payload is the canonical JSON of all grant fields except `signature`:
+### Domain Hash
+
+The signed payload uses domain-separated hashing:
 
 ```
-hash = SHA256("MPCP:PolicyGrant:<version>:" || canonicalJson(grantPayload))
+hash = SHA256("MPCP:PolicyGrant:1.0:" || canonicalJson(grantPayload))
 signature = sign(hash, policyAuthorityPrivateKey)
 ```
 
+where `grantPayload` is all grant fields except `signature`, serialized as canonical JSON.
+
+### Reference Implementation — Environment Variables
+
+The reference implementation (`policyGrant.ts`) exposes signing and verification via environment variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `MPCP_POLICY_GRANT_SIGNING_PRIVATE_KEY_PEM` | Private key for signing PolicyGrants |
+| `MPCP_POLICY_GRANT_SIGNING_PUBLIC_KEY_PEM` | Public key for verifying PolicyGrant signatures. When set, unsigned grants are rejected. |
+| `MPCP_POLICY_GRANT_SIGNING_KEY_ID` | Key identifier (default: `mpcp-policy-grant-signing-key-1`) |
+
+Functions:
+- `createSignedPolicyGrant(grant)` — signs the grant, returns `SignedPolicyGrant`
+- `verifyPolicyGrantSignature(envelope)` — verifies the signature
+
+### Enforcement
+
+If `MPCP_POLICY_GRANT_SIGNING_PUBLIC_KEY_PEM` is set:
+- Grants without `issuerKeyId` and `signature` are rejected with `invalid_policy_grant_signature`
+- Grants with an invalid signature are rejected with `invalid_policy_grant_signature`
+
+If the env var is not set, signature verification is skipped (backward-compatible mode for environments using pre-validated grants).
+
 If signature verification fails, the verifier MUST reject the grant.
+
+### Key Resolution
+
+Verifiers resolve the public key (as JWK) using `issuer` and `issuerKeyId` via the HTTPS well-known endpoint or pre-configured keys. See [Key Resolution](./key-resolution.md).
 
 ---
 
