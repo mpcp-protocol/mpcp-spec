@@ -351,4 +351,4 @@ It ensures that downstream artifacts (SBA and SPA) are always derived from a **v
 
 ## See Also
 
-- [MPCP Reference Flow — EV Charging](../architecture/reference-flow.md) — Demonstrates how PolicyGrant is used during runtime authorization.
+- [MPCP Reference Flow — EV Charging](../architecture/fleet-ev-reference-flow.md) — Demonstrates how PolicyGrant is used during runtime authorization.

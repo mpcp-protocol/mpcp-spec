@@ -83,4 +83,4 @@ See [Comparison with Agent Protocols](comparison-with-agent-protocols.md) for a 
 
 - [What is MPCP?](what-is-mpcp.md)
 - [Problem Statement](problem-statement.md)
-- [Reference Flow](../architecture/reference-flow.md) — Full EV charging reference scenario
+- [Reference Flow](../architecture/fleet-ev-reference-flow.md) — Full EV charging reference scenario
