@@ -194,6 +194,21 @@ When `checkRevocation(endpoint, grantId)` returns `{ revoked: true }`, service p
 
 ---
 
+# High-Level Sequence Diagram
+
+The following diagram summarizes the **runtime interaction flow** between Alice's wallet, the AI agent, service providers, and the settlement rail.
+
+![MPCP Human-to-Agent Travel Budget — Runtime Sequence Diagram](human-agent-reference-flow-sequence.svg)
+
+This diagram highlights the **separation of roles**:
+
+- human principal (Alice) controls policy and revocation
+- AI agent enforces allowedPurposes and cumulative budget
+- service providers verify the authorization chain
+- settlement rail executes payment
+
+---
+
 # MPCP Artifacts Used in This Scenario
 
 | Artifact | Issued By | Purpose |
