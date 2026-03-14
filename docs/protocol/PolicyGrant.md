@@ -83,6 +83,8 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | issuer | string | yes | Identifier for the policy authority (e.g. DID, domain, or registry ID). Verifiers use this to resolve the signing key. |
 | issuerKeyId | string | yes | Identifies the specific key used to sign (for deployments with multiple keys per issuer). |
 | signature | string | yes | Cryptographic signature over the canonical JSON of the grant payload (all fields except `signature`). |
+| revocationEndpoint | string | optional | URL of the human/operator wallet's revocation service. If present, merchants SHOULD check this before accepting payment. See **Revocation** section below. |
+| allowedPurposes | string[] | optional | Merchant category allowlist (e.g. `["travel:hotel", "travel:flight"]`). Semantic metadata — enforced by the agent, not by the MPCP verifier. Appears in the audit trail. |
 
 ---
 
@@ -245,6 +247,43 @@ If signature verification fails, the verifier MUST reject the grant.
 ### Key Resolution
 
 Verifiers resolve the public key (as JWK) using `issuer` and `issuerKeyId` via the HTTPS well-known endpoint or pre-configured keys. See [Key Resolution](./key-resolution.md).
+
+---
+
+## Revocation
+
+### `revocationEndpoint`
+
+If the `revocationEndpoint` field is present, verifiers and service providers SHOULD check
+whether the grant has been revoked before accepting a payment.
+
+**Endpoint contract:**
+
+```
+GET {revocationEndpoint}?grantId={grantId}
+Response: { "revoked": boolean, "revokedAt": "ISO8601" }
+```
+
+**Verifier behavior:** The MPCP verifier pipeline does **not** call `revocationEndpoint` — it
+remains stateless and synchronous. Callers MUST perform the check as a separate step using
+`checkRevocation()` from the SDK.
+
+**Merchant responsibility:** Merchants with a `revocationEndpoint` in the grant SHOULD call
+it before accepting payment. If the endpoint is unreachable, the merchant makes a risk-based
+decision based on deployment context (see [Human-to-Agent Profile](../profiles/human-agent-profile.md)
+for guidance on offline exceptions).
+
+**Reference implementation:**
+
+```javascript
+import { checkRevocation } from "mpcp-service/sdk";
+
+const { revoked, revokedAt, error } = await checkRevocation(
+  grant.revocationEndpoint,
+  grant.grantId,
+  { timeoutMs: 3000 }
+);
+```
 
 ---
 

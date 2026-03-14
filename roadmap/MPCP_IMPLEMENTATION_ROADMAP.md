@@ -837,42 +837,6 @@ Implemented: `docs/` with overview (what-is-mpcp, problem, comparison-with-agent
 
 ⸻
 
-### PR18A — Protocol Chain Hero Diagram
-
-Add a canonical **MPCP Authorization Chain diagram** to the documentation homepage and architecture section.
-
-Diagram structure:
-
-PolicyGrant  
-→ SignedBudgetAuthorization  
-→ SignedPaymentAuthorization  
-→ Settlement
-
-Each layer visually represents how MPCP **progressively constrains machine spending authority**.
-
-Recommended labeling:
-
-• PolicyGrant — defines where and how a machine may pay  
-• SignedBudgetAuthorization — enforces session spending limits  
-• SignedPaymentAuthorization — authorizes a specific payment  
-• Settlement — records what actually happened
-
-Purpose:
-
-• give developers an immediate mental model of MPCP  
-• visually communicate the protocol’s constrained authorization chain  
-• establish a recognizable visual identity for MPCP documentation
-
-Deliverables:
-
-• SVG diagram included in docs/diagrams/  
-• diagram embedded on the docs homepage  
-• diagram referenced in protocol overview pages
-
-This diagram becomes the **primary visual explanation of the MPCP protocol** and should appear early in the documentation to help new readers understand the authorization model quickly.
-
-⸻
-
 PR19 — Documentation Site Deployment ✓
 
 Deploy the docs site so it is publicly accessible (e.g., GitHub Pages). Implemented: `mkdocs.yml`, `docs-requirements.txt`, `.github/workflows/deploy-docs.yml`. Enable GitHub Pages (Settings → Pages → Source: GitHub Actions) to publish.
@@ -909,30 +873,6 @@ Purpose:
 Goal: Turn MPCP from a published protocol into something that is easy to evaluate, explain, and adopt across machine-wallet, fleet, and payment-rail ecosystems.
 
 This phase focuses on visual communication, real-world deployment profiles, and ecosystem positioning so that MPCP can be understood and adopted by external developers, mobility operators, and payment infrastructure teams.
-
-⸻
-
-PR20a — Protocol Chain Hero Diagram
-
-Add a canonical **MPCP Authorization Chain** diagram to the documentation homepage and architecture section.
-
-Diagram structure:
-	•	PolicyGrant
-	•	SignedBudgetAuthorization
-	•	SignedPaymentAuthorization
-	•	Settlement
-
-Each layer visually represents how MPCP progressively constrains machine spending authority.
-
-Purpose:
-	•	give developers an immediate mental model of MPCP
-	•	visually communicate the constrained authorization chain
-	•	establish a recognizable visual identity for MPCP documentation
-
-Deliverables:
-	•	SVG diagram in `docs/diagrams/`
-	•	homepage embed
-	•	references from overview / protocol pages
 
 ⸻
 
@@ -1054,6 +994,26 @@ Deliverables:
 	•	conformance criteria
 	•	basic badge / claim format
 	•	documentation for how external implementations validate compatibility
+
+⸻
+
+PR26 — Human-to-Agent Delegation Profile ✓ Implemented
+
+Extend MPCP to support human DID principals delegating bounded spending authority to AI agents.
+
+Implemented:
+- `revocationEndpoint` field on PolicyGrant — human can cancel mid-delegation via wallet service
+- `allowedPurposes` field on PolicyGrant — merchant category allowlist (agent-enforced, audit trail)
+- `TRIP` budget scope — multi-day/multi-session spending envelopes for travel and project budgets
+- `checkRevocation()` SDK utility — async endpoint check; verifier stays stateless and synchronous
+- Human-to-agent delegation profile doc (`docs/profiles/human-agent-profile.md`)
+- Human-to-agent demo (`examples/human-agent-trip/`) — Alice delegates $800 Paris trip budget to AI agent
+- Comparison doc updated with ACP, TAPC, MCP positioning and "Why MPCP for agent spending" section
+- `actors.md` updated with AI Agent actor
+
+Known Limitation resolved:
+- `revocationEndpoint` is now defined in the spec and reference implementation.
+  The MPCP verifier remains stateless; callers perform revocation checks as a separate step.
 
 ⸻
 
