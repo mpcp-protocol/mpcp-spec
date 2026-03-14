@@ -164,6 +164,82 @@ DID resolution and VC verification are never required for MPCP compliance. Imple
 
 ---
 
+## `did:xrpl` DID Resolution
+
+MPCP defines an optional resolution mechanism for `did:xrpl` DIDs, used when XRPL-native policy
+authorities issue grants with an XRPL account as the issuer.
+
+### DID Format
+
+```
+did:xrpl:{network}:{rAddress}
+```
+
+Examples:
+- `did:xrpl:mainnet:rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh`
+- `did:xrpl:testnet:rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe`
+
+### Network RPC Defaults
+
+| Network | Default RPC Endpoint |
+|---------|---------------------|
+| `mainnet` | `https://xrplcluster.com` |
+| `testnet` | `https://s.altnet.rippletest.net:51234` |
+
+### Resolution Algorithm
+
+1. Parse network and account from DID string
+2. Call XRPL `account_objects` JSON-RPC with `type: "DID"` to retrieve the DID object
+3. Hex-decode the `DIDDocument` field of the returned DID ledger entry
+4. Parse the decoded string as JSON to obtain the DID Document
+5. Extract `verificationMethod[0].publicKeyJwk`
+6. Return the JWK
+
+```text
+function resolveXrplDid(did):
+    (network, account) = parseDid(did)
+    rpcUrl = networkRpc(network)
+    response = xrplRpc(rpcUrl, "account_objects", { account, type: "DID" })
+    didObject = response.result.account_objects[0]
+    didDocumentJson = hexDecode(didObject.DIDDocument)
+    didDocument = JSON.parse(didDocumentJson)
+    return didDocument.verificationMethod[0].publicKeyJwk
+```
+
+### Reference Implementation
+
+```typescript
+import { resolveXrplDid } from "mpcp-service/sdk";
+
+const result = await resolveXrplDid(
+  "did:xrpl:mainnet:rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh",
+  { rpcUrl: "https://xrplcluster.com", timeoutMs: 5000 },
+);
+
+if ("error" in result) {
+  // resolution failed
+} else {
+  const jwk = result.jwk; // JsonWebKey
+}
+```
+
+### Error Codes
+
+| Code | Condition |
+|------|-----------|
+| `invalid_did_format` | DID does not match `did:xrpl:{network}:{rAddress}` |
+| `unknown_xrpl_network` | Network is not `mainnet` or `testnet` and no `rpcUrl` provided |
+| `xrpl_rpc_fetch_failed` | Network error calling the XRPL JSON-RPC endpoint |
+| `xrpl_rpc_http_error` | Non-200 HTTP response from the RPC endpoint |
+| `xrpl_did_not_found` | No DID object found for the account |
+| `xrpl_did_document_missing` | DIDDocument field absent or empty |
+| `xrpl_did_document_invalid_hex` | DIDDocument field is not valid hex |
+| `xrpl_did_document_invalid_json` | Decoded DIDDocument is not valid JSON |
+| `xrpl_did_no_verification_method` | DID Document has no verificationMethod entries |
+| `xrpl_did_no_public_key_jwk` | verificationMethod[0] has no publicKeyJwk |
+
+---
+
 ## Error Codes
 
 | Code | Condition |

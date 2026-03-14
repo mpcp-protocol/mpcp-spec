@@ -85,6 +85,7 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | signature | string | yes | Cryptographic signature over the canonical JSON of the grant payload (all fields except `signature`). |
 | revocationEndpoint | string | optional | URL of the human/operator wallet's revocation service. If present, merchants SHOULD check this before accepting payment. See **Revocation** section below. |
 | allowedPurposes | string[] | optional | Merchant category allowlist (e.g. `["travel:hotel", "travel:flight"]`). Semantic metadata — enforced by the agent, not by the MPCP verifier. Appears in the audit trail. |
+| anchorRef | string | optional | Pointer to an on-chain record of the policy document. Format: `"hcs:{topicId}:{sequenceNumber}"` (Hedera HCS) or `"xrpl:nft:{tokenId}"` (XRPL NFToken). See **Policy Document Anchoring** section below. |
 
 ---
 
@@ -250,9 +251,27 @@ Verifiers resolve the public key (as JWK) using `issuer` and `issuerKeyId` via t
 
 ---
 
+## Policy Document Anchoring
+
+The `anchorRef` field is an optional pointer to an on-chain record of the policy document that
+produced this grant. Two formats are supported:
+
+```
+"hcs:{topicId}:{sequenceNumber}"   — Hedera Consensus Service message
+"xrpl:nft:{tokenId}"               — XRPL non-transferable NFToken
+```
+
+**Verifier behavior:** The MPCP verifier passes `anchorRef` through without enforcement. It is
+informational metadata used by auditors, merchants, and dispute resolution tooling.
+
+See [Policy Anchoring](./policy-anchoring.md) for the full anchoring specification, including
+HCS message format, environment variables, and XRPL NFT minting guidance.
+
+---
+
 ## Revocation
 
-### `revocationEndpoint`
+### `revocationEndpoint` (Hosted Revocation)
 
 If the `revocationEndpoint` field is present, verifiers and service providers SHOULD check
 whether the grant has been revoked before accepting a payment.
@@ -284,6 +303,41 @@ const { revoked, revokedAt, error } = await checkRevocation(
   { timeoutMs: 3000 }
 );
 ```
+
+### XRPL NFT Revocation (On-Chain Revocation)
+
+When `anchorRef` contains an `"xrpl:nft:{tokenId}"` reference, the grant may be revoked by
+**burning the NFToken**. Merchants SHOULD check whether the NFT still exists before accepting
+payment.
+
+Non-existence of the NFT (after burn) signals revocation. This mechanism requires no hosted
+service — revocation is enforced by the XRPL ledger itself.
+
+**Reference implementation:**
+
+```javascript
+import { checkXrplNftRevocation } from "mpcp-service/sdk";
+
+const tokenId = grant.anchorRef?.replace("xrpl:nft:", "");
+if (tokenId) {
+  const { revoked, error } = await checkXrplNftRevocation(tokenId, { timeoutMs: 5000 });
+  if (revoked) {
+    // Grant has been revoked — reject the payment
+  }
+}
+```
+
+**Comparison:**
+
+| Mechanism | Requires hosted service | Suitable for |
+|-----------|------------------------|--------------|
+| `revocationEndpoint` | Yes | Enterprise, operator-controlled |
+| XRPL NFT burn | No | Consumer, self-sovereign |
+
+Both mechanisms may be present on the same grant. Merchants SHOULD check both when present.
+
+See [Policy Anchoring — XRPL NFT-Backed PolicyGrant](./policy-anchoring.md#xrpl-nft-backed-policygrant)
+for full details.
 
 ---
 

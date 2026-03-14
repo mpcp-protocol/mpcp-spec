@@ -1017,6 +1017,235 @@ Known Limitation resolved:
 
 ⸻
 
+PR27 — On-Chain Policy Anchoring ✓ Implemented
+
+Extend MPCP with on-chain anchoring of the policy document itself, distinct from intent anchoring (PR10/PR14). Provides a tamper-evident, third-party-auditable policy trail and introduces XRPL NFT-based revocation as an alternative to `revocationEndpoint` for consumer deployments.
+
+Implemented:
+- `PolicyGrantLike.anchorRef?: string` — pointer to on-chain record; formats: `"hcs:{topicId}:{seq}"` and `"xrpl:nft:{tokenId}"`
+- `AnchorRail` extended with `"xrpl-nft"`; new `PolicyAnchorResult` interface in `src/anchor/types.ts`
+- `src/anchor/xrplDid.ts` — `resolveXrplDid(did, opts?)` fetch-based resolver for `did:xrpl:{mainnet|testnet}:{rAddress}` via XRPL `account_objects` JSON-RPC
+- `src/anchor/hederaHcsPolicyAnchor.ts` — `hederaHcsAnchorPolicyDocument(doc, opts?)` submits full policy document to HCS; env vars: `MPCP_HCS_POLICY_TOPIC_ID`, `MPCP_HCS_OPERATOR_ID`, `MPCP_HCS_OPERATOR_KEY`
+- `src/anchor/xrplNftRevocation.ts` — `checkXrplNftRevocation(tokenId, opts?)` via XRPL `nft_info` JSON-RPC; burned NFT = revoked
+- All three exported from `src/anchor/index.ts` and `src/sdk/index.ts`
+- `createPolicyGrant` and `policyGrantForVerificationSchema` updated with `anchorRef`
+- Spec: `docs/protocol/policy-anchoring.md` (new); `PolicyGrant.md` (anchorRef field + XRPL NFT revocation subsection); `key-resolution.md` (did:xrpl section); `anchoring.md` (scope clarification + cross-ref); `mkdocs.yml` (nav entry)
+
+Known limitation resolved in PR28:
+- `hederaHcsAnchorPolicyDocument` currently publishes the full policy document to a public HCS topic.
+  Policy documents may contain sensitive fields (`subjectId`, `allowedPurposes`, spending limits).
+  PR28 changes the default to hash-only and introduces an encrypted submission mode.
+
+⸻
+
+PR28 — Encrypted Policy Anchoring
+
+**Motivation**
+
+PR27's `hederaHcsAnchorPolicyDocument` publishes the full `policyDocument` to a public HCS topic. HCS topics are publicly readable via any mirror node and immutable — a GDPR right-to-erasure conflict for any document containing personal data.
+
+Policy documents can carry sensitive fields: `subjectId` (identity), `allowedPurposes` (behavioural/medical/travel categories), spending limits (financial), `revocationEndpoint` (service provider). Even without explicit PII these fields may be re-identifiable in combination.
+
+**Privacy model**
+
+Two-tier by deployment context:
+
+```
+Individual / default
+  policyHash only → public ledger (HCS topic or XRPL NFT URI fragment)
+  full document   → Service layer stores as custodian (off-chain)
+  auditors        → request document from Service, verify against on-chain hash
+
+Institutional opt-in
+  encrypt(policyDocument, AES-256-GCM key) → ledger
+    HCS:  encrypted bytes in HCS message body
+    XRPL: encrypted blob → IPFS → NFT URI = "ipfs://{CID}"
+  decryption key shared out-of-band with regulators / auditors
+```
+
+Key insight: HCS "permissioned topics" control write access (submit keys) but not read access — messages are publicly readable. True confidentiality on both HCS and XRPL requires encryption, not just topic permissioning. Write-permissioning (HCS submit keys / XRPL NFT issuer control) is already provided by the existing infrastructure.
+
+**`submitMode` type**
+
+```typescript
+export type PolicyAnchorSubmitMode =
+  | "hash-only"       // default — policyHash only; GDPR-safe; both rails
+  | "full-document"   // full doc, no encryption; caller asserts doc is PII-free; HCS only
+  | "encrypted"       // AES-256-GCM encrypted; HCS: in message body; XRPL: IPFS + NFT URI
+```
+
+`"full-document"` is HCS-only. XRPL has no native on-chain blob storage — full-document mode on XRPL always goes through IPFS and is therefore subsumed by `"encrypted"` (encrypt even if key is shared openly).
+
+**Updated HCS message formats**
+
+Hash-only (new default):
+```json
+{
+  "type": "MPCP:PolicyAnchor:1.0",
+  "policyHash": "<sha256>",
+  "anchoredAt": "ISO8601"
+}
+```
+
+Encrypted:
+```json
+{
+  "type": "MPCP:PolicyAnchor:1.0",
+  "policyHash": "<sha256>",
+  "encryptedDocument": {
+    "algorithm": "AES-256-GCM",
+    "iv": "<base64>",
+    "ciphertext": "<base64>",
+    "tag": "<base64>"
+  },
+  "anchoredAt": "ISO8601"
+}
+```
+
+Full-document (unchanged from PR27, explicit opt-in):
+```json
+{
+  "type": "MPCP:PolicyAnchor:1.0",
+  "policyHash": "<sha256>",
+  "policyDocument": { ... },
+  "anchoredAt": "ISO8601"
+}
+```
+
+**Updated `PolicyAnchorResult`**
+
+```typescript
+export interface PolicyAnchorResult {
+  rail: AnchorRail;
+  reference: string;            // "hcs:{topicId}:{seq}" | "xrpl:nft:{tokenId}"
+  txHash?: string;
+  anchoredAt: string;
+  policyHash: string;           // added — always included for verification
+  submitMode: PolicyAnchorSubmitMode; // added — what was actually submitted
+  encryptedRef?: string;        // added — IPFS CID when submitMode="encrypted" on XRPL
+}
+```
+
+**Encryption interface**
+
+```typescript
+export interface PolicyAnchorEncryptionOptions {
+  key: CryptoKey | Uint8Array;  // AES-256 key (32 bytes)
+  iv?: Uint8Array;              // generated randomly if omitted
+}
+```
+
+Encryption uses the Web Crypto API (`crypto.subtle`) so the implementation works in both Node.js and edge runtimes without native addon dependencies.
+
+**Updated function signature — HCS**
+
+```typescript
+export async function hederaHcsAnchorPolicyDocument(
+  policyDocument: object,
+  options?: {
+    topicId?: string;
+    operatorId?: string;
+    operatorKey?: string;
+    submitMode?: PolicyAnchorSubmitMode;       // default: "hash-only"
+    encryption?: PolicyAnchorEncryptionOptions; // required when submitMode="encrypted"
+  },
+): Promise<PolicyAnchorResult>
+```
+
+**New adapter — XRPL encrypted policy anchor**
+
+```typescript
+// src/anchor/xrplPolicyAnchor.ts
+export async function xrplEncryptAndStorePolicyDocument(
+  policyDocument: object,
+  options: {
+    encryption: PolicyAnchorEncryptionOptions;
+    ipfsStore: PolicyDocumentIpfsStore;        // pluggable IPFS upload
+    rpcUrl?: string;
+  },
+): Promise<{ cid: string; policyHash: string; encryptedDocument: EncryptedPolicyDocument }>
+```
+
+The returned `cid` is intended as the NFT URI value (`"ipfs://{cid}"`). NFT minting itself remains deferred to `mpcp-policy-authority`.
+
+**IPFS store abstraction**
+
+A minimal interface so callers can plug in their own IPFS client (web3.storage, nft.storage, local node, etc.) without the SDK bundling a heavy IPFS dependency:
+
+```typescript
+// src/anchor/types.ts
+export interface PolicyDocumentIpfsStore {
+  upload(data: Uint8Array, filename?: string): Promise<string>; // returns CID
+}
+```
+
+**Off-chain document custody (Service layer)**
+
+When using `"hash-only"` mode the Service layer is the full-document custodian. The SDK provides a minimal custody interface so service implementations have a consistent storage contract:
+
+```typescript
+// src/anchor/types.ts
+export interface PolicyDocumentCustody {
+  store(policyHash: string, document: object): Promise<void>;
+  retrieve(policyHash: string): Promise<object | null>;
+}
+```
+
+Built-in adapters:
+- `InMemoryPolicyCustody` — development / testing
+- Pluggable for production (database, S3, KV store)
+
+**New exports**
+
+```typescript
+// src/anchor/index.ts
+export { xrplEncryptAndStorePolicyDocument } from "./xrplPolicyAnchor.js";
+export type {
+  PolicyAnchorSubmitMode,
+  PolicyAnchorEncryptionOptions,
+  PolicyDocumentIpfsStore,
+  PolicyDocumentCustody,
+} from "./types.js";
+export { InMemoryPolicyCustody } from "./custody.js";
+
+// src/sdk/index.ts
+export { xrplEncryptAndStorePolicyDocument, InMemoryPolicyCustody } from "../anchor/index.js";
+```
+
+**Implementation files**
+
+| File | Change |
+|------|--------|
+| `src/anchor/types.ts` | Add `PolicyAnchorSubmitMode`, `PolicyAnchorEncryptionOptions`, `PolicyDocumentIpfsStore`, `PolicyDocumentCustody`; extend `PolicyAnchorResult` |
+| `src/anchor/hederaHcsPolicyAnchor.ts` | Change default to `"hash-only"`; add `submitMode` and `encryption` options |
+| `src/anchor/xrplPolicyAnchor.ts` | New — `xrplEncryptAndStorePolicyDocument` |
+| `src/anchor/custody.ts` | New — `InMemoryPolicyCustody` |
+| `src/anchor/index.ts` | Export new types and functions |
+| `src/sdk/index.ts` | Re-export |
+
+**Tests**
+
+- `test/anchor/hederaHcsPolicyAnchor.test.ts` — update: hash-only default, encrypted mode, full-document opt-in
+- `test/anchor/xrplPolicyAnchor.test.ts` — new: encrypt + IPFS store, correct CID in result, encryption error paths
+- `test/anchor/custody.test.ts` — new: InMemoryPolicyCustody store/retrieve, miss returns null
+
+**Spec updates**
+
+- `docs/protocol/policy-anchoring.md` — add privacy model section; document `submitMode`; update HCS message formats; add IPFS storage abstraction; add custody model; GDPR guidance
+- `docs/protocol/PolicyGrant.md` — clarify `anchorRef` can point to encrypted IPFS blob; update XRPL NFT revocation section
+- Add `docs/guides/policy-document-custody.md` — Service-as-custodian pattern; when to use each `submitMode`; GDPR considerations; key management guidance for encrypted mode
+
+**Acceptance criteria**
+
+- `hederaHcsAnchorPolicyDocument` defaults to `"hash-only"`; existing callers passing full docs must opt in via `submitMode: "full-document"`
+- Encrypted HCS message verifiable by decrypting with the provided AES key and comparing `policyHash`
+- `xrplEncryptAndStorePolicyDocument` returns `cid` suitable for use in NFT URI
+- `PolicyDocumentCustody` interface is stable and `InMemoryPolicyCustody` passes tests
+- No new package dependencies added — encryption via `crypto.subtle` (built-in); IPFS upload injected by caller
+- All existing tests continue to pass
+
+⸻
+
 # Expected Outcome
 
 After completion of this roadmap MPCP will provide:

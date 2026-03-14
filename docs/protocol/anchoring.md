@@ -1,6 +1,12 @@
 # Intent Anchoring
 
-Optional support for publishing intent hashes to a distributed ledger for public auditability and dispute protection.
+Optional support for publishing **settlement intent hashes** to a distributed ledger for public
+auditability and dispute protection.
+
+!!! note "Scope: Settlement Intent Only"
+    This page covers **intent anchoring** — recording the hash of a settlement intent before
+    payment. For anchoring the **policy document** itself (on-chain policy audit trails and
+    XRPL NFT-backed revocation), see [Policy Anchoring](./policy-anchoring.md).
 
 ## Purpose
 
