@@ -53,13 +53,13 @@ nav:
     - Hashing: protocol/hashing.md
     - Verification: protocol/verification.md
     - Key Resolution: protocol/key-resolution.md
-    - Anchoring: protocol/anchoring.md
-    - Policy Anchoring: protocol/policy-anchoring.md
     - PolicyGrant: protocol/PolicyGrant.md
     - SBA: protocol/SignedBudgetAuthorization.md
     - SPA: protocol/SignedPaymentAuthorization.md
     - SettlementIntent: protocol/SettlementIntent.md
     - SettlementIntentHash: protocol/SettlementIntentHash.md
+    - Intent Anchoring: protocol/anchoring.md
+    - Policy Anchoring: protocol/policy-anchoring.md
     - FleetPolicyAuthorization: protocol/FleetPolicyAuthorization.md
     - ArtifactBundle: protocol/ArtifactBundle.md
   - Profiles:
