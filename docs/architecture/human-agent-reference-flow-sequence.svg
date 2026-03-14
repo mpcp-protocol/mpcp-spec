@@ -91,7 +91,7 @@
   <rect x="321" y="198" width="30" height="68" rx="3" fill="#DDD6FE" stroke="#7C3AED" stroke-width="2"/>
   <text x="359" y="218" fill="#4C1D95" font-size="11.5" font-weight="700">3. Create SBA (TRIP scope)</text>
   <text x="359" y="234" fill="#7C3AED" font-size="10">    budgetScope=TRIP · $800</text>
-  <text x="359" y="249" fill="#7C3AED" font-size="10">    vehicleId=ai-trip-planner-v2</text>
+  <text x="359" y="249" fill="#7C3AED" font-size="10">    actorId=ai-trip-planner-v2</text>
 
   <!-- ============================================================ -->
   <!-- PHASE 3 — BOOKING (Stop 1: Hotel $250)                       -->

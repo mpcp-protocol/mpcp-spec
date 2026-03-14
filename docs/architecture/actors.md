@@ -28,7 +28,7 @@ Resides in each machine (EV, robot, IoT device) and enforces MPCP constraints.
 
 The wallet is the MPCP actor that signs SignedBudgetAuthorization and SignedPaymentAuthorization.
 
-> **Note on Vehicle Identity:** The `vehicleId` field in SBA artifacts is self-reported by the wallet. Production deployments SHOULD establish vehicle attestation via device key binding (e.g., a hardware-backed key whose public key is registered with the fleet operator). Without attestation, `vehicleId` cannot be cryptographically verified and is informational only.
+> **Note on Actor Identity:** The `actorId` field in SBA artifacts is self-reported by the wallet. Production deployments SHOULD establish actor attestation via device key binding (e.g., a hardware-backed key whose public key is registered with the fleet operator). Without attestation, `actorId` cannot be cryptographically verified and is informational only.
 
 ## AI Agent
 
@@ -55,7 +55,7 @@ An AI agent acting under human authorization, using MPCP to bound its spending a
 
 **Examples:** Travel booking agent, subscription manager, event budget agent.
 
-> The `vehicleId` field in SBA artifacts is used for agent identity (e.g. `"ai-trip-planner-v2"`).
+> The `actorId` field in SBA artifacts is used for agent identity (e.g. `"ai-trip-planner-v2"`).
 > Agent attestation follows the same key binding recommendations as vehicle wallets.
 
 ## Service Provider

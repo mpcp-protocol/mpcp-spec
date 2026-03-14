@@ -56,7 +56,7 @@ const policyGrant = createPolicyGrant({
 // For demo, use createSignedBudgetAuthorization with env set
 const sba = createSignedBudgetAuthorization({
   sessionId: "sess-123",
-  vehicleId: "veh-456",
+  actorId: "veh-456",
   policyHash: policyGrant.policyHash,
   currency: "USD",
   maxAmountMinor: "3000",
