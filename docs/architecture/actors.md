@@ -30,6 +30,34 @@ The wallet is the MPCP actor that signs SignedBudgetAuthorization and SignedPaym
 
 > **Note on Vehicle Identity:** The `vehicleId` field in SBA artifacts is self-reported by the wallet. Production deployments SHOULD establish vehicle attestation via device key binding (e.g., a hardware-backed key whose public key is registered with the fleet operator). Without attestation, `vehicleId` cannot be cryptographically verified and is informational only.
 
+## AI Agent
+
+An AI agent acting under human authorization, using MPCP to bound its spending authority.
+
+**Receives:** PolicyGrant signed by a human principal (DID key)
+
+**Responsibilities:**
+
+- Receives a PolicyGrant from a human principal (DID-signed) and acts as its spending subject
+- Acts as **session authority** — creates and signs SBAs (typically with TRIP scope)
+- Acts as **payment decision service** — enforces `allowedPurposes` and signs SPAs
+- Maintains cumulative spend counter across all sessions in the trip/project
+- SHOULD check `revocationEndpoint` before signing each SPA (agents are online by design)
+
+**Contrast with Vehicle Wallet:**
+
+| | Vehicle Wallet | AI Agent |
+|---|----------------|---------|
+| Policy authority | Fleet operator | Human (DID) |
+| Connectivity | Offline-capable | Online by design |
+| Revocation | Not applicable | SHOULD check before each payment |
+| Budget scope | SESSION / DAY | TRIP (multi-day) |
+
+**Examples:** Travel booking agent, subscription manager, event budget agent.
+
+> The `vehicleId` field in SBA artifacts is used for agent identity (e.g. `"ai-trip-planner-v2"`).
+> Agent attestation follows the same key binding recommendations as vehicle wallets.
+
 ## Service Provider
 
 The entity that receives payment for a service (parking, charging, tolls).

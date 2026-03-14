@@ -33,7 +33,7 @@ It is issued after a PolicyGrant and constrains subsequent SignedPaymentAuthoriz
 | policyHash | string | yes | SHA-256 hash of the canonical policy document under which this budget was authorized. Computed as `SHA256("MPCP:Policy:<version>:" \|\| canonicalJson(policyDocument))`. |
 | currency | string | yes | Informational: the fiat reference currency from which this budget was derived (e.g. `"USD"`). Not used in verification arithmetic. |
 | minorUnit | number | yes | Informational: decimal scale of the fiat reference currency (e.g. `2` for USD cents). Not used in verification arithmetic. |
-| budgetScope | string | yes | SESSION \| DAY \| VEHICLE \| FLEET |
+| budgetScope | string | yes | SESSION \| DAY \| VEHICLE \| FLEET \| TRIP |
 | maxAmountMinor | string | yes | Maximum authorized spend expressed in the **on-chain asset's atomic units** — the same denomination as `SPA.amount`. The session authority converts the fiat budget to on-chain units at SBA issuance time. |
 | allowedRails | Rail[] | yes | Permitted payment rails (xrpl, evm, stripe, hosted) |
 | allowedAssets | Asset[] | yes | Permitted assets |
@@ -61,6 +61,7 @@ SBA supports multiple budget scopes. All scopes are cumulative — `maxAmountMin
 | DAY | Budget applies across sessions for a calendar day |
 | VEHICLE | Budget applies across sessions for a specific vehicle |
 | FLEET | Budget applies across vehicles within a fleet authority |
+| TRIP | Budget applies across sessions for a single multi-day trip or project (human-to-agent delegation) |
 
 When present, `scopeId` identifies the entity the budget applies to.
 

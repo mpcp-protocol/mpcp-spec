@@ -40,6 +40,7 @@ nav:
     - Problem Statement: overview/problem-statement.md
     - Design Goals: overview/design-goals.md
     - Comparison: overview/comparison-with-agent-protocols.md
+    - Why MPCP for Agents: overview/why-mpcp-for-agents.md
   - Architecture:
     - System Model: architecture/system-model.md
     - Actors: architecture/actors.md
@@ -63,6 +64,7 @@ nav:
   - Profiles:
     - Lite Profile: profiles/lite-profile.md
     - Full Profile: profiles/full-profile.md
+    - Human-Agent Profile: profiles/human-agent-profile.md
   - Guides:
     - Build a Machine Wallet: guides/build-a-machine-wallet.md
     - Fleet Payments: guides/fleet-payments.md
