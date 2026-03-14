@@ -51,5 +51,5 @@ Artifacts may be stored in:
 
 ## See Also
 
-- [Reference Flow](reference-flow.md) — End-to-end EV charging scenario with timeline
+- [Reference Flow](fleet-ev-reference-flow.md) — End-to-end EV charging scenario with timeline
 - [Protocol specs](../protocol/mpcp.md) — Full artifact specifications

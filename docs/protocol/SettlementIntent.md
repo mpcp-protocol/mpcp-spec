@@ -196,4 +196,4 @@ By hashing the intent and embedding the hash into signed artifacts, MPCP ensures
 
 ## See Also
 
-- [MPCP Reference Flow — EV Charging](../architecture/reference-flow.md) — Demonstrates how SettlementIntent is used during runtime authorization.
+- [MPCP Reference Flow — EV Charging](../architecture/fleet-ev-reference-flow.md) — Demonstrates how SettlementIntent is used during runtime authorization.

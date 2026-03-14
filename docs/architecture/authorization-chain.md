@@ -49,5 +49,5 @@ Approval moves **upstream**. The human or policy administrator grants a **sessio
 
 - [System Model](system-model.md) — How the chain fits in the overall architecture
 - [Artifact Lifecycle](artifact-lifecycle.md) — When each artifact is created
-- [Reference Flow](reference-flow.md) — Full EV charging walkthrough
+- [Reference Flow](fleet-ev-reference-flow.md) — Full EV charging walkthrough
 - [Protocol: Artifacts](../protocol/artifacts.md) — Detailed artifact specs

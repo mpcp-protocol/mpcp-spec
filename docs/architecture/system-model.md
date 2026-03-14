@@ -39,4 +39,4 @@ Each step produces verifiable artifacts. The verifier can independently validate
 - [Authorization Chain](authorization-chain.md) — The canonical visual diagram
 - [Actors](actors.md)
 - [Artifact Lifecycle](artifact-lifecycle.md)
-- [Reference Flow](reference-flow.md)
+- [Reference Flow](fleet-ev-reference-flow.md)

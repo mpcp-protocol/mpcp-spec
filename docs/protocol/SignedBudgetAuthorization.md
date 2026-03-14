@@ -186,4 +186,4 @@ Settlement
 
 ## See Also
 
-- [MPCP Reference Flow — EV Charging](../architecture/reference-flow.md) — Demonstrates how SBA is used during runtime authorization.
+- [MPCP Reference Flow — EV Charging](../architecture/fleet-ev-reference-flow.md) — Demonstrates how SBA is used during runtime authorization.

@@ -57,6 +57,6 @@ When the network is unavailable, the machine holds the policy chain onboard and 
 ## Next Steps
 
 - [Design Goals](design-goals.md) — How MPCP differs from x402, AP2, and others
-- [Reference Flow](../architecture/reference-flow.md) — End-to-end EV charging scenario
+- [Reference Flow](../architecture/fleet-ev-reference-flow.md) — End-to-end EV charging scenario
 - [Protocol: Artifacts](../protocol/artifacts.md) — The authorization chain
 - [Offline Payments](../guides/fleet-payments.md#offline-flow) — How pre-authorized budgets enable offline payment

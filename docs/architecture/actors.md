@@ -102,5 +102,5 @@ MPCP does not replace settlement systems—it **controls authorization above the
 
 ## See Also
 
-- [Reference Flow](reference-flow.md) — Full actor interaction in EV charging scenario
+- [Reference Flow](fleet-ev-reference-flow.md) — Full actor interaction in EV charging scenario
 - [System Model](system-model.md)

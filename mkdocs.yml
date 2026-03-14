@@ -44,7 +44,7 @@ nav:
     - System Model: architecture/system-model.md
     - Actors: architecture/actors.md
     - Authorization Chain: architecture/authorization-chain.md
-    - Reference Flow (Fleet EV): architecture/reference-flow.md
+    - Reference Flow (Fleet EV): architecture/fleet-ev-reference-flow.md
     - Reference Flow (Human-Agent): architecture/human-agent-reference-flow.md
     - Artifact Lifecycle: architecture/artifact-lifecycle.md
   - Protocol:
