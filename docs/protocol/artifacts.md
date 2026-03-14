@@ -40,7 +40,7 @@ The **SBA** defines a signed spending envelope for a session or scope:
 - **maxAmountMinor** — Maximum spend in the on-chain asset's atomic units (same denomination as `SPA.amount`). The session authority converts the fiat budget to on-chain units at SBA issuance time.
 - **allowedRails**, **allowedAssets** — Must be subsets of PolicyGrant
 - **destinationAllowlist** — Optional list of permitted destination addresses
-- **budgetScope** — SESSION, DAY, VEHICLE, or FLEET
+- **budgetScope** — SESSION, DAY, VEHICLE, FLEET, or TRIP (multi-session; see [Human-to-Agent Profile](../profiles/human-agent-profile.md#trip-scope-semantics))
 
 The SBA is cryptographically signed. A verifier checks the signature over `SHA256("MPCP:SBA:1.0:" || canonicalJson(authorization))`.
 

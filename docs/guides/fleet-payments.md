@@ -37,8 +37,8 @@ const policyGrant = createPolicyGrant({
 
 const sba = issueBudget({
   policyGrant,
-  sessionId: "sess-vehicle-123",
-  vehicleId: "vehicle-123",
+  sessionId: "sess-actor-123",
+  actorId: "actor-123",
   maxAmountMinor: "5000",
   destinationAllowlist: ["rParking", "rCharging", "rToll"],
 });
