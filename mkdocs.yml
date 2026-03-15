@@ -71,6 +71,7 @@ nav:
     - Fleet Payments: guides/fleet-payments.md
     - Dispute Resolution: guides/dispute-resolution.md
   - Diagrams: diagrams/index.md
+  - Ecosystem: ecosystem.md
   - Roadmap: roadmap.md
 
 markdown_extensions:
