@@ -102,13 +102,16 @@ context.
 
 ## DID Key Resolution
 
-When `issuer` is a DID:
+When `issuer` is a [DID](https://www.w3.org/TR/did-core/):
 
-- `did:key:z6Mk...` — public key is embedded in the DID identifier itself
+- `did:key:z6Mk...` — public key is embedded in the DID identifier itself (no network call)
 - `did:web:example.com` — resolve via `https://example.com/.well-known/did.json`
+- `did:xrpl:mainnet:rAddr...` — resolve via XRPL `account_objects` JSON-RPC
+- `did:hedera:mainnet:0.0.xxxxx` — resolve via Hedera Mirror Node
 
-Verifiers resolve the public key (as JWK) using `issuer` and `issuerKeyId` before verifying
-the PolicyGrant signature. See [Key Resolution](../protocol/key-resolution.md).
+Any W3C-compatible DID method may be used. Verifiers resolve the public key (as JWK) using
+`issuer` and `issuerKeyId` before verifying the PolicyGrant signature.
+See [Key Resolution](../protocol/key-resolution.md).
 
 ---
 

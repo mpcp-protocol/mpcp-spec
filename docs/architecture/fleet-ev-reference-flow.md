@@ -38,7 +38,7 @@ Examples:
 - delivery fleet
 - autonomous logistics fleet
 
-In this reference flow, the fleet operator issues signed PolicyGrant artifacts. Optionally, the fleet operator may be identified by an **XRPL DID** for portable issuer identity.
+In this reference flow, the fleet operator issues signed PolicyGrant artifacts. Optionally, the fleet operator may be identified by an on-chain **[DID](https://www.w3.org/TR/did-core/)** (e.g. `did:xrpl:`, `did:hedera:`) for portable issuer identity.
 
 ## Identity & Credential Layer
 
@@ -56,7 +56,7 @@ An optional **DID/VC layer** may supplement this in deployments that require:
 
 - portable issuer identity across organizations
 - verifiable credential metadata
-- decentralized key discovery via XRPL DID or similar
+- decentralized key discovery via on-chain DID methods (`did:xrpl`, `did:hedera`, `did:web`, etc.)
 
 DIDs and VCs do **not** replace MPCP artifacts such as `SignedBudgetAuthorization`, `SignedPaymentAuthorization`, or `SettlementIntent`.
 
@@ -108,7 +108,7 @@ Responsibilities:
 - verify MPCP authorization artifacts
 - allow or deny charging sessions
 
-In this reference flow, the charging network operator may also publish an **XRPL DID** and issue verifiable credentials describing approved station identity, operator identity, and payment endpoints.
+In this reference flow, the charging network operator may also publish an on-chain **[DID](https://www.w3.org/TR/did-core/)** (e.g. `did:xrpl:`, `did:hedera:`) and issue [Verifiable Credentials](https://www.w3.org/TR/vc-data-model/) describing approved station identity, operator identity, and payment endpoints.
 
 ---
 
@@ -290,10 +290,13 @@ Example issuer key identifiers:
 issuer: fleet-operator.example.com          (baseline: HTTPS well-known)
 issuerKeyId: fleet-policy-key-1
 
--- or with DID (optional) --
+-- or with DID (optional; any W3C DID method) --
 
-issuer: did:xrpl:rFleetOperator...
+issuer: did:xrpl:rFleetOperator...          (example: did:xrpl)
 issuerKeyId: did:xrpl:rFleetOperator...#key-1
+
+issuer: did:hedera:mainnet:0.0.12345        (example: did:hedera)
+issuerKeyId: did:hedera:mainnet:0.0.12345#key-1
 ```
 
 The EV wallet resolves the public verification key using the baseline HTTPS well-known endpoint, or optionally via DID resolution.
@@ -326,7 +329,7 @@ Example `PolicyGrant` structure:
 
 The `issuer`, `issuerKeyId`, and `signature` fields belong to the **signed envelope** that wraps the grant payload, not the grant itself.
 
-A VC representation may also be used for issuer portability in DID/VC-enabled deployments.
+A [Verifiable Credential (VC)](https://www.w3.org/TR/vc-data-model/) representation may also be used for issuer portability in DID/VC-enabled deployments. Any W3C-compatible DID method may appear as the `issuer`; `did:xrpl` is shown here as a concrete example.
 
 Example conceptual VC envelope:
 
@@ -334,7 +337,7 @@ Example conceptual VC envelope:
 {
   "@context": ["https://www.w3.org/2018/credentials/v1"],
   "type": ["VerifiableCredential", "MPCPPolicyGrant"],
-  "issuer": "did:xrpl:rFleetOperator...",
+  "issuer": "did:xrpl:rFleetOperator...",   // example DID method — did:hedera, did:web, etc. also valid
   "issuanceDate": "2026-03-12T00:00:00Z",
   "expirationDate": "2026-03-13T23:59:00Z",
   "credentialSubject": {

@@ -11,7 +11,7 @@ MPCP artifacts carry two fields that identify the signing authority:
 
 Verifiers use these two fields to retrieve the public key required to validate the artifact signature.
 
-MPCP defines **HTTPS well-known** as the baseline key resolution mechanism. All conforming implementations MUST support it. DID resolution and Verifiable Credentials are optional higher-level mechanisms that deployments MAY use in addition.
+MPCP defines **HTTPS well-known** as the baseline key resolution mechanism. All conforming implementations MUST support it. DID ([W3C DID Core](https://www.w3.org/TR/did-core/)) resolution and Verifiable Credentials ([W3C VC Data Model](https://www.w3.org/TR/vc-data-model/)) are optional higher-level mechanisms that deployments MAY use in addition.
 
 ---
 
@@ -154,7 +154,7 @@ Pre-configured keys MUST still be expressed in JWK format.
 
 ## DID and Verifiable Credentials (Optional)
 
-Deployments MAY use decentralized identifiers (DIDs) or Verifiable Credentials (VCs) as a higher-level key binding mechanism.
+Deployments MAY use [decentralized identifiers (DIDs)](https://www.w3.org/TR/did-core/) or [Verifiable Credentials (VCs)](https://www.w3.org/TR/vc-data-model/) as a higher-level key binding mechanism.
 
 When the `issuer` field carries a `did:` URI other than `did:web:`, verifiers MAY use DID resolution to retrieve the key material. Resolved key material MUST still be expressed and validated as JWK.
 
@@ -164,10 +164,12 @@ DID resolution and VC verification are never required for MPCP compliance. Imple
 
 ---
 
-## `did:xrpl` DID Resolution
+## DID Resolution — Example: `did:xrpl`
 
-MPCP defines an optional resolution mechanism for `did:xrpl` DIDs, used when XRPL-native policy
-authorities issue grants with an XRPL account as the issuer.
+The following shows how a W3C DID can be resolved to obtain signing keys. The `did:xrpl` method
+is used as a concrete example; other DID methods (e.g. `did:hedera`, `did:key`, `did:web`)
+follow the same general pattern with method-specific resolution logic as defined by the
+[W3C DID Core](https://www.w3.org/TR/did-core/) specification.
 
 ### DID Format
 

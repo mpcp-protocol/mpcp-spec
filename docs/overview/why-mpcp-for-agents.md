@@ -8,7 +8,7 @@ When a human delegates spending authority to an AI agent, three things must be t
    stateless verification at the point of payment
 3. **The human can cancel** — revocation that propagates to merchants
 
-MPCP provides all three. The human signs a PolicyGrant with their DID key; the agent pre-loads
+MPCP provides all three. The human signs a PolicyGrant with their [DID](https://www.w3.org/TR/did-core/) key; the agent pre-loads
 a signed budget authorization; merchants verify the full chain (PolicyGrant → SBA → SPA →
 Settlement) locally, with an optional online revocation check.
 

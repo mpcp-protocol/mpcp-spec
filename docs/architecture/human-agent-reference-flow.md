@@ -62,7 +62,7 @@ Responsibilities:
 - optionally anchors the policy to Hedera HCS for audit
 - can revoke the delegation mid-trip via her wallet service's revocation endpoint
 
-Alice's identity is expressed as a **DID** (`did:key:...` or `did:xrpl:...`). The PolicyGrant `issuer` field contains her DID; her public key is used to verify all PolicyGrant signatures.
+Alice's identity is expressed as a [DID](https://www.w3.org/TR/did-core/) (`did:key:...`, `did:xrpl:...`, `did:hedera:...`, or any W3C-compatible DID method). The PolicyGrant `issuer` field contains her DID; her public key is used to verify all PolicyGrant signatures.
 
 In this reference flow:
 
@@ -271,7 +271,7 @@ issuer: did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK
 issuerKeyId: alice-did-key-1
 ```
 
-Key resolution: service providers and verifiers resolve Alice's DID to retrieve her public verification key. For `did:key` DIDs, the key material is embedded in the DID itself. For `did:xrpl` DIDs, resolution uses the XRPL `account_objects` JSON-RPC call.
+Key resolution: service providers and verifiers resolve Alice's DID to retrieve her public verification key. For `did:key` DIDs, the key material is embedded in the DID itself. For other DID methods (`did:xrpl`, `did:hedera`, etc.), resolution follows the method-specific resolver defined by the [W3C DID Core](https://www.w3.org/TR/did-core/) specification.
 
 Example `PolicyGrant` structure:
 
@@ -652,12 +652,12 @@ Service providers verify the PolicyGrant signature using Alice's DID public key.
 
 For `did:key` DIDs, the public key is derived directly from the DID string — no network call required.
 
-For `did:xrpl` DIDs, the verifier calls the XRPL `account_objects` JSON-RPC to retrieve the DIDObject and extract the JWK public key.
+For other DID methods (`did:xrpl`, `did:hedera`, etc.), the verifier uses the method-specific resolver to retrieve the DID Document and extract the `verificationMethod[].publicKeyJwk`. See [Key Resolution](../protocol/key-resolution.md) for the `did:xrpl` example and [W3C DID Core](https://www.w3.org/TR/did-core/) for the standard.
 
 ```
 issuerKeyId (Alice's DID)
       ↓
-DID resolver (did:key — inline; did:xrpl — XRPL JSON-RPC)
+DID resolver (did:key — inline; other methods — method-specific resolver)
       ↓
 public verification key
       ↓
