@@ -214,7 +214,7 @@ Verifiers MUST:
 When resolving an artifact's issuer key, verifiers check loaded bundles before attempting live resolution:
 
 ```text
-function resolveFromBundle(issuer, issuerKeyId, loadedBundles):
+function resolveFromTrustBundle(issuer, issuerKeyId, loadedBundles):
     for each bundle in loadedBundles (sorted by expiresAt desc):
         if bundle is expired: continue
         if issuer not in bundle.approvedIssuers: continue
