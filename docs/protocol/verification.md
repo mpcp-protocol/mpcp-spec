@@ -7,7 +7,7 @@ MPCP settlement verification ensures that an executed transaction matches the au
 The verifier runs checks in order:
 
 1. **Schema** — All artifacts parse and validate against expected structure
-2. **Signatures** — PolicyGrant, SBA, and SPA signatures are valid (resolve public keys via `issuer` + `issuerKeyId` or deployment config)
+2. **Signatures** — PolicyGrant, SBA, and SPA signatures are valid (resolve public keys via `issuer` + `issuerKeyId` using the [Key Resolution](./key-resolution.md) algorithm; in offline deployments, keys are resolved from a pre-loaded [Trust Bundle](./trust-bundles.md))
 3. **Linkage** — `SBA.authorization.grantId` references a valid PolicyGrant; `SPA.authorization.budgetId` references the issuing SBA; constraint subsets are respected
 4. **Hash** — If intentHash is present, it matches `computeSettlementIntentHash(settlementIntent)`
 5. **Policy** — Budget limits, rail/asset/destination constraints, expiration
@@ -51,5 +51,7 @@ See [Dispute Resolution](../guides/dispute-resolution.md) for the guide.
 
 - [Artifacts](artifacts.md)
 - [Hashing](hashing.md)
+- [Key Resolution](./key-resolution.md)
+- [Trust Bundles](./trust-bundles.md) — offline key distribution
 - [Anchoring](anchoring.md)
 - [Reference: CLI](https://mpcp-protocol.github.io/mpcp-reference/reference/cli/) — `mpcp verify` command

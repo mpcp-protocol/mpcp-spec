@@ -121,26 +121,62 @@ Verifiers SHOULD cache key set responses according to standard HTTP cache semant
 
 ## Resolution Algorithm
 
+Verifiers MUST attempt resolution in the following priority order:
+
 ```text
 function resolvePublicKey(issuer, issuerKeyId):
+    # 1. Trust Bundle lookup (offline / pre-distributed)
+    jwk = resolveFromTrustBundle(issuer, issuerKeyId)
+    if jwk: return jwk
+
+    # 2. HTTPS well-known (online)
     url = deriveKeySetUrl(issuer)
     keySetDoc = httpGet(url)               # HTTPS required; TLS validated
     keys = parseKeySet(keySetDoc)
     jwk = keys.find(k => k.kid == issuerKeyId)
-    if jwk is null:
-        raise KEY_NOT_FOUND
-    return jwk
+    if jwk: return jwk
+
+    # 3. DID resolution (optional, online)
+    if issuer starts with "did:" and not "did:web:":
+        jwk = resolveDid(issuer, issuerKeyId)   # method-specific; see DID section below
+        if jwk: return jwk
+
+    raise KEY_NOT_FOUND
 ```
 
-If the well-known endpoint is unreachable and no pre-configured key is available, the verifier MUST fail the signature check and reject the artifact.
+If no resolution path succeeds, the verifier MUST fail the signature check and reject the artifact.
+
+---
+
+## Trust Bundle Resolution
+
+[Trust Bundles](./trust-bundles.md) are the primary resolution mechanism for deployments that operate without network access at verification time.
+
+A Trust Bundle is a signed, distributable document containing the public keys of approved issuers for a given scope. Verifiers load one or more Trust Bundles at startup (or after periodic refresh) and consult them before attempting any live network call.
+
+```text
+function resolveFromTrustBundle(issuer, issuerKeyId):
+    for each bundle in loadedBundles (sorted by expiresAt desc):
+        if bundle is expired: continue
+        if issuer not in bundle.approvedIssuers: continue
+        entry = bundle.issuers.find(e => e.issuer == issuer)
+        if entry is null: continue   # approved but no embedded keys — fall through
+        jwk = entry.keys.find(k => k.kid == issuerKeyId)
+        if jwk: return jwk
+    return null
+```
+
+Trust Bundles are optional. If no Trust Bundle is loaded, resolution proceeds directly to the HTTPS well-known step.
+
+See [Trust Bundles](./trust-bundles.md) for the full specification including signing, lifecycle, and offline revocation considerations.
 
 ---
 
 ## Pre-Configured Keys
 
-Implementations MAY pre-configure keys from trusted sources in lieu of or in addition to well-known lookups.
+Individual keys MAY be pre-configured directly on a verifier, identified by `issuer` + `issuerKeyId` and expressed as JWK objects. When a matching entry is found, the verifier uses it without fetching the well-known endpoint.
 
-Pre-configured keys are identified by `issuer` + `issuerKeyId` and expressed as JWK objects. When a pre-configured entry matches the artifact, the verifier uses it directly without fetching the well-known endpoint.
+Trust Bundles are the recommended mechanism for distributing pre-configured keys at scale. Direct pre-configuration is appropriate for single-key pinning or testing environments.
 
 This supports:
 
