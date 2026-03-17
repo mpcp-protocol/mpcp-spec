@@ -116,8 +116,21 @@ Fields outside the SPA — memo content, ancillary metadata, extended transactio
 
 ---
 
+## Offline Deployment
+
+The Lite Profile is well-suited to offline or intermittently-connected infrastructure such as vehicle-mounted terminals and embedded IoT devices.
+
+For deployments that perform artifact verification without network access at verification time, [Trust Bundles](../protocol/trust-bundles.md) are **REQUIRED**. A Trust Bundle pre-distributes the public keys of approved issuers so that PolicyGrant, SBA, and SPA signatures can be verified without calling the HTTPS well-known endpoint or a DID resolver.
+
+**Offline revocation:** Offline verifiers cannot call `revocationEndpoint`. Deployments must accept the risk that a revoked grant remains accepted until its `expiresAt` expires or the Trust Bundle is refreshed and revocation state is checked online. Deployments with strict revocation requirements MUST use online verification.
+
+See [Trust Bundles](../protocol/trust-bundles.md) for the full specification.
+
+---
+
 ## See Also
 
 - [Full Profile](./full-profile.md) — SPA + intentHash binding
+- [Trust Bundles](../protocol/trust-bundles.md) — offline key distribution
 - [SignedPaymentAuthorization](../protocol/SignedPaymentAuthorization.md)
 - [SettlementIntentHash](../protocol/SettlementIntentHash.md)

@@ -124,9 +124,25 @@ Recipients SHOULD record nonces to detect and reject replayed SPAs within the sa
 
 ---
 
+## Offline Deployment
+
+Full Profile deployments may operate offline for artifact signature verification. [Trust Bundles](../protocol/trust-bundles.md) pre-distribute the public keys of approved issuers, enabling PolicyGrant, SBA, and SPA signature verification without network access.
+
+**Connectivity still required for:**
+
+- **Revocation checks** — `revocationEndpoint` cannot be called without network access. Offline verifiers accept the risk that a revoked grant remains valid until expiry. See [Trust Bundles — Offline Verification](../protocol/trust-bundles.md#offline-verification).
+- **IAL anchoring** — Publishing or verifying `intentHash` commitments on Hedera HCS or XRPL requires connectivity to the respective network.
+
+Deployments with strict revocation or anchoring requirements MUST ensure connectivity at verification time or use an embedded revocation list (planned future extension).
+
+See [Trust Bundles](../protocol/trust-bundles.md) for the full specification.
+
+---
+
 ## See Also
 
 - [Lite Profile](./lite-profile.md) — SPA-only settlement binding
+- [Trust Bundles](../protocol/trust-bundles.md) — offline key distribution
 - [SignedPaymentAuthorization](../protocol/SignedPaymentAuthorization.md)
 - [SettlementIntentHash](../protocol/SettlementIntentHash.md)
 - [Anchoring](../protocol/anchoring.md)
