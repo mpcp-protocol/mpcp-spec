@@ -21,29 +21,76 @@ See also: [Human-Agent Profile](../profiles/human-agent-profile.md) for the norm
 
 # Scenario Overview
 
-Alice is planning a 3-day trip to Paris (Apr 10–12 2026). She delegates a **$800 travel budget** to her AI trip-planning agent, which will autonomously book hotels, transport, and other services on her behalf.
+Alice is planning a 3-day trip to Paris (Apr 10–12 2026). Instead of manually booking each service, she delegates execution to an AI agent — but keeps strict control over *what the agent is allowed to spend, where, and under which conditions*.
 
-Alice remains in control:
+Using MPCP, Alice does **not give the agent access to her funds directly**. Instead, she issues a cryptographically signed **PolicyGrant** that defines:
 
-- she sets the total budget and which categories of spend are allowed
-- she can revoke the delegation at any time via her wallet service
-- every payment produces a cryptographically verifiable audit trail
+- total budget ($800)
+- allowed spending categories (hotel, transport, flight)
+- allowed payment rails and assets (XRPL / RLUSD)
+- revocation controls
+
+The AI agent operates under this policy and cannot exceed it.
+
+This creates a **constrained delegation model**:
+
+- Alice defines *intent and limits*
+- the AI agent executes within those limits
+- service providers independently verify that each payment is authorized
+- the settlement rail executes only after verification
+
+---
+
+## What This Scenario Demonstrates
+
+This reference flow demonstrates the full MPCP lifecycle in a human-to-agent setting:
+
+- how a human delegates authority without surrendering control
+- how an AI agent enforces policy locally (not the merchant)
+- how merchants verify authorization without trusting the agent
+- how revocation works mid-flight
+- how auditability is preserved end-to-end
+
+---
+
+## Authorization Chain (Conceptual)
 
 ```
-Alice
-  │  signs PolicyGrant (TRIP scope, $800, purposes: hotel / flight / transport)
+Alice (human principal)
+  │  signs PolicyGrant (TRIP scope, $800, allowed purposes)
   ▼
 AI Trip Planner v2
-  │  enforces allowedPurposes + cumulative budget
-  │  issues SBA (TRIP scope) once per trip
-  │  issues SPA per service provider
+  │  enforces policy + cumulative spend
+  │  issues SBA (trip budget)
+  │  issues SPA per booking
   ▼
-Service Providers (hotel, rail, car rental)
-  │  verify MPCP authorization chain
-  │  provide service on confirmation
+Service Providers
+  │  verify MPCP chain (no trust in agent required)
   ▼
 Settlement Rail (XRPL / RLUSD)
 ```
+
+Key property:
+
+> Every payment must be explainable as a valid derivation of Alice’s original signed intent.
+
+---
+
+## Why This Matters
+
+Without MPCP:
+
+- agents need direct wallet access (high risk)
+- merchants must trust the agent
+- audit trails are weak or incomplete
+
+With MPCP:
+
+- authority is **delegated but bounded**
+- verification is **stateless and deterministic**
+- trust is replaced by **cryptographic proof**
+
+This scenario shows how MPCP enables **safe, auditable autonomy** for AI-driven commerce.
 
 ---
 
@@ -512,30 +559,6 @@ destination:  rEurostar
 Service confirmed. Settlement executes on XRPL.
 
 **Cumulative: $370 / $800**
-
----
-
-## Apr 11 — Stop 3: Restaurant (Le Jules Verne) — SKIPPED
-
-### Provider sends quote
-
-```
-provider:   Le Jules Verne
-purpose:    travel:dining
-amount:     ~$180
-```
-
-### Agent refuses without issuing SPA
-
-The agent checks `policyGrant.allowedPurposes`:
-
-```
-allowedPurposes: [travel:hotel, travel:flight, travel:transport]
-```
-
-`travel:dining` is not in the list. The agent **refuses to sign an SPA**. No SBA check, no payment, no settlement.
-
-The service provider receives no authorization artifact.
 
 ---
 
