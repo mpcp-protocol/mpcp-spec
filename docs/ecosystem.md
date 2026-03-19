@@ -200,8 +200,10 @@ Deploy `mpcp-policy-authority` as a service (Docker Compose, one command) or int
 
 | Component | Phase | Key missing pieces |
 |-----------|-------|--------------------|
-| `mpcp-spec` | Protocol complete | Issuer profiles (`did:web`, enterprise IAM) |
+| `mpcp-spec` | Protocol complete | — |
 | `mpcp-reference` | Core + adapters complete | — |
-| `mpcp-policy-authority` | Phase 2 (anchoring) | API auth (PR8), audit log (PR9), integration tests (PR10) |
+| `mpcp-policy-authority` | Phase 3 (trust bundles, JWKS, audit) | Integration tests, Docker packaging |
 | `mpcp-wallet-sdk` | **Not started** | Everything — see repository ROADMAP |
-| `mpcp-merchant-sdk` | **Not started** | Everything — see repository ROADMAP |
+| `mpcp-merchant-sdk` | Phase 1 active (core verifier + revocation + spend + Express middleware) | Next.js/Edge adapter, full test suite |
+
+For a step-by-step guide to integrating each component see the [Integration Guide](guides/integration-guide.md).

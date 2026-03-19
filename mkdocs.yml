@@ -68,6 +68,7 @@ nav:
     - Full Profile: profiles/full-profile.md
     - Human-Agent Profile: profiles/human-agent-profile.md
   - Guides:
+    - Integration Guide: guides/integration-guide.md
     - Build a Machine Wallet: guides/build-a-machine-wallet.md
     - Fleet Payments: guides/fleet-payments.md
     - Dispute Resolution: guides/dispute-resolution.md
