@@ -45,15 +45,15 @@ The service exposes:
 |---|---|
 | `POST /policies` | Store a policy document; returns `policyHash` |
 | `POST /grants` | Issue a signed `PolicyGrant`; links to a stored policy |
-| `GET /grants/:grantId/status` | Revocation check endpoint (goes into every issued grant) |
-| `POST /grants/:grantId/revoke` | Revoke a grant immediately |
+| `GET /revoke?grantId=` | Revocation check endpoint — this URL goes into every issued grant |
+| `POST /revoke` | Revoke a grant immediately |
 | `GET /.well-known/mpcp-keys.json` | JWKS endpoint — merchants and agents resolve your signing key here |
 | `POST /trust-bundles` | Issue signed Trust Bundles for offline verifiers |
 | `GET /trust-bundles` | Distribute bundles; supports `?category=`, `?merchant=`, `?region=` |
 
 ### Existing infrastructure it connects to
 
-- **Key management**: the signing private key is passed as a PEM environment variable. In production, source it from AWS Secrets Manager, GCP KMS, Vault, or an HSM. Key rotation is managed via the signing key registry (`POST /admin/keys/rotate`).
+- **Key management**: the signing private key is passed as a PEM environment variable. In production, source it from AWS Secrets Manager, GCP KMS, Vault, or an HSM. New API keys are issued via `POST /admin/keys`; individual keys are revoked via `DELETE /admin/keys/:keyId`.
 - **Your user or fleet database**: policy documents reference your own entitlement data. You call `POST /policies` from your existing provisioning flow (when a user sets up a budget, when a fleet vehicle is provisioned, etc.).
 - **Revocation trigger**: call `POST /grants/:grantId/revoke` from any existing revocation surface — a user pressing "cancel" in your app, an account suspension flow, a fraud detection system.
 - **On-chain anchoring (optional)**: if you need tamper-evident audit trails, configure `MPCP_HCS_*` (Hedera) or `MPCP_XRPL_*` (XRPL). Anchoring is fire-and-forget — it does not affect issuance latency.
@@ -98,50 +98,57 @@ Typical roles: vehicle OEM wallet, AI agent runtime (LangChain, custom Claude to
 
 Nothing. The wallet SDK is a library. No server required.
 
+> **Status**: `mpcp-wallet-sdk` is in development. The planned API is shown below. Until it ships, use `mpcp-reference` primitives directly — see [Build a Machine Wallet](./build-a-machine-wallet.md) for a working example.
+
+#### Current path — mpcp-reference primitives
+
+```typescript
+import { createSignedSessionBudgetAuthorization } from "mpcp-service/sdk";
+
+// Set signing key via env (or configure per-call in your own wrapper)
+process.env.MPCP_SBA_SIGNING_PRIVATE_KEY_PEM = agentPrivateKeyPem;
+process.env.MPCP_SBA_SIGNING_KEY_ID = "agent-key-1";
+
+const sba = createSignedSessionBudgetAuthorization({
+  sessionId: crypto.randomUUID(),
+  actorId:   "agent:my-agent-id",
+  grantId:   grant.grantId,
+  policyHash: grant.policyHash,
+  currency:  "USD",
+  maxAmountMinor:      "2500",   // within grant ceiling
+  allowedRails:        grant.allowedRails,
+  allowedAssets:       grant.allowedAssets,
+  destinationAllowlist: grant.destinationAllowlist ?? [],
+  expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+  issuer:    grant.issuer,
+});
+```
+
+#### Planned SDK API (coming soon)
+
 ```bash
 npm install @mpcp/wallet-sdk
 ```
 
-### Integration steps
-
 ```typescript
 import { AgentWallet } from "@mpcp/wallet-sdk";
 
-// 1. Receive the PolicyGrant (from your platform API, QR scan, etc.)
-const grant = await fetchGrantFromPlatform(sessionId);
-
-// 2. Open a wallet bound to the grant and your signing key
 const wallet = new AgentWallet(grant, {
-  actorId: "agent:my-agent-id",
+  actorId:       "agent:my-agent-id",
   signingKeyPem: process.env.AGENT_SIGNING_PRIVATE_KEY_PEM,
-  signingKeyId: "agent-key-1",
+  signingKeyId:  "agent-key-1",
 });
 
-// 3. Before each payment, create an SBA
-const sba = await wallet.createSba({
-  amount: "2500",      // in minor units
-  currency: "USD",
-  sessionId: crypto.randomUUID(),
-});
-// sba is a SignedBudgetAuthorization — pass it to the merchant
-
-// 4. Budget enforcement, revocation checks, and spend tracking
-//    are handled automatically by the SDK
+// Budget enforcement, revocation checks, and spend tracking handled automatically
+const sba = await wallet.createSba({ amount: "2500", currency: "USD" });
 ```
-
-The wallet SDK:
-
-- Validates the grant signature and checks expiry before use
-- Rejects `createSba` calls that would exceed the grant's `maxAmountMinor` ceiling (cumulative)
-- Checks `revocationEndpoint` automatically before each SBA creation
-- Tracks cumulative spend in pluggable storage (in-memory, localStorage, React Native AsyncStorage)
 
 ### Passing the SBA to a merchant
 
 The merchant expects the SBA in the `Authorization` header:
 
 ```
-Authorization: MPCP <base64url(JSON.stringify(sba))>
+Authorization: MPCP <base64(JSON.stringify(sba))>
 ```
 
 or in the request body as `{ sba: <sba object> }` for non-HTTP protocols.
@@ -168,6 +175,8 @@ Typical roles: EV charging network backend, parking management platform, hotel P
 
 Nothing. The merchant SDK is middleware. No server required.
 
+> **Status**: `mpcp-merchant-sdk` is in active development (Phase 1: core verifier, revocation, spend tracking, Express middleware). The API shown below reflects the current implementation.
+
 ```bash
 npm install @mpcp/merchant-sdk
 ```
@@ -177,19 +186,18 @@ npm install @mpcp/merchant-sdk
 ```typescript
 import { mpcp } from "@mpcp/merchant-sdk/express";
 
-app.use("/charge", mpcp({
-  amount: (req) => req.body.amountMinor,
-  currency: "USD",
-  merchantId: "did:web:ionity.eu",        // optional — enforces destinationAllowlist
-  signingKeyPem: process.env.PA_PUBLIC_KEY_PEM, // resolve from /.well-known/mpcp-keys.json
-  revocationTtl: 60_000,                  // cache revocation responses for 60 s
-  trackSpend: true,                       // enforce cumulative grant ceiling
-}));
-
-app.post("/charge", (req, res) => {
+// mpcp() returns an Express middleware; mount it before your route handler.
+// It reads the SBA from the Authorization: MPCP <base64> header or req.body.sba,
+// verifies the full chain, and attaches req.mpcp on success.
+app.post("/charge", mpcp({
+  amount:    req.body.amountMinor,         // requested amount in minor units
+  currency:  "USD",
+  merchantId: "did:web:ionity.eu",         // optional — enforces destinationAllowlist
+  revocationTtl: 60_000,                   // cache revocation responses for 60 s
+  trackSpend:    true,                     // enforce cumulative grant ceiling
+}), (req, res) => {
   const { grant, amount, currency } = req.mpcp;
   // grant is verified; amount is within authorized bounds
-  // proceed with your existing payment processing
   res.json({ status: "authorized", amount });
 });
 ```
@@ -247,21 +255,45 @@ Nothing beyond your existing firmware. Embed `mpcp-reference` (or the lite subse
 The offline verification pattern uses Trust Bundles — signed, pre-distributed key packages that let the device verify MPCP artifact chains without a network call.
 
 ```typescript
-import { verifySignedBudgetAuthorization, resolveFromTrustBundle } from "mpcp-service/sdk";
+import {
+  verifyTrustBundle,
+  verifySignedSessionBudgetAuthorizationForDecision,
+  type TrustBundle,
+} from "mpcp-service/sdk";
 
-// At startup (or after each bundle refresh):
-const bundles = await fetchTrustBundles({
-  baseUrl: "https://pa.your-domain.com",
-  category: "ev-charging",
-  merchant: "did:web:ionity.eu",
-  region: "EU",
-});
+// At startup (or after each bundle refresh) — raw fetch, no SDK helper needed:
+const resp = await fetch(
+  "https://pa.your-domain.com/trust-bundles" +
+  "?category=ev-charging&merchant=did:web:ionity.eu&region=EU"
+);
+const { bundles } = await resp.json() as { bundles: TrustBundle[] };
+
+// Verify each bundle's signature against the pre-installed root public key
+// before storing. Discard any that fail or have expired.
+const validBundles = bundles.filter(
+  (b) => verifyTrustBundle(b, rootPublicKeyPem).valid
+);
 
 // At payment time (fully offline):
-const result = verifySignedBudgetAuthorization(sba, {
-  decision: syntheticDecision(sba, requestedAmount),
-  trustBundles: bundles,
-  cumulativeSpentMinor: localSpendTracker.get(sba.authorization.grantId),
+// Build a minimal decision from the SBA's own fields to drive verification.
+const decision = {
+  action:         "ALLOW" as const,
+  reasons:        [],
+  policyHash:     sba.authorization.policyHash,
+  expiresAtISO:   sba.authorization.expiresAt,
+  decisionId:     sba.authorization.budgetId,
+  sessionGrantId: sba.authorization.grantId,
+  priceFiat: {
+    amountMinor: requestedAmountMinor,
+    currency:    sba.authorization.currency,
+  },
+};
+
+const result = verifySignedSessionBudgetAuthorizationForDecision(sba, {
+  sessionId:            sba.authorization.sessionId,
+  decision,
+  trustBundles:         validBundles,
+  cumulativeSpentMinor: localSpendTracker.get(sba.authorization.grantId) ?? "0",
 });
 
 if (result.ok) {
