@@ -33,10 +33,13 @@ In offline or constrained environments — embedded devices, vehicle-mounted ver
 A Trust Bundle is scoped by **policy context**, which may include:
 
 - **category** — the service domain the bundle applies to (e.g., `ev-charging`, `parking`, `tolls`)
+- **merchant** — optional identity (DID or domain) of the payment-accepting entity this bundle is scoped to
 - **geography** — optional region or country constraint
 - **approved issuers** — the explicit set of issuer identities trusted within this scope
 
 A verifier loads only the bundles relevant to its deployment. A verifier serving EV charging in Germany loads a bundle scoped to `ev-charging / EU / DE`; it does not need to load bundles for other categories or regions.
+
+Embedded devices that belong to a specific merchant (e.g., an EV charging station managed by Ionity) SHOULD additionally filter by `merchant` to avoid loading key material from competing networks.
 
 ---
 
@@ -60,6 +63,7 @@ An issuer that appears in `approvedIssuers` but not in `issuers` is recognised a
   "bundleIssuer": "did:web:consortium.example.com",
   "bundleKeyId": "root-key-1",
   "category": "ev-charging",
+  "merchant": "did:web:ionity.eu",
   "geography": {
     "region": "EU",
     "countryCodes": ["DE", "NL", "FR"]
@@ -122,6 +126,14 @@ The `kid` of the key used to sign this bundle, within the `bundleIssuer`'s key s
 ### `category`
 
 The service category this bundle applies to. Informational metadata used for bundle selection.
+
+### `merchant`
+
+Optional. The identity (DID or domain) of the payment-accepting entity this bundle is scoped to. Used by embedded devices (e.g. EV charging stations, parking meters) to filter bundles by the merchant network they belong to.
+
+A device that serves a single merchant SHOULD only load bundles where `merchant` matches its own merchant identity. Bundles without a `merchant` field are unscoped and may be loaded by any verifier within the applicable `category` and `geography`.
+
+Example values: `did:web:ionity.eu`, `pa.acme-parking.com`
 
 ### `geography`
 
