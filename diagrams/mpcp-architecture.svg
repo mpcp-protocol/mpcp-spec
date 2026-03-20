@@ -1,0 +1,228 @@
+<svg width="1200" height="710" viewBox="0 0 1200 710" xmlns="http://www.w3.org/2000/svg">
+
+  <style>
+    .title  { font: bold 20px system-ui, sans-serif; fill: #f1f5f9; }
+    .sub    { font: 12px system-ui, sans-serif; fill: #94a3b8; }
+    .colHdr { font: bold 10px system-ui, sans-serif; fill: #475569; letter-spacing: 1.5px; }
+    .bTitle { font: bold 13px system-ui, sans-serif; }
+    .bSub   { font: italic 11px system-ui, sans-serif; fill: #64748b; }
+    .detail { font: 11.5px system-ui, sans-serif; fill: #cbd5e1; }
+    .aLabel { font: bold 11px system-ui, sans-serif; }
+    .aNote  { font: 10px system-ui, sans-serif; fill: #64748b; }
+    .chain  { font: 12px monospace; fill: #94a3b8; }
+    .dim    { font: 10.5px system-ui, sans-serif; fill: #475569; }
+  </style>
+
+  <defs>
+    <marker id="ah"  markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#94a3b8"/>
+    </marker>
+    <marker id="ahB" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#60a5fa"/>
+    </marker>
+    <marker id="ahG" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#4ade80"/>
+    </marker>
+    <marker id="ahV" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#a78bfa"/>
+    </marker>
+    <marker id="ahR" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#f87171"/>
+    </marker>
+  </defs>
+
+  <!-- Canvas -->
+  <rect width="1200" height="710" fill="#0f172a"/>
+
+  <!-- Title -->
+  <text x="600" y="36" text-anchor="middle" class="title">MPCP Architecture Overview</text>
+  <text x="600" y="56" text-anchor="middle" class="sub">Policy  →  Authorization Chain  →  Settlement  ·  Each artifact cryptographically constrains the next</text>
+
+  <!-- Column separators -->
+  <line x1="288" y1="68" x2="288" y2="598" stroke="#1e293b" stroke-width="2"/>
+  <line x1="634" y1="68" x2="634" y2="598" stroke="#1e293b" stroke-width="2"/>
+  <line x1="924" y1="68" x2="924" y2="598" stroke="#1e293b" stroke-width="2"/>
+
+  <!-- Column headers -->
+  <text x="154"  y="76" text-anchor="middle" class="colHdr">POLICY AUTHORITY</text>
+  <text x="461"  y="76" text-anchor="middle" class="colHdr">MACHINE / AI AGENT</text>
+  <text x="779"  y="76" text-anchor="middle" class="colHdr">SERVICE PROVIDER</text>
+  <text x="1062" y="76" text-anchor="middle" class="colHdr">SETTLEMENT RAIL</text>
+
+  <!-- ============================================================
+       COL 1 — POLICY AUTHORITY
+       ============================================================ -->
+
+  <!-- Fleet Operator -->
+  <rect x="20" y="90" width="252" height="150" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="146" y="112" text-anchor="middle" class="bTitle" fill="#60a5fa">Fleet Operator</text>
+  <line x1="38" y1="120" x2="254" y2="120" stroke="#1e3a5f" stroke-width="1"/>
+  <text x="36" y="139" class="detail">• vehicle payment policies</text>
+  <text x="36" y="157" class="detail">• spending limits + vendor allowlists</text>
+  <text x="36" y="175" class="detail">• allowedRails, allowedAssets</text>
+  <text x="36" y="193" class="detail">• SESSION / DAY scope grants</text>
+  <text x="146" y="222" text-anchor="middle" class="bSub">Robotaxi · Delivery · IoT fleet</text>
+
+  <!-- OR label -->
+  <text x="146" y="255" text-anchor="middle" class="sub" fill="#334155">— or —</text>
+
+  <!-- Human Principal -->
+  <rect x="20" y="265" width="252" height="170" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="146" y="287" text-anchor="middle" class="bTitle" fill="#60a5fa">Human Principal</text>
+  <line x1="38" y1="295" x2="254" y2="295" stroke="#1e3a5f" stroke-width="1"/>
+  <text x="36" y="314" class="detail">• individual user with DID key</text>
+  <text x="36" y="332" class="detail">• budget + allowedPurposes filter</text>
+  <text x="36" y="350" class="detail">• TRIP scope (multi-day, multi-session)</text>
+  <text x="36" y="368" class="detail">• can revoke delegation at any time</text>
+  <text x="36" y="386" class="detail">• optional on-chain anchor (HCS)</text>
+  <text x="146" y="416" text-anchor="middle" class="bSub">Travel agent · Subscription mgr</text>
+
+  <!-- ============================================================
+       COL 2 — MACHINE / AI AGENT
+       ============================================================ -->
+
+  <rect x="306" y="90" width="310" height="400" rx="6" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="461" y="112" text-anchor="middle" class="bTitle" fill="#4ade80">Machine Wallet / AI Agent</text>
+  <line x1="324" y1="120" x2="598" y2="120" stroke="#14532d" stroke-width="1"/>
+
+  <!-- Vehicle Wallet sub-section -->
+  <text x="461" y="140" text-anchor="middle" fill="#86efac" class="bSub">Vehicle Wallet</text>
+  <text x="322" y="159" class="detail">• stores PolicyGrant (offline-capable)</text>
+  <text x="322" y="177" class="detail">• signs SBA (SESSION / DAY scope)</text>
+  <text x="322" y="195" class="detail">• signs SPA per payment request</text>
+  <text x="322" y="213" class="detail">• hardware key binding (device key)</text>
+  <text x="461" y="232" text-anchor="middle" class="bSub">EV · Robot · IoT device</text>
+
+  <line x1="324" y1="242" x2="598" y2="242" stroke="#14532d" stroke-width="1" stroke-dasharray="4 3"/>
+
+  <!-- AI Agent sub-section -->
+  <text x="461" y="262" text-anchor="middle" fill="#86efac" class="bSub">AI Agent  (human-issued grant)</text>
+  <text x="322" y="281" class="detail">• receives PolicyGrant from human (DID)</text>
+  <text x="322" y="299" class="detail">• signs SBA with TRIP scope</text>
+  <text x="322" y="317" class="detail">• enforces allowedPurposes per booking</text>
+  <text x="322" y="335" class="detail">• tracks cumulative spend across TRIP</text>
+  <text x="322" y="353" class="detail">• checks revocationEndpoint before SPA</text>
+  <text x="461" y="371" text-anchor="middle" class="bSub">Travel · Subscription · Compute</text>
+
+  <line x1="324" y1="381" x2="598" y2="381" stroke="#14532d" stroke-width="1"/>
+
+  <!-- Authorization chain annotation -->
+  <text x="461" y="401" text-anchor="middle" class="dim">PolicyGrant  →  SBA  →  SPA</text>
+  <text x="461" y="419" text-anchor="middle" class="dim">stateless — verifiable at any time</text>
+  <text x="461" y="437" text-anchor="middle" class="dim">offline-capable (Vehicle Wallet)</text>
+  <text x="461" y="455" text-anchor="middle" class="dim">online + revocation check (AI Agent)</text>
+  <text x="461" y="473" text-anchor="middle" class="dim">Wallet SDK  ·  @mpcp/agent</text>
+
+  <!-- ============================================================
+       COL 3 — SERVICE PROVIDER + MPCP VERIFIER
+       ============================================================ -->
+
+  <rect x="652" y="90" width="254" height="320" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="779" y="112" text-anchor="middle" class="bTitle" fill="#fbbf24">Service Provider</text>
+  <text x="779" y="130" text-anchor="middle" class="bSub" fill="#fbbf24">+ MPCP Verifier</text>
+  <line x1="670" y1="140" x2="888" y2="140" stroke="#451a03" stroke-width="1"/>
+
+  <text x="668" y="159" class="detail">• receives Auth Bundle from agent</text>
+  <text x="668" y="177" class="detail">• resolves issuer DID → public key</text>
+  <text x="668" y="195" class="detail">• verifies PolicyGrant signature ✓</text>
+  <text x="668" y="213" class="detail">• verifies SBA (budget + scope) ✓</text>
+  <text x="668" y="231" class="detail">• verifies SPA (amount + destination) ✓</text>
+  <text x="668" y="249" class="detail">• optional: check revocationEndpoint</text>
+  <text x="668" y="267" class="detail">• grants service or rejects</text>
+
+  <line x1="670" y1="279" x2="888" y2="279" stroke="#451a03" stroke-width="1"/>
+  <text x="779" y="298" text-anchor="middle" class="bSub">Charging · Hotel · SaaS API</text>
+  <text x="779" y="316" text-anchor="middle" class="bSub">Toll · Parking · Inference API</text>
+
+  <line x1="670" y1="328" x2="888" y2="328" stroke="#451a03" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="779" y="348" text-anchor="middle" class="dim">Merchant SDK  ·  @mpcp/merchant-sdk</text>
+  <text x="779" y="366" text-anchor="middle" class="dim">verifyMpcp()  ·  Express / Fastify</text>
+  <text x="779" y="384" text-anchor="middle" class="dim">revocation cache  ·  spend tracking</text>
+  <text x="779" y="400" text-anchor="middle" class="dim">HTTP 402 middleware</text>
+
+  <!-- DID Resolver (optional, under col 3) -->
+  <rect x="652" y="432" width="254" height="96" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="6 3"/>
+  <text x="779" y="453" text-anchor="middle" class="bTitle" fill="#94a3b8">DID Resolver</text>
+  <text x="779" y="470" text-anchor="middle" class="bSub">(used by verifier for PolicyGrant sig)</text>
+  <line x1="670" y1="478" x2="888" y2="478" stroke="#334155" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="668" y="496" class="detail">• did:key — inline, no network call</text>
+  <text x="668" y="514" class="detail">• did:xrpl / did:hedera — method resolver</text>
+
+  <!-- ============================================================
+       COL 4 — SETTLEMENT RAIL
+       ============================================================ -->
+
+  <rect x="942" y="90" width="238" height="220" rx="6" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="1061" y="112" text-anchor="middle" class="bTitle" fill="#a78bfa">Settlement Rail</text>
+  <line x1="960" y1="120" x2="1162" y2="120" stroke="#2e1065" stroke-width="1"/>
+
+  <text x="960" y="142" class="detail">XRPL / RLUSD</text>
+  <text x="960" y="162" class="detail">EVM / Stablecoins</text>
+  <text x="960" y="182" class="detail">Stripe / Fiat</text>
+  <text x="960" y="202" class="detail">Hosted Payment</text>
+
+  <line x1="960" y1="216" x2="1162" y2="216" stroke="#2e1065" stroke-width="1"/>
+  <text x="1061" y="236" text-anchor="middle" class="dim">MPCP constrains authorization</text>
+  <text x="1061" y="254" text-anchor="middle" class="dim">above settlement — rail-agnostic</text>
+  <text x="1061" y="272" text-anchor="middle" class="dim">no per-transaction approval</text>
+  <text x="1061" y="290" text-anchor="middle" class="dim">required at payment time</text>
+
+  <!-- ============================================================
+       REVOCATION ENDPOINT (optional, under col 2)
+       ============================================================ -->
+
+  <rect x="306" y="514" width="310" height="124" rx="6" fill="#1e293b" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="6 3"/>
+  <text x="461" y="535" text-anchor="middle" class="bTitle" fill="#fb7185">Revocation Endpoint</text>
+  <text x="461" y="552" text-anchor="middle" class="bSub" fill="#fb7185">(optional — hosted by policy authority)</text>
+  <line x1="324" y1="560" x2="598" y2="560" stroke="#334155" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="322" y="578" class="detail">• checkRevocation(endpoint, grantId)</text>
+  <text x="322" y="596" class="detail">• returns { revoked: bool, revokedAt?: string }</text>
+  <text x="322" y="614" class="detail">• checked by agent before each SPA</text>
+  <text x="322" y="632" class="detail">• by verifier before service</text>
+
+  <!-- ============================================================
+       ARROWS — horizontal artifact flow
+       ============================================================ -->
+
+  <!-- PolicyGrant: Fleet Operator → Vehicle Wallet section (y≈167) -->
+  <path d="M272 167 L306 167" fill="none" stroke="#60a5fa" stroke-width="2" marker-end="url(#ahB)"/>
+
+  <!-- PolicyGrant: Human Principal → AI Agent section (y≈350) -->
+  <path d="M272 350 L306 350" fill="none" stroke="#60a5fa" stroke-width="2" marker-end="url(#ahB)"/>
+
+  <!-- PolicyGrant label (between col1 and col2) -->
+  <text x="289" y="261" text-anchor="middle" class="aLabel" fill="#60a5fa">PolicyGrant</text>
+
+  <!-- Auth Bundle: Agent → Service Provider (horizontal) -->
+  <path d="M616 200 H652" fill="none" stroke="#4ade80" stroke-width="2.5" marker-end="url(#ahG)"/>
+  <text x="634" y="184" text-anchor="middle" class="aLabel" fill="#4ade80">Auth Bundle</text>
+  <text x="634" y="220" text-anchor="middle" class="aNote">PolicyGrant</text>
+  <text x="634" y="232" text-anchor="middle" class="aNote">+ SBA</text>
+  <text x="634" y="244" text-anchor="middle" class="aNote">+ SPA</text>
+
+  <!-- Settlement execution: Service Provider → Settlement Rail (horizontal) -->
+  <path d="M906 210 H942" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#ahV)"/>
+  <text x="924" y="191" text-anchor="middle" class="aLabel" fill="#a78bfa">executes</text>
+  <text x="924" y="224" text-anchor="middle" class="aNote">SettlementIntent</text>
+
+  <!-- ============================================================
+       ARROWS — optional / vertical checks
+       ============================================================ -->
+
+  <!-- Agent → Revocation Endpoint (straight down from col2 bottom) -->
+  <path d="M461 490 L461 514" fill="none" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ahR)"/>
+  <text x="473" y="505" class="aNote" fill="#f87171">check revocation</text>
+
+  <!-- Service Provider → DID Resolver (straight down) -->
+  <path d="M779 410 L779 432" fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ah)"/>
+  <text x="793" y="424" class="aNote">resolve key</text>
+
+  <!-- ============================================================
+       AUTHORIZATION CHAIN FOOTER
+       ============================================================ -->
+
+  <rect x="20" y="644" width="1160" height="50" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="600" y="662" text-anchor="middle" class="sub" fill="#475569">Authorization Chain</text>
+  <text x="600" y="682" text-anchor="middle" class="chain">PolicyGrant  →  SignedBudgetAuthorization  →  SignedPaymentAuthorization  →  SettlementIntent  →  Settlement</text>
+
+</svg>
