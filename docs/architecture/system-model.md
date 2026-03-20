@@ -16,6 +16,8 @@ MPCP operates in the **authorization** layer. It does not replace or implement t
 
 The canonical flow is: **Fleet Policy → PolicyGrant → SBA → SPA → SettlementIntent → Settlement**.
 
+![MPCP Architecture Overview](../diagrams/mpcp-architecture.svg)
+
 → [Authorization Chain (visual diagram)](authorization-chain.md)
 
 ## Trust Model
