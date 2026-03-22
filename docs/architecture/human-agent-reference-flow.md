@@ -161,9 +161,8 @@ In this scenario:
 |------|----------|---------|--------|
 | 1 | Mercure Paris (hotel) | travel:hotel | $250 |
 | 2 | Eurostar (rail) | travel:flight | $120 |
-| 3 | Le Jules Verne (restaurant) | travel:dining | — (skipped) |
-| 4 | Europcar (car rental) | travel:transport | $180 |
-| 5 | Hotel extra night | travel:hotel | $300 (rejected) |
+| 3 | Europcar (car rental) | travel:transport | $180 |
+| 4 | Hotel extra night | travel:hotel | $300 (rejected) |
 
 Responsibilities:
 
