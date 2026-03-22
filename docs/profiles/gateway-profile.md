@@ -117,11 +117,13 @@ POST /sessions
 → { "sessionToken": "gw_sess_abc123...", "sessionId": "...", "revocationUrl": "..." }
 ```
 
-The `sessionToken` is passed to the AI agent or autonomous process. The `budget.amount` field is the spending ceiling expressed in the currency's minor units (e.g. `"80000"` = $800.00 USD). The gateway revokes the session on `DELETE /sessions/{id}` or when `expiresAt` is reached.
+The `sessionToken` is passed to the AI agent or autonomous process. The gateway revokes the session on `DELETE /sessions/{id}` or when `expiresAt` is reached.
+
+`budget.amount` is the spending ceiling expressed in the currency's minor units (e.g. `"80000"` = $800.00 USD). Note that the per-payment receipt uses the field name `amountMinor` for the same concept — these are two distinct schema fields at different layers of the gateway API.
 
 ### Agent → Gateway (forwarding)
 
-The AI agent attaches the `sessionToken` as a Bearer token and sends its outbound requests through the gateway's forwarding endpoint:
+The AI agent attaches the `sessionToken` as a Bearer token and sends its outbound requests through the gateway's forwarding endpoint (`POST /proxy` and `X-Target-Url` below are illustrative; implementations may use any endpoint and header scheme):
 
 ```
 POST /proxy
