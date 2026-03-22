@@ -357,6 +357,8 @@ issuerKeyId: pa-grant-key-1
 
 The MPCP artifact chain is identical — only the `issuer` value and key resolution method differ. This pattern is operationally simpler than requiring users to manage DID private keys and is the recommended starting point for most production deployments. The PA server also handles revocation, audit log storage, and grant lifecycle management centrally.
 
+See: [Integration Guide — Grant Issuer path](../guides/integration-guide.md) for a step-by-step walkthrough of deploying the PA server and issuing grants.
+
 ### Optional On-Chain Policy Anchoring
 
 Alice may optionally anchor the policy document to Hedera Consensus Service at issuance time. This produces an `anchorRef` field on the PolicyGrant:

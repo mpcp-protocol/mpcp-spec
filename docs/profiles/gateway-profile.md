@@ -119,6 +119,24 @@ POST /sessions
 
 The `sessionToken` is passed to the AI agent or autonomous process. The gateway revokes the session on `DELETE /sessions/{id}` or when `expiresAt` is reached.
 
+`budget.amount` is the spending ceiling expressed in the currency's minor units (e.g. `"80000"` = $800.00 USD). Note that the per-payment receipt uses the field name `amountMinor` for the same concept — these are two distinct schema fields at different layers of the gateway API.
+
+### Agent → Gateway (forwarding)
+
+The AI agent attaches the `sessionToken` as a Bearer token and sends its outbound requests through the gateway's forwarding endpoint (`POST /proxy` and `X-Target-Url` below are illustrative; implementations may use any endpoint and header scheme):
+
+```
+POST /proxy
+Authorization: Bearer gw_sess_abc123...
+X-Target-Url: https://hotel.example.com/book
+Content-Type: application/json
+{ ... booking payload ... }
+```
+
+The gateway makes the outbound request on behalf of the agent, handles any 402 response transparently (checking the session, paying, retrying), and returns the final merchant response to the agent. The agent receives a normal HTTP response and does not observe the payment exchange.
+
+For embedded agents or SDKs, the forwarding step can alternatively be implemented as an HTTP proxy (`CONNECT`/`HTTP_PROXY` style), so the agent needs no code changes beyond pointing its HTTP client at the gateway host.
+
 ### Gateway → Merchant (standard payment protocol)
 
 The gateway speaks [x402](https://x402.org) on the outbound side by default. When the agent (via the gateway) makes an HTTP request to a merchant endpoint:
@@ -219,7 +237,7 @@ The gateway includes the internal SBA in a custom HTTP header alongside the x402
 X-Mpcp-Sba: base64encodedSBA...
 ```
 
-MPCP-aware merchants can independently verify the authorization chain if they choose. Non-MPCP merchants ignore the header. No merchant-side changes required to proceed.
+`X-Mpcp-Sba` is an implementation-defined header; it is not part of the MPCP protocol artifact spec. MPCP-aware merchants can independently verify the authorization chain if they choose. Non-MPCP merchants ignore the header. No merchant-side changes required to proceed.
 
 ### Level 2 — Native MPCP
 
