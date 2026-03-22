@@ -68,6 +68,28 @@ The PolicyGrant is signed by the human principal's DID key.
 | `revocationEndpoint` | URL where the human's wallet accepts cancellation queries |
 | `scope` | Use `TRIP` for multi-day or multi-session delegations |
 
+### Policy Authority Server — Common Deployment Pattern
+
+The example above shows Alice signing the PolicyGrant with her DID key directly. In practice, most deployments use a **Policy Authority (PA) server** — a backend service that issues grants on Alice's behalf.
+
+In this model:
+
+- Alice authenticates to her PA server (via session token, API key, or OAuth)
+- The PA server issues the PolicyGrant, signing with a domain key
+- `issuer` is the PA server's domain (e.g. `wallet.alice.example.com`) rather than Alice's personal DID
+- Key resolution uses HTTPS well-known: `https://wallet.alice.example.com/.well-known/mpcp-keys.json`
+- The `revocationEndpoint` is also hosted by the PA server, which tracks revocation state
+
+```json
+{
+  "issuer": "wallet.alice.example.com",
+  "issuerKeyId": "pa-grant-key-1",
+  "revocationEndpoint": "https://wallet.alice.example.com/revoke"
+}
+```
+
+The MPCP artifact chain is identical — only the `issuer` value and key resolution method differ. This pattern is operationally simpler than requiring users to manage DID private keys and is the recommended starting point for most production deployments.
+
 ---
 
 ## TRIP Scope Semantics
@@ -208,13 +230,13 @@ Revoke the PolicyGrant immediately to stop new SBAs from being issued.
 
 | | Fleet Profile | Human-to-Agent Profile |
 |---|--------------|----------------------|
-| Policy authority | Fleet operator (DID/domain) | Human (DID key) |
+| Policy authority | Fleet operator (domain key) | Human (DID key) or PA server (domain key) |
 | Subject | Vehicle wallet | AI agent |
-| Connectivity | Offline-first | Online by design |
-| Revocation | Not defined (short-lived SBAs) | `revocationEndpoint` |
-| Budget scope | SESSION / DAY / FLEET | TRIP |
+| Connectivity | Offline-first (Trust Bundle) | Online by design |
+| Revocation | `revocationEndpoint` — fleet disables vehicle mid-shift | `revocationEndpoint` — human cancels delegation |
+| Budget scope | SESSION (per-shift, multi-merchant) | TRIP (multi-day, multi-session) |
 | Merchant categories | destinationAllowlist (crypto) | allowedPurposes (semantic, agent-enforced) |
-| Use case | Parking, charging, tolls | Travel, subscriptions, event budgets |
+| Use case | Tolls, EV charging, parking | Travel, subscriptions, event budgets |
 
 Both profiles use the same MPCP artifact chain and the same verifier. The difference is in
 the policy authority, connectivity assumptions, and the new fields for human use cases.
