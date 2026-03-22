@@ -260,7 +260,7 @@ This diagram highlights the **separation of roles**:
 
 | Artifact | Issued By | Purpose |
 |----------|-----------|---------|
-| PolicyGrant | Alice (human principal, DID key) | Defines budget, purposes, revocation endpoint |
+| PolicyGrant | Alice (human principal, DID key or PA server) | Defines budget, purposes, revocation endpoint |
 | SignedBudgetAuthorization | AI Agent (SBA key) | Authorizes $800 TRIP budget |
 | SignedPaymentAuthorization | AI Agent (SPA key) | Authorizes each individual service payment |
 | SettlementIntent | AI Agent | Defines settlement parameters for each payment |
@@ -337,6 +337,25 @@ Example `PolicyGrant` structure:
 ```
 
 The `issuer`, `issuerKeyId`, and `signature` fields belong to the signed envelope that wraps the grant payload.
+
+### Policy Authority Server — Common Deployment Pattern
+
+This reference flow shows Alice signing the PolicyGrant with her DID key directly. In practice, many deployments use a **Policy Authority (PA) server** — a backend service that issues grants on Alice's behalf.
+
+In this model:
+
+- Alice authenticates to her PA server (via session token, API key, or OAuth)
+- The PA server issues the PolicyGrant, signing with a domain key (e.g. `wallet.alice.example.com`)
+- `issuer` is the PA server's domain rather than Alice's personal DID
+- Key resolution uses HTTPS well-known: `https://wallet.alice.example.com/.well-known/mpcp-keys.json`
+- The `revocationEndpoint` is also hosted by the PA server
+
+```
+issuer:    wallet.alice.example.com
+issuerKeyId: pa-grant-key-1
+```
+
+The MPCP artifact chain is identical — only the `issuer` value and key resolution method differ. This pattern is operationally simpler than requiring users to manage DID private keys and is the recommended starting point for most production deployments. The PA server also handles revocation, audit log storage, and grant lifecycle management centrally.
 
 ### Optional On-Chain Policy Anchoring
 
@@ -881,12 +900,12 @@ This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel 
 
 | Dimension | Fleet EV | Human-Agent Trip |
 |-----------|----------|-----------------|
-| PolicyGrant issuer | Fleet Operator (organization) | Alice (individual, DID key) |
-| SBA budgetScope | SESSION (single charge) | TRIP (multi-day, multi-session) |
-| Spend enforcement | Per-session by SBA | Cumulative across trip, by agent |
+| PolicyGrant issuer | Fleet Operator (organization or domain) | Alice (DID key or PA server domain) |
+| SBA budgetScope | SESSION (per-shift, multi-merchant) | TRIP (multi-day, multi-session) |
+| Spend enforcement | On-vehicle wallet Session (shift ceiling) | Cumulative across trip, by agent |
 | allowedPurposes | Not typically used | Core control mechanism |
-| Revocation | Optional | Designed in (human can cancel) |
-| Key resolution | HTTPS well-known or DID | DID (human identity) |
+| Revocation | `revocationEndpoint` — fleet disables vehicle mid-shift | `revocationEndpoint` — human cancels delegation |
+| Key resolution | Trust Bundle (offline, pre-loaded at merchants) | DID or HTTPS well-known (PA server) |
 
 ---
 

@@ -81,6 +81,10 @@ In this autonomous deployment model, the vehicle wallet **embeds both the sessio
 - **session authority**: creates and signs the SBA, defining the session-level budget and permitted destinations
 - **payment decision service**: evaluates each quote against the policy, assigns a `decisionId`, and signs the SPA
 
+The wallet also maintains a **shift-level cumulative budget tracker**. Before signing each SBA, it checks whether the new payment would exceed the shift ceiling. If so, it refuses — no SBA is created, no network call is made, and no authorization bundle reaches the merchant. This enforcement is deterministic and requires no server dependency.
+
+The wallet also checks the fleet's **revocation endpoint** before signing each SBA. If the fleet operator has disabled the vehicle, the wallet refuses to sign, regardless of remaining budget.
+
 ---
 
 ## Route / Dispatch System
@@ -737,6 +741,37 @@ Intent anchoring is **optional** and does not block or affect the payment flow. 
 
 ---
 
+# Multi-Merchant Shift Pattern
+
+The timeline above describes a single charge at one station. In practice, a robotaxi or delivery vehicle makes **multiple payments across multiple merchants during a single shift** — tolls, EV charging stations, and potentially parking or access control.
+
+MPCP handles this via an **on-vehicle wallet Session** bound to a shift-level ceiling:
+
+```
+PolicyGrant (from fleet operator, e.g. $30 shift ceiling)
+    ↓
+Wallet Session (scope: SESSION, ceiling: $30)
+    ├─ TollExpress — Plaza Norte    $2.50   ✓  remaining $27.50
+    ├─ EVGrid — ChargePoint A      $22.00   ✓  remaining $5.50
+    ├─ TollExpress — Tunnel Sur     $2.50   ✓  remaining $3.00
+    ├─ EVGrid — ChargePoint B      $15.00   ✗  budget exceeded (refused locally)
+    └─ (grant revoked by fleet operator)
+       EVGrid — ChargePoint East    $2.50   ✗  grant revoked (refused locally)
+```
+
+Each merchant verifies the SBA independently using a pre-loaded **Trust Bundle** — no server call required, no per-vehicle key configuration needed at the merchant.
+
+Key properties of this pattern:
+
+- **Single PolicyGrant, multiple payments** — the grant covers the entire shift; each SBA is signed per payment with a per-payment `maxAmountMinor`
+- **On-vehicle enforcement** — the wallet Session tracks cumulative spend; overspend refusals happen before any authorization bundle is created
+- **Trust Bundle key resolution** — pre-loaded at merchant startup; resolves the vehicle's public key by `issuer` identifier without any live network call
+- **Revocation before signing** — the wallet checks the fleet's revocation endpoint before signing each SBA; a disabled vehicle cannot issue new authorizations regardless of remaining budget
+
+This is the recommended pattern for third-party infrastructure (toll terminals, EV chargers, parking kiosks) that cannot be pre-configured with per-vehicle env keys.
+
+---
+
 # Data Storage Model
 
 ## Fleet Backend Stores
@@ -862,7 +897,24 @@ Vehicle refuses to authorize payment.
 
 ## Quote Exceeds Budget
 
-Vehicle rejects charging request.
+The vehicle wallet maintains a running spend total for the shift. Before signing an SBA, it checks:
+
+```
+cumulativeSpend + requestedAmount > shiftCeiling  →  refuse
+```
+
+If the ceiling would be exceeded, the wallet refuses to create the SBA. No authorization bundle reaches the merchant.
+
+Example with a $30.00 shift ceiling:
+
+| Payment | Amount | Running Total | Outcome |
+|---------|--------|---------------|---------|
+| TollExpress — Plaza Norte | $2.50 | $2.50 | ✓ approved |
+| EVGrid — ChargePoint A | $22.00 | $24.50 | ✓ approved |
+| TollExpress — Tunnel Sur | $2.50 | $27.00 | ✓ approved |
+| EVGrid — ChargePoint B | $15.00 | $42.00 (> $30) | ✗ refused locally |
+
+The refusal is local and requires no server round-trip.
 
 ---
 
