@@ -42,12 +42,12 @@ It is issued after a PolicyGrant and constrains subsequent SignedPaymentAuthoriz
 
 ### SignedBudgetAuthorization (envelope)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| authorization | BudgetAuthorization | The budget payload |
-| issuer | string | Identifier for the budget authority (e.g. DID, domain, or registry ID). Verifiers use this to resolve the signing key. |
-| issuerKeyId | string | Identifies the specific key used to sign (alias: `keyId` retained for backward compatibility) |
-| signature | string | Base64-encoded signature over SHA256("MPCP:SBA:1.0:" || canonicalJson(authorization)) |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| authorization | BudgetAuthorization | yes | The budget payload |
+| issuer | string | conditional | Identifier for the signing entity (e.g. DID, domain, or `vehicle:id.fleet.example`). Required when the verifier uses Trust Bundle key resolution. Optional when the verifier resolves the key via `MPCP_SBA_SIGNING_PUBLIC_KEY_PEM` or HTTPS well-known. |
+| issuerKeyId | string | yes | Identifies the specific key used to sign (alias: `keyId` retained for backward compatibility) |
+| signature | string | yes | Base64-encoded signature over SHA256("MPCP:SBA:1.0:" || canonicalJson(authorization)) |
 
 ---
 
@@ -164,7 +164,12 @@ This prevents cross-protocol and cross-artifact hash collisions and ensures comp
 
 A verifier MUST:
 
-1. Resolve the public key (as JWK) using `issuer` and `issuerKeyId` (or `keyId` if present) via the HTTPS well-known endpoint or pre-configured keys (see [Key Resolution](./key-resolution.md)), then validate the signature over SHA256("MPCP:SBA:<version>:" || canonicalJson(authorization))
+1. Resolve the public key (as JWK) using one of the following, in order of precedence:
+   - **Trust Bundle** — if `trustBundles` are provided, look up `issuer` in the bundle's `issuers` list and retrieve the JWK by `issuerKeyId`. This path works fully offline.
+   - **Pre-configured key** — if `MPCP_SBA_SIGNING_PUBLIC_KEY_PEM` is set (or equivalent), use it directly.
+   - **HTTPS well-known** — fetch `https://{issuerDomain}/.well-known/mpcp-keys.json` and look up by `issuerKeyId`.
+
+   Then validate the signature over SHA256("MPCP:SBA:<version>:" || canonicalJson(authorization)).
 2. Check `expiresAt` has not passed
 3. When verifying against a payment decision or settlement context: ensure sessionId, policyHash, budgetScope, allowedRails, allowedAssets, optional destination constraints, and amount constraints match
 

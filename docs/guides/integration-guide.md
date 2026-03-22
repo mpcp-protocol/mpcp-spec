@@ -98,49 +98,80 @@ Typical roles: vehicle OEM wallet, AI agent runtime (LangChain, custom Claude to
 
 Nothing. The wallet SDK is a library. No server required.
 
-> **Status**: `mpcp-wallet-sdk` is in development. The planned API is shown below. Until it ships, use `mpcp-reference` primitives directly — see [Build a Machine Wallet](./build-a-machine-wallet.md) for a working example.
-
-#### Current path — mpcp-reference primitives
-
-```typescript
-import { createSignedSessionBudgetAuthorization } from "mpcp-service/sdk";
-
-// Set signing key via env (or configure per-call in your own wrapper)
-process.env.MPCP_SBA_SIGNING_PRIVATE_KEY_PEM = agentPrivateKeyPem;
-process.env.MPCP_SBA_SIGNING_KEY_ID = "agent-key-1";
-
-const sba = createSignedSessionBudgetAuthorization({
-  sessionId: crypto.randomUUID(),
-  actorId:   "agent:my-agent-id",
-  grantId:   grant.grantId,
-  policyHash: grant.policyHash,
-  currency:  "USD",
-  maxAmountMinor:      "2500",   // within grant ceiling
-  allowedRails:        grant.allowedRails,
-  allowedAssets:       grant.allowedAssets,
-  destinationAllowlist: grant.destinationAllowlist ?? [],
-  expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-  issuer:    grant.issuer,
-});
-```
-
-#### Planned SDK API (coming soon)
+### SDK API
 
 ```bash
 npm install @mpcp/wallet-sdk
 ```
 
 ```typescript
-import { AgentWallet } from "@mpcp/wallet-sdk";
+import { createSession, MpcpBudgetExceededError, MpcpGrantRevokedError } from "@mpcp/agent";
 
-const wallet = new AgentWallet(grant, {
+const session = await createSession(signedGrant, {
   actorId:       "agent:my-agent-id",
-  signingKeyPem: process.env.AGENT_SIGNING_PRIVATE_KEY_PEM,
+  signingKey:    process.env.AGENT_SIGNING_PRIVATE_KEY_PEM,
   signingKeyId:  "agent-key-1",
+  scope:         "SESSION",
+  ceiling:       { amount: "80000", currency: "USD" },  // $800 budget ceiling
+  revocationTtl: 60_000,
+  // Required when merchants use Trust Bundle key resolution instead of env-var key:
+  // issuer: "vehicle:robox-7.fleet.robox.example",
 });
 
-// Budget enforcement, revocation checks, and spend tracking handled automatically
-const sba = await wallet.createSba({ amount: "2500", currency: "USD" });
+// Budget enforcement, revocation checks, and spend tracking handled automatically.
+// Throws MpcpBudgetExceededError if amount would exceed ceiling.
+// Throws MpcpGrantRevokedError if the grant has been revoked.
+let sba;
+try {
+  sba = await session.createSba({ amount: "2500", currency: "USD", rail: "stripe" });
+} catch (err) {
+  if (err instanceof MpcpBudgetExceededError) { /* handle */ }
+  if (err instanceof MpcpGrantRevokedError)   { /* handle */ }
+}
+
+// Show remaining budget
+const { remainingMinor } = await session.remaining();
+```
+
+#### `issuer` and Trust Bundle key resolution
+
+When the merchant verifies SBAs using a pre-loaded Trust Bundle (rather than a configured env-var public key), the SBA envelope must carry an `issuer` field. The wallet-sdk session sets this automatically when `issuer` is provided in `SessionOptions`:
+
+```typescript
+const session = await createSession(signedGrant, {
+  actorId:      "vehicle:robox-7",
+  issuer:       "vehicle:robox-7.fleet.robox.example",  // must match Trust Bundle entry
+  signingKey:   vehiclePrivKeyPem,
+  signingKeyId: "vehicle-sba-key-1",
+  // ...
+});
+```
+
+Without `issuer`, the merchant-sdk verifier falls back to `MPCP_SBA_SIGNING_PUBLIC_KEY_PEM` for key lookup. For third-party infrastructure (toll terminals, EV chargers) that cannot be pre-configured with per-vehicle keys, Trust Bundles + `issuer` is the correct pattern.
+
+#### Using mpcp-reference primitives directly
+
+For environments that cannot run `mpcp-wallet-sdk` (e.g. constrained microcontrollers), use the reference SDK directly. Budget tracking must be implemented by the caller.
+
+```typescript
+import { createSignedSessionBudgetAuthorization } from "mpcp-service/sdk";
+
+process.env.MPCP_SBA_SIGNING_PRIVATE_KEY_PEM = agentPrivateKeyPem;
+process.env.MPCP_SBA_SIGNING_KEY_ID = "agent-key-1";
+
+const sba = createSignedSessionBudgetAuthorization({
+  sessionId:            crypto.randomUUID(),
+  actorId:              "agent:my-agent-id",
+  grantId:              grant.grantId,
+  policyHash:           grant.policyHash,
+  currency:             "USD",
+  maxAmountMinor:       "2500",
+  allowedRails:         grant.allowedRails,
+  allowedAssets:        grant.allowedAssets,
+  destinationAllowlist: grant.destinationAllowlist ?? [],
+  expiresAt:            new Date(Date.now() + 3_600_000).toISOString(),
+  issuer:               grant.issuer,  // pass through for Trust Bundle resolution
+});
 ```
 
 ### Passing the SBA to a merchant

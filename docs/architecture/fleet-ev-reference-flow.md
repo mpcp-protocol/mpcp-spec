@@ -776,17 +776,27 @@ Verification happens in several places.
 
 ## Key Resolution and Trust Model
 
-MPCP verifiers must resolve the issuer's public key to verify signed artifacts.
+MPCP verifiers must resolve the issuer's public key to verify signed artifacts. Three mechanisms are supported, in order of precedence:
 
-**Baseline mechanism — HTTPS well-known:**
+**1. Trust Bundle (offline — preferred for fleet terminals)**
+
+A Trust Bundle is a signed document published by the fleet operator and pre-loaded by merchants at startup. It lists the public keys of all authorized vehicles by issuer identifier.
+
+```
+sba.issuer  →  Trust Bundle issuers list  →  JWK by issuerKeyId  →  verify signature
+```
+
+No network call is required at verification time. The Trust Bundle is cached locally and refreshed periodically before expiry. Third-party infrastructure that cannot be pre-configured with per-vehicle keys (toll terminals, EV chargers, parking kiosks) SHOULD use this pattern.
+
+**2. Baseline — HTTPS well-known:**
 
 ```
 https://{issuerDomain}/.well-known/mpcp-keys.json
 ```
 
-The verifier fetches the key document and looks up the key by `issuerKeyId`.
+The verifier fetches the key document and looks up the key by `issuerKeyId`. Suitable when the verifier has network connectivity and the issuer domain is known.
 
-**Optional — DID resolution:**
+**3. Optional — DID resolution:**
 
 ```
 issuerKeyId (DID URL fragment)
@@ -924,6 +934,7 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
       "destinationAllowlist": ["rChargeNetDestination"],
       "expiresAt": "2026-03-12T15:00:00Z"
     },
+    "issuer": "vehicle:EV-847.fleet.example.com",
     "issuerKeyId": "mpcp-sba-signing-key-1",
     "signature": "base64encodedSignature..."
   },
@@ -994,7 +1005,7 @@ In a production deployment, the exact bundle shape may vary, but it should prese
 **a verifier must be able to reconstruct and validate the full authorization chain from policy issuance to settlement.**
 
 Optional additions (not shown above):
-- `issuer` field on `sba` or `spa` envelopes (HTTPS domain or DID for key discovery)
+- `issuer` field on `sba` or `spa` envelopes — **required** when the verifier uses Trust Bundle key resolution (offline fleet terminals, third-party chargers); optional when the verifier uses a pre-configured key or HTTPS well-known
 - intent anchor (ledger hash of the `settlementIntent`)
 - DID resolution records (when DID/VC layer is used)
 
