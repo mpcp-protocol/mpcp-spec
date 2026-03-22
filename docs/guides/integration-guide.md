@@ -105,7 +105,7 @@ npm install @mpcp/wallet-sdk
 ```
 
 ```typescript
-import { createSession, MpcpBudgetExceededError, MpcpGrantRevokedError } from "@mpcp/wallet-sdk";
+import { createSession, MpcpBudgetExceededError, MpcpGrantRevokedError } from "@mpcp/agent";
 
 const session = await createSession(signedGrant, {
   actorId:       "agent:my-agent-id",

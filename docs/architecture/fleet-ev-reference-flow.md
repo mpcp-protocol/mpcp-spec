@@ -786,7 +786,7 @@ A Trust Bundle is a signed document published by the fleet operator and pre-load
 sba.issuer  →  Trust Bundle issuers list  →  JWK by issuerKeyId  →  verify signature
 ```
 
-No network call is required at verification time. The Trust Bundle is cached locally and refreshed periodically before expiry. This is the correct pattern for toll terminals, EV chargers, and any third-party infrastructure that cannot be pre-configured with per-vehicle keys.
+No network call is required at verification time. The Trust Bundle is cached locally and refreshed periodically before expiry. Third-party infrastructure that cannot be pre-configured with per-vehicle keys (toll terminals, EV chargers, parking kiosks) SHOULD use this pattern.
 
 **2. Baseline — HTTPS well-known:**
 
