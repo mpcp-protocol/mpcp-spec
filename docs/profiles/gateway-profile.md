@@ -117,7 +117,23 @@ POST /sessions
 → { "sessionToken": "gw_sess_abc123...", "sessionId": "...", "revocationUrl": "..." }
 ```
 
-The `sessionToken` is passed to the AI agent or autonomous process. The gateway revokes the session on `DELETE /sessions/{id}` or when `expiresAt` is reached.
+The `sessionToken` is passed to the AI agent or autonomous process. The `budget.amount` field is the spending ceiling expressed in the currency's minor units (e.g. `"80000"` = $800.00 USD). The gateway revokes the session on `DELETE /sessions/{id}` or when `expiresAt` is reached.
+
+### Agent → Gateway (forwarding)
+
+The AI agent attaches the `sessionToken` as a Bearer token and sends its outbound requests through the gateway's forwarding endpoint:
+
+```
+POST /proxy
+Authorization: Bearer gw_sess_abc123...
+X-Target-Url: https://hotel.example.com/book
+Content-Type: application/json
+{ ... booking payload ... }
+```
+
+The gateway makes the outbound request on behalf of the agent, handles any 402 response transparently (checking the session, paying, retrying), and returns the final merchant response to the agent. The agent receives a normal HTTP response and does not observe the payment exchange.
+
+For embedded agents or SDKs, the forwarding step can alternatively be implemented as an HTTP proxy (`CONNECT`/`HTTP_PROXY` style), so the agent needs no code changes beyond pointing its HTTP client at the gateway host.
 
 ### Gateway → Merchant (standard payment protocol)
 
@@ -219,7 +235,7 @@ The gateway includes the internal SBA in a custom HTTP header alongside the x402
 X-Mpcp-Sba: base64encodedSBA...
 ```
 
-MPCP-aware merchants can independently verify the authorization chain if they choose. Non-MPCP merchants ignore the header. No merchant-side changes required to proceed.
+`X-Mpcp-Sba` is an implementation-defined header; it is not part of the MPCP protocol artifact spec. MPCP-aware merchants can independently verify the authorization chain if they choose. Non-MPCP merchants ignore the header. No merchant-side changes required to proceed.
 
 ### Level 2 — Native MPCP
 
