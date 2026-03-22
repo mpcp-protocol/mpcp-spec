@@ -59,7 +59,7 @@ Use the Transparent Gateway profile when:
 
 - You want MPCP budget enforcement and audit without requiring merchant SDK integration
 - You are in an early adoption phase and cannot mandate MPCP on both sides simultaneously
-- The budget owner is a human or service that cannot run a PA server (consumer apps, SaaS products)
+- The budget owner does not want to operate their own PA server (consumer apps, SaaS products delegating to a hosted gateway)
 - You need a migration path toward native MPCP as merchant adoption grows
 - Merchants already accept a standard payment protocol (x402, Stripe, etc.) and must not be disrupted
 
@@ -79,14 +79,14 @@ The gateway shifts trust compared to native MPCP:
 
 | Property | Native MPCP | Transparent Gateway |
 |----------|-------------|---------------------|
-| Budget ceiling enforced | ✓ cryptographic | ✓ inside gateway |
-| Purpose filtering | ✓ cryptographic | ✓ inside gateway |
+| Budget ceiling enforced | ✓ agent-enforced (SBA independently verifiable) | ✓ gateway-enforced internally |
+| Purpose filtering | ✓ agent-enforced (grant scope in signed artifact) | ✓ gateway-enforced internally |
 | Revocation by budget owner | ✓ | ✓ gateway checks endpoint |
 | Cumulative spend tracking | ✓ | ✓ inside gateway |
 | Merchant verifies chain independently | ✓ | ✗ merchant trusts gateway |
 | Merchant needs MPCP SDK | required | not required |
-| Budget owner needs PA server | required | not required |
-| End-to-end cryptographic audit | ✓ | gateway receipt only |
+| Budget owner needs own PA server | required | not required (gateway hosts it) |
+| End-to-end cryptographic audit | ✓ | gateway receipts only |
 
 The key trade-off: merchants trust the gateway for payment validity rather than the cryptographic artifact chain. This is the same trust model as traditional payment processors (Visa, Stripe) and is commercially accepted in nearly all existing commerce.
 
@@ -119,9 +119,9 @@ POST /sessions
 
 The `sessionToken` is passed to the AI agent or autonomous process. The gateway revokes the session on `DELETE /sessions/{id}` or when `expiresAt` is reached.
 
-### Gateway → Merchant (x402)
+### Gateway → Merchant (standard payment protocol)
 
-The gateway speaks [x402](https://x402.org) on the outbound side. When the agent (via the gateway) makes an HTTP request to a merchant endpoint:
+The gateway speaks [x402](https://x402.org) on the outbound side by default. When the agent (via the gateway) makes an HTTP request to a merchant endpoint:
 
 ```
 1. Agent makes request
@@ -156,12 +156,14 @@ When a budget owner creates a session, the gateway mints a PolicyGrant from the 
 Session config  →  internal PolicyGrant
 {                    {
   budget: $800         grantId: ...,
-  purposes: [...]  →   policyHash: ...,
+  purposes: [...]  →   policyHash: sha256(canonicalize(session config)),
   expiresAt: ...       allowedPurposes: [...],
 }                      expiresAt: ...,
                        revocationEndpoint: internal
                     }
 ```
+
+The gateway derives `policyHash` by canonicalizing the session config as a policy document and computing its SHA-256. This hash is stored in the internal PolicyGrant and appears in every SBA issued against that session.
 
 ### Wallet Session
 
@@ -197,7 +199,7 @@ The gateway produces a signed per-payment receipt for every completed payment:
 
 The budget owner can retrieve the full receipt log at any time via `GET /sessions/{id}/receipts`. This provides after-the-fact accountability even without a full MPCP artifact chain.
 
-For deployments requiring stronger guarantees, the gateway can optionally include the internal SBA in an `X-Mpcp-Sba` response header, allowing the budget owner to independently verify the artifact chain at audit time.
+For deployments requiring stronger guarantees, the gateway can include the internal SBA in the receipt payload, allowing the budget owner to independently verify the artifact chain at audit time. This is distinct from the Level 1 passthrough header (see Progressive Trust Path below), which sends the SBA to the merchant in the outbound request.
 
 ---
 
@@ -238,7 +240,7 @@ This path lets deployments adopt MPCP gradually, proving value at each level bef
 | Revocation | ✓ | ✓ | ✓ | ✓ (gateway-mediated) |
 | Adoption friction | medium | high | medium | low |
 | Cryptographic audit | ✓ | ✓ | ✓ | gateway receipts |
-| Migration to native MPCP | — | — | — | ✓ progressive |
+| Migration to native MPCP | n/a (native) | n/a (native) | n/a (native) | ✓ progressive |
 
 ---
 
