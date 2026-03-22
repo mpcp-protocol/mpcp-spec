@@ -90,6 +90,8 @@ In this model:
 
 The MPCP artifact chain is identical — only the `issuer` value and key resolution method differ. This pattern is operationally simpler than requiring users to manage DID private keys and is the recommended starting point for most production deployments.
 
+See: [Integration Guide — Grant Issuer path](../guides/integration-guide.md) for a step-by-step walkthrough.
+
 ---
 
 ## TRIP Scope Semantics
@@ -234,9 +236,11 @@ Revoke the PolicyGrant immediately to stop new SBAs from being issued.
 | Subject | Vehicle wallet | AI agent |
 | Connectivity | Offline-first (Trust Bundle) | Online by design |
 | Revocation | `revocationEndpoint` — fleet disables vehicle mid-shift | `revocationEndpoint` — human cancels delegation |
-| Budget scope | SESSION (per-shift, multi-merchant) | TRIP (multi-day, multi-session) |
+| Budget scope | SESSION (per-shift, multi-merchant) ¹ | TRIP (multi-day, multi-session) |
 | Merchant categories | destinationAllowlist (crypto) | allowedPurposes (semantic, agent-enforced) |
 | Use case | Tolls, EV charging, parking | Travel, subscriptions, event budgets |
+
+¹ `SESSION` is the recommended scope for fleet shift deployments. `DAY`, `VEHICLE`, and `FLEET` scopes are also defined in the [SBA spec](../protocol/SignedBudgetAuthorization.md) for deployments with different budget reset semantics.
 
 Both profiles use the same MPCP artifact chain and the same verifier. The difference is in
 the policy authority, connectivity assumptions, and the new fields for human use cases.
