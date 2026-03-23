@@ -12,6 +12,7 @@ MPCP development is tracked per-repository. Each repository has its own `ROADMAP
 | [mpcp-policy-authority](https://github.com/mpcp-protocol/mpcp-policy-authority) | Deployable policy authority service — grant issuance, revocation, on-chain anchoring | [ROADMAP.md](https://github.com/mpcp-protocol/mpcp-policy-authority/blob/main/ROADMAP.md) |
 | [mpcp-wallet-sdk](https://github.com/mpcp-protocol/mpcp-wallet-sdk) | Wallet SDK — session management, SBA signing, budget enforcement (Node.js + browser) | [ROADMAP.md](https://github.com/mpcp-protocol/mpcp-wallet-sdk/blob/main/ROADMAP.md) |
 | [mpcp-merchant-sdk](https://github.com/mpcp-protocol/mpcp-merchant-sdk) | Merchant SDK — SBA verification, revocation caching, spend tracking, framework adapters | [ROADMAP.md](https://github.com/mpcp-protocol/mpcp-merchant-sdk/blob/main/ROADMAP.md) |
+| [mpcp-gateway](https://github.com/mpcp-protocol/mpcp-gateway) | Transparent payment gateway — speaks x402 externally, enforces MPCP internally; bridges non-MPCP agents to MPCP merchants | [ROADMAP.md](https://github.com/mpcp-protocol/mpcp-gateway/blob/main/ROADMAP.md) |
 | [mpcp-spec](https://github.com/mpcp-protocol/mpcp-spec) | Protocol specification, architecture docs, guides | this site |
 
 ---
