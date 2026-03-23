@@ -39,6 +39,12 @@ Planned. Phase 1 (Node.js core: `parseGrant`, `Session`, budget tracking) is the
 
 Planned. Phase 1 (core `verifyMpcp`, revocation cache, spend tracking) is the starting point.
 
+### mpcp-gateway
+
+Phases 1–5 complete. The gateway bridges non-MPCP agents to MPCP merchants: it intercepts HTTP 402 responses, executes x402 payments, and optionally attaches a signed SBA (`X-Mpcp-Sba`) so MPCP-aware merchants can verify the authorization chain without any gateway-specific integration.
+
+Phase 5 deferred items (each a standalone PR): SQLite/PostgreSQL session persistence, Redis spend-ceiling cache, per-owner rate limiting, OpenTelemetry traces, Prometheus text-format metrics.
+
 ---
 
 ## Spec roadmap
