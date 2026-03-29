@@ -29,8 +29,9 @@
   <text x="850" y="30" text-anchor="middle" class="title">MPCP Architecture Overview</text>
   <text x="850" y="50" text-anchor="middle" class="sub">Policy → Authorization Chain → Settlement · Each artifact cryptographically constrains the next</text>
 
-  <!-- Native MPCP direct path label (routes above boxes) -->
-  <text x="837" y="65" text-anchor="middle" class="aNote" fill="#4ade80">Auth Bundle (PolicyGrant + SBA + SPA) — native MPCP agents send direct to Service Provider, no gateway required</text>
+  <!-- Native MPCP direct path label (inside gateway column, above gateway box) -->
+  <text x="837" y="98" text-anchor="middle" class="aNote" fill="#4ade80">Auth Bundle (PolicyGrant + SBA + SPA)</text>
+  <text x="837" y="112" text-anchor="middle" class="aNote" fill="#4ade80">native MPCP agents bypass gateway — direct to Service Provider</text>
 
   <!--
        Column layout (1700px canvas, 70px gaps)
@@ -51,12 +52,11 @@
   <!-- Column headers -->
   <text x="190"  y="78" text-anchor="middle" class="colHdr">POLICY AUTHORITY</text>
   <text x="526"  y="78" text-anchor="middle" class="colHdr">MACHINE / AI AGENT</text>
-  <text x="837"  y="78" text-anchor="middle" class="colHdr">MPCP GATEWAY  (optional)</text>
   <text x="1147" y="78" text-anchor="middle" class="colHdr">SERVICE PROVIDER</text>
   <text x="1494" y="78" text-anchor="middle" class="colHdr">SETTLEMENT RAIL</text>
 
-  <!-- Direct native MPCP path: Agent right edge → SP left edge, routed above boxes -->
-  <path d="M662,88 L662,82 L1012,82 L1012,88" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ahG)"/>
+  <!-- Direct native MPCP path: Agent right edge → SP left edge, routed through gateway column space -->
+  <path d="M662,122 L1005,122" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ahG)"/>
 
   <!-- ================================================================
        COL 1 — POLICY AUTHORITY
@@ -124,39 +124,37 @@
        COL 3 — MPCP GATEWAY (optional)
        ================================================================ -->
 
-  <!-- Gateway box: x=732 y=90 w=210 h=432 -->
-  <rect x="732" y="90" width="210" height="432" rx="6" fill="#0c1f1e" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="6 3"/>
-  <text x="837" y="111" text-anchor="middle" class="bTitle" fill="#2dd4bf">MPCP Gateway</text>
-  <line x1="748" y1="119" x2="926" y2="119" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- Gateway box: x=732 y=160 w=210 h=432 -->
+  <rect x="732" y="160" width="210" height="432" rx="6" fill="#0c1f1e" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="6 3"/>
+  <text x="837" y="181" text-anchor="middle" class="bTitle" fill="#2dd4bf">MPCP Gateway</text>
+  <line x1="748" y1="189" x2="926" y2="189" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
 
-  <text x="837" y="137" text-anchor="middle" fill="#5eead4" class="bSub">gateway-client  (agent-side)</text>
-  <text x="748" y="156" class="detail">• GatewayClient + GatewaySession</text>
-  <text x="748" y="174" class="detail">• session.fetch() — drop-in fetch</text>
-  <text x="748" y="192" class="detail">• onSoftLimit callback</text>
-  <text x="748" y="210" class="detail">• LangChain / Vercel AI adapters</text>
+  <text x="837" y="207" text-anchor="middle" fill="#5eead4" class="bSub">gateway-client  (agent-side)</text>
+  <text x="748" y="226" class="detail">• GatewayClient + GatewaySession</text>
+  <text x="748" y="244" class="detail">• session.fetch() — drop-in fetch</text>
+  <text x="748" y="262" class="detail">• onSoftLimit callback</text>
+  <text x="748" y="280" class="detail">• LangChain / Vercel AI adapters</text>
 
-  <line x1="748" y1="222" x2="926" y2="222" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
+  <line x1="748" y1="292" x2="926" y2="292" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
 
-  <text x="837" y="240" text-anchor="middle" fill="#5eead4" class="bSub">gateway server  (transparent proxy)</text>
-  <text x="748" y="259" class="detail">• intercepts HTTP 402</text>
-  <text x="748" y="277" class="detail">• enforces budget + purposes</text>
-  <text x="748" y="295" class="detail">• executes x402 payment</text>
-  <text x="748" y="313" class="detail">• attaches X-Mpcp-Sba header</text>
-  <text x="748" y="331" class="detail">• Trust Bundle at /.well-known</text>
-  <text x="748" y="349" class="detail">• spend webhooks · soft limits</text>
-  <text x="748" y="367" class="detail">• merchant allow/blocklist</text>
-  <text x="748" y="385" class="detail">• velocity limits · signed receipts</text>
+  <text x="837" y="310" text-anchor="middle" fill="#5eead4" class="bSub">gateway server  (transparent proxy)</text>
+  <text x="748" y="329" class="detail">• intercepts HTTP 402</text>
+  <text x="748" y="347" class="detail">• enforces budget + purposes</text>
+  <text x="748" y="365" class="detail">• executes x402 payment</text>
+  <text x="748" y="383" class="detail">• attaches X-Mpcp-Sba header</text>
+  <text x="748" y="401" class="detail">• Trust Bundle at /.well-known</text>
+  <text x="748" y="419" class="detail">• spend webhooks · soft limits</text>
+  <text x="748" y="437" class="detail">• merchant allow/blocklist</text>
+  <text x="748" y="455" class="detail">• velocity limits · signed receipts</text>
 
-  <line x1="748" y1="397" x2="926" y2="397" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
-  <text x="837" y="415" text-anchor="middle" class="dim">P1–P10 complete</text>
-  <text x="837" y="433" text-anchor="middle" class="dim">bridges non-MPCP agents to</text>
-  <text x="837" y="451" text-anchor="middle" class="dim">MPCP-aware merchants</text>
-  <text x="837" y="469" text-anchor="middle" class="dim">native MPCP agents send direct</text>
-  <text x="837" y="487" text-anchor="middle" class="dim">(see dashed arrow above)</text>
+  <line x1="748" y1="467" x2="926" y2="467" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="837" y="485" text-anchor="middle" class="dim">bridges non-MPCP agents to</text>
+  <text x="837" y="503" text-anchor="middle" class="dim">MPCP-aware merchants</text>
+  <text x="837" y="521" text-anchor="middle" class="dim">native MPCP agents bypass this layer</text>
 
   <!-- Optional badge -->
-  <rect x="772" y="499" width="130" height="21" rx="4" fill="#134e4a" stroke="#0d9488" stroke-width="1"/>
-  <text x="837" y="514" text-anchor="middle" fill="#2dd4bf" style="font: bold 10px system-ui,sans-serif; letter-spacing:0.5px">OPTIONAL LAYER</text>
+  <rect x="772" y="533" width="130" height="21" rx="4" fill="#134e4a" stroke="#0d9488" stroke-width="1"/>
+  <text x="837" y="548" text-anchor="middle" fill="#2dd4bf" style="font: bold 10px system-ui,sans-serif; letter-spacing:0.5px">OPTIONAL LAYER</text>
 
   <!-- ================================================================
        COL 4 — SERVICE PROVIDER
@@ -253,13 +251,15 @@
   <text x="355" y="260" text-anchor="middle" class="aLabel" fill="#60a5fa">Policy</text>
   <text x="355" y="276" text-anchor="middle" class="aLabel" fill="#60a5fa">Grant</text>
 
-  <!-- Agent → Gateway-client (y=175) -->
-  <path d="M662,175 L732,175" fill="none" stroke="#2dd4bf" stroke-width="2" marker-end="url(#ahT)"/>
+  <!-- Agent → Gateway-client (y=245) -->
+  <path d="M662,245 L732,245" fill="none" stroke="#2dd4bf" stroke-width="2" marker-end="url(#ahT)"/>
+  <text x="697" y="239" text-anchor="middle" class="aNote" fill="#2dd4bf">session</text>
+  <text x="697" y="252" text-anchor="middle" class="aNote" fill="#2dd4bf">.fetch()</text>
 
-  <!-- Gateway server → SP (y=310) -->
-  <path d="M942,310 L1012,310" fill="none" stroke="#2dd4bf" stroke-width="2" marker-end="url(#ahT)"/>
-  <text x="977" y="302" text-anchor="middle" class="aNote" fill="#2dd4bf">x402</text>
-  <text x="977" y="318" text-anchor="middle" class="aNote" fill="#2dd4bf">+ SBA</text>
+  <!-- Gateway server → SP (y=380) -->
+  <path d="M942,380 L1012,380" fill="none" stroke="#2dd4bf" stroke-width="2" marker-end="url(#ahT)"/>
+  <text x="977" y="372" text-anchor="middle" class="aNote" fill="#2dd4bf">x402</text>
+  <text x="977" y="388" text-anchor="middle" class="aNote" fill="#2dd4bf">+ SBA</text>
 
   <!-- Settlement: SP → Rail (y=222) -->
   <path d="M1282,222 L1352,222" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#ahV)"/>
