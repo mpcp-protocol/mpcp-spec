@@ -43,13 +43,13 @@ The protocol spec and reference implementation sit underneath all of this — th
 
 | Repository | Role | Audience | Status |
 |------------|------|----------|--------|
-| [mpcp-spec](https://github.com/mpcp-protocol/mpcp-spec) | Protocol specification — artifact formats, verification rules, profiles | Protocol implementers, researchers | Active |
-| [mpcp-reference](https://github.com/mpcp-protocol/mpcp-reference) | TypeScript reference implementation — canonical SDK, verifier, on-chain adapters, Trust Bundle | All implementers (SDK dependency) | Complete |
-| [mpcp-policy-authority](https://github.com/mpcp-protocol/mpcp-policy-authority) | Deployable Policy Authority service — grant issuance, revocation, Trust Bundle issuance, on-chain anchoring | Operators, platforms, enterprises | Complete |
-| [mpcp-wallet-sdk](https://github.com/mpcp-protocol/mpcp-wallet-sdk) | Wallet SDK — `createSession`, SBA signing, budget tracking, revocation; Node.js | Wallet developers, AI agent builders | Complete (Node.js) |
-| [mpcp-merchant-sdk](https://github.com/mpcp-protocol/mpcp-merchant-sdk) | Merchant SDK — SBA verification middleware for Express, Fastify, Next.js, Edge; Trust Bundle key resolution | Merchant and service provider backends | Complete |
-| [mpcp-gateway](https://github.com/mpcp-protocol/mpcp-gateway) | Transparent payment gateway — x402 interception, session budgets, policy controls, signed receipts, soft limits | Operators bridging non-MPCP agents | Complete (P1–P10) |
-| [mpcp-gateway-client](https://github.com/mpcp-protocol/mpcp-gateway-client) | Agent-side gateway client — `GatewayClient`, `session.fetch()`, framework adapters | AI agent and automation developers | Active (P1) |
+| mpcp-spec | Protocol specification — artifact formats, verification rules, profiles | Protocol implementers, researchers | Active |
+| mpcp-reference | TypeScript reference implementation — canonical SDK, verifier, on-chain adapters, Trust Bundle | All implementers (SDK dependency) | Complete |
+| mpcp-policy-authority | Deployable Policy Authority service — grant issuance, revocation, Trust Bundle issuance, on-chain anchoring | Operators, platforms, enterprises | Complete |
+| mpcp-wallet-sdk | Wallet SDK — `createSession`, SBA signing, budget tracking, revocation; Node.js | Wallet developers, AI agent builders | Complete (Node.js) |
+| mpcp-merchant-sdk | Merchant SDK — SBA verification middleware for Express, Fastify, Next.js, Edge; Trust Bundle key resolution | Merchant and service provider backends | Complete |
+| mpcp-gateway | Transparent payment gateway — x402 interception, session budgets, policy controls, signed receipts, soft limits | Operators bridging non-MPCP agents | Complete (P1–P10) |
+| mpcp-gateway-client | Agent-side gateway client — `GatewayClient`, `session.fetch()`, framework adapters | AI agent and automation developers | Active (P1–P3) |
 
 ---
 
@@ -96,7 +96,7 @@ The production Policy Authority is the trust anchor for a deployment. It:
 
 For many deployments the policy authority will be embedded directly in an existing platform (an AI agent platform, an enterprise IAM system, a crypto wallet provider) rather than deployed as a standalone service. The `mpcp-policy-authority` repository is a ready-to-deploy reference implementation of this role.
 
-See the [mpcp-policy-authority ROADMAP](https://github.com/mpcp-protocol/mpcp-policy-authority/blob/main/ROADMAP.md) for the full development plan.
+See the [Ecosystem Roadmap](../roadmap/) for the full development plan.
 
 ---
 
@@ -196,7 +196,7 @@ Estimated integration: a few hours for a standard agent that already holds signi
 
 ### For operators building a Policy Authority
 
-Deploy `mpcp-policy-authority` as a service (Docker Compose, one command) or integrate `mpcp-reference` SDK primitives directly into an existing backend. See the [Policy Authority README](https://github.com/mpcp-protocol/mpcp-policy-authority) for setup details.
+Deploy `mpcp-policy-authority` as a service (Docker Compose, one command) or integrate `mpcp-reference` SDK primitives directly into an existing backend. See the [Integration Guide](../guides/integration-guide/) for setup details.
 
 ---
 

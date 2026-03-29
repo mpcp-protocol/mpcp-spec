@@ -59,6 +59,5 @@ Verification uses the Hedera mirror node to fetch the message and confirm intent
 
 ## See Also
 
-- [Intent Anchoring (architecture)](https://github.com/mpcp-protocol/mpcp-reference/blob/main/doc/architecture/INTENT_ANCHORING.md)
 - [Dispute Resolution](../guides/dispute-resolution.md)
 - [Reference: Service API](https://mpcp-protocol.github.io/mpcp-reference/reference/service-api/) — `anchorIntent`

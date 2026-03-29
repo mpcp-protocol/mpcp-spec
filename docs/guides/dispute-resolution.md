@@ -69,6 +69,4 @@ const anchor = await anchorIntent(intentHash, { rail: "hedera-hcs" });
 ## See Also
 
 - [Protocol: Anchoring](../protocol/anchoring.md)
-- [Intent Anchoring](https://github.com/mpcp-protocol/mpcp-reference/blob/main/doc/architecture/INTENT_ANCHORING.md)
-- [Dispute Verification](https://github.com/mpcp-protocol/mpcp-reference/blob/main/doc/architecture/DISPUTE_VERIFICATION.md)
 - [Reference: Service API](https://mpcp-protocol.github.io/mpcp-reference/reference/service-api/)

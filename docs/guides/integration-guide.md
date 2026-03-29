@@ -25,11 +25,9 @@ Typical roles: fleet operator, enterprise IT/IAM, AI agent platform, crypto wall
 
 ### What you run
 
-Deploy the [`mpcp-policy-authority`](https://github.com/mpcp-protocol/mpcp-policy-authority) service. It is a Node.js/Fastify HTTP service backed by SQLite. A single binary, no external database required.
+Deploy the `mpcp-policy-authority` service. It is a Node.js/Fastify HTTP service backed by SQLite. A single binary, no external database required.
 
 ```bash
-git clone https://github.com/mpcp-protocol/mpcp-policy-authority
-cd mpcp-policy-authority
 npm install && npm run build
 
 MPCP_POLICY_GRANT_SIGNING_PRIVATE_KEY_PEM="$(cat your-key.pem)" \

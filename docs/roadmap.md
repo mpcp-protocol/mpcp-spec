@@ -1,20 +1,20 @@
 # MPCP Ecosystem Roadmap
 
-MPCP development is tracked per-repository. Each repository has its own `ROADMAP.md` covering its specific implementation phases.
+MPCP development is tracked per-repository. Implementation status for each component is summarised below.
 
 ---
 
 ## Repositories
 
-| Repository | Role | Roadmap |
-|------------|------|---------|
-| [mpcp-reference](https://github.com/mpcp-protocol/mpcp-reference) | Protocol core — canonical SDK, verifier, schemas, anchoring adapters, golden vectors | [ROADMAP.md](https://github.com/mpcp-protocol/mpcp-reference/blob/main/ROADMAP.md) |
-| [mpcp-policy-authority](https://github.com/mpcp-protocol/mpcp-policy-authority) | Deployable policy authority service — grant issuance, revocation, Trust Bundle issuance, on-chain anchoring | [ROADMAP.md](https://github.com/mpcp-protocol/mpcp-policy-authority/blob/main/ROADMAP.md) |
-| [mpcp-wallet-sdk](https://github.com/mpcp-protocol/mpcp-wallet-sdk) | Wallet SDK — session management, SBA signing, budget enforcement (Node.js + browser) | [ROADMAP.md](https://github.com/mpcp-protocol/mpcp-wallet-sdk/blob/main/ROADMAP.md) |
-| [mpcp-merchant-sdk](https://github.com/mpcp-protocol/mpcp-merchant-sdk) | Merchant SDK — SBA verification, revocation caching, spend tracking, framework adapters (Express / Fastify / Next.js / Edge) | [ROADMAP.md](https://github.com/mpcp-protocol/mpcp-merchant-sdk/blob/main/ROADMAP.md) |
-| [mpcp-gateway](https://github.com/mpcp-protocol/mpcp-gateway) | Transparent payment gateway — speaks x402 externally, enforces MPCP internally; bridges non-MPCP agents to MPCP merchants | [ROADMAP.md](https://github.com/mpcp-protocol/mpcp-gateway/blob/main/ROADMAP.md) |
-| [mpcp-gateway-client](https://github.com/mpcp-protocol/mpcp-gateway-client) | Agent-side fetch wrapper — `GatewayClient` + `session.fetch()`; soft-limit continuation; LangChain / Vercel AI / AutoGen adapters | [ROADMAP.md](https://github.com/mpcp-protocol/mpcp-gateway-client/blob/main/ROADMAP.md) |
-| [mpcp-spec](https://github.com/mpcp-protocol/mpcp-spec) | Protocol specification, architecture docs, guides | this site |
+| Repository | Role | Status |
+|------------|------|--------|
+| mpcp-reference | Protocol core — canonical SDK, verifier, schemas, anchoring adapters, golden vectors | Complete |
+| mpcp-policy-authority | Deployable policy authority service — grant issuance, revocation, Trust Bundle issuance, on-chain anchoring | Complete |
+| mpcp-wallet-sdk | Wallet SDK — session management, SBA signing, budget enforcement (Node.js + browser) | Complete |
+| mpcp-merchant-sdk | Merchant SDK — SBA verification, revocation caching, spend tracking, framework adapters (Express / Fastify / Next.js / Edge) | Complete |
+| mpcp-gateway | Transparent payment gateway — speaks x402 externally, enforces MPCP internally; bridges non-MPCP agents to MPCP merchants | Complete (P1–P10) |
+| mpcp-gateway-client | Agent-side fetch wrapper — `GatewayClient` + `session.fetch()`; soft-limit continuation; LangChain / Vercel AI / AutoGen adapters | Active (P1–P3) |
+| mpcp-spec | Protocol specification, architecture docs, guides | this site |
 
 ---
 
@@ -81,7 +81,7 @@ Planned:
 
 ## Spec roadmap
 
-Protocol specification work is tracked via GitHub pull requests on [mpcp-spec](https://github.com/mpcp-protocol/mpcp-spec). Spec changes accompany each reference implementation PR that introduces new protocol fields or behaviors.
+Spec changes accompany each reference implementation PR that introduces new protocol fields or behaviors.
 
 Upcoming spec work:
 

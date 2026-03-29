@@ -84,11 +84,11 @@ MPCP supports **offline payment** when the vehicle has no network:
 3. Infrastructure verifies chain locally (no network)
 4. When connectivity returns, settlement is reconciled
 
-See [Offline Payments](https://github.com/mpcp-protocol/mpcp-reference/blob/main/doc/architecture/OFFLINE_PAYMENTS.md) in the reference implementation.
+The offline payment flow is supported natively — grants are cached locally and verification requires no network call.
 
 ## Reference Profiles
 
-Use [reference profiles](https://github.com/mpcp-protocol/mpcp-reference/blob/main/doc/architecture/REFERENCE_PROFILES.md) for common deployment patterns:
+Common deployment patterns:
 
 - **Fleet Offline** — Pre-auth budgets, offline payment
 - **Parking** — Meter/gate, short sessions
@@ -111,6 +111,4 @@ npx mpcp verify examples/fleet-payment/fleet-demo-bundle.json --explain
 ## See Also
 
 - [Examples: Fleet](https://mpcp-protocol.github.io/mpcp-reference/examples/fleet/)
-- [Reference Profiles](https://github.com/mpcp-protocol/mpcp-reference/blob/main/doc/architecture/REFERENCE_PROFILES.md)
-- [Offline Payments](https://github.com/mpcp-protocol/mpcp-reference/blob/main/doc/architecture/OFFLINE_PAYMENTS.md)
 - [Reference: Service API](https://mpcp-protocol.github.io/mpcp-reference/reference/service-api/)
