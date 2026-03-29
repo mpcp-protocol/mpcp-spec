@@ -44,10 +44,12 @@ The protocol spec and reference implementation sit underneath all of this — th
 | Repository | Role | Audience | Status |
 |------------|------|----------|--------|
 | [mpcp-spec](https://github.com/mpcp-protocol/mpcp-spec) | Protocol specification — artifact formats, verification rules, profiles | Protocol implementers, researchers | Active |
-| [mpcp-reference](https://github.com/mpcp-protocol/mpcp-reference) | TypeScript reference implementation — canonical SDK, verifier, on-chain adapters | All implementers (SDK dependency) | Active |
-| [mpcp-policy-authority](https://github.com/mpcp-protocol/mpcp-policy-authority) | Deployable Policy Authority service — issues, stores, and revokes PolicyGrants; on-chain anchoring | Operators, platforms, enterprises | Active (Phase 2) |
-| [mpcp-wallet-sdk](https://github.com/mpcp-protocol/mpcp-wallet-sdk) | Wallet SDK — SBA signing, budget tracking, revocation; browser + React Native | Wallet developers, AI agent builders | Planned |
-| [mpcp-merchant-sdk](https://github.com/mpcp-protocol/mpcp-merchant-sdk) | Merchant SDK — SBA/SPA verification middleware for Express, Fastify, Next.js | Merchant and service provider backends | Planned |
+| [mpcp-reference](https://github.com/mpcp-protocol/mpcp-reference) | TypeScript reference implementation — canonical SDK, verifier, on-chain adapters, Trust Bundle | All implementers (SDK dependency) | Complete |
+| [mpcp-policy-authority](https://github.com/mpcp-protocol/mpcp-policy-authority) | Deployable Policy Authority service — grant issuance, revocation, Trust Bundle issuance, on-chain anchoring | Operators, platforms, enterprises | Complete |
+| [mpcp-wallet-sdk](https://github.com/mpcp-protocol/mpcp-wallet-sdk) | Wallet SDK — `createSession`, SBA signing, budget tracking, revocation; Node.js | Wallet developers, AI agent builders | Complete (Node.js) |
+| [mpcp-merchant-sdk](https://github.com/mpcp-protocol/mpcp-merchant-sdk) | Merchant SDK — SBA verification middleware for Express, Fastify, Next.js, Edge; Trust Bundle key resolution | Merchant and service provider backends | Complete |
+| [mpcp-gateway](https://github.com/mpcp-protocol/mpcp-gateway) | Transparent payment gateway — x402 interception, session budgets, policy controls, signed receipts, soft limits | Operators bridging non-MPCP agents | Complete (P1–P10) |
+| [mpcp-gateway-client](https://github.com/mpcp-protocol/mpcp-gateway-client) | Agent-side gateway client — `GatewayClient`, `session.fetch()`, framework adapters | AI agent and automation developers | Active (P1) |
 
 ---
 
@@ -58,8 +60,10 @@ Each actor in the MPCP protocol maps to one or more implementation components:
 | Actor | Uses | Hosts |
 |-------|------|-------|
 | **Fleet Operator / Human delegator** | `mpcp-policy-authority` (or custom issuer) | Policy Authority service, revocation endpoint |
-| **Vehicle Wallet / AI Agent** | `mpcp-wallet-sdk` | SBA signing keys, session state |
+| **Vehicle Wallet / AI Agent (native MPCP)** | `mpcp-wallet-sdk` | SBA signing keys, session state |
+| **AI Agent (gateway path)** | `mpcp-gateway-client` | — (delegates all crypto to the gateway) |
 | **Merchant / Service Provider** | `mpcp-merchant-sdk` | Verification middleware |
+| **Gateway operator** | `mpcp-gateway` | Session store, x402 proxy, payment rail |
 | **Auditor / Verifier** | `mpcp-reference` verifier directly | — |
 | **Protocol implementer** | `mpcp-spec` + `mpcp-reference` | — |
 
@@ -198,12 +202,14 @@ Deploy `mpcp-policy-authority` as a service (Docker Compose, one command) or int
 
 ## Current implementation status
 
-| Component | Phase | Key missing pieces |
-|-----------|-------|--------------------|
-| `mpcp-spec` | Protocol complete | — |
-| `mpcp-reference` | Core + adapters complete | — |
-| `mpcp-policy-authority` | Phase 3 (trust bundles, JWKS, audit) | Integration tests, Docker packaging |
-| `mpcp-wallet-sdk` | **Not started** | Everything — see repository ROADMAP |
-| `mpcp-merchant-sdk` | Phase 1 active (core verifier + revocation + spend + Express middleware) | Next.js/Edge adapter, full test suite |
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `mpcp-spec` | Complete | Protocol spec, profiles, guides |
+| `mpcp-reference` | Complete | Canonical SDK, verifier, Trust Bundle, on-chain adapters |
+| `mpcp-policy-authority` | Complete | Grant issuance, revocation, Trust Bundle issuance, audit log |
+| `mpcp-wallet-sdk` | Complete (Node.js) | `createSession`, SBA signing, budget enforcement, SQLite persistence |
+| `mpcp-merchant-sdk` | Complete | Express / Fastify / Next.js / Edge adapters; Trust Bundle key resolution |
+| `mpcp-gateway` | Complete (P1–P10) | x402 proxy, session API, receipts, policy controls, soft limits, x402 merchant mode, SQLite |
+| `mpcp-gateway-client` | Active — P1 | Core client in progress; P2–P4 planned |
 
 For a step-by-step guide to integrating each component see the [Integration Guide](guides/integration-guide.md).
