@@ -8,13 +8,13 @@ Part of the [Machine Payment Control Protocol (MPCP)](./mpcp.md).
 
 The **SignedBudgetAuthorization (SBA)** defines a signed spending envelope for a machine payment scope.
 
-It is a protocol-level MPCP artifact that constrains subsequent **SignedPaymentAuthorization (SPA)** artifacts.
+It is a protocol-level MPCP artifact that defines the spending envelope the Trust Gateway enforces for a session.
 
 Unlike application-specific budget concepts, SBA is generic and may be used across parking, charging, tolling, robotics, AI agents, and other machine-payment environments.
 
 The **SignedBudgetAuthorization (SBA)** establishes the maximum spending envelope available to a machine for a defined payment scope.
 
-It is issued after a PolicyGrant and constrains subsequent SignedPaymentAuthorizations (SPAs).
+It is issued after a PolicyGrant and presented to the Trust Gateway, which verifies the SBA signature and enforces the budget ceiling before submitting each XRPL payment.
 
 ---
 
@@ -34,7 +34,7 @@ It is issued after a PolicyGrant and constrains subsequent SignedPaymentAuthoriz
 | currency | string | yes | Informational: the fiat reference currency from which this budget was derived (e.g. `"USD"`). Not used in verification arithmetic. |
 | minorUnit | number | yes | Informational: decimal scale of the fiat reference currency (e.g. `2` for USD cents). Not used in verification arithmetic. |
 | budgetScope | string | yes | SESSION \| DAY \| VEHICLE \| FLEET \| TRIP |
-| maxAmountMinor | string | yes | Maximum authorized spend expressed in the **on-chain asset's atomic units** — the same denomination as `SPA.amount`. The session authority converts the fiat budget to on-chain units at SBA issuance time. |
+| maxAmountMinor | string | yes | Maximum authorized spend expressed in the **on-chain asset's atomic units** (e.g. drops for XRP). The session authority converts the fiat budget to on-chain units at SBA issuance time. |
 | allowedRails | Rail[] | yes | Permitted payment rails (xrpl, evm, stripe, hosted) |
 | allowedAssets | Asset[] | yes | Permitted assets |
 | destinationAllowlist | string[] | no | Optional allowed destination addresses |
@@ -53,7 +53,7 @@ It is issued after a PolicyGrant and constrains subsequent SignedPaymentAuthoriz
 
 ## Scope Model
 
-SBA supports multiple budget scopes. All scopes are cumulative — `maxAmountMinor` represents the total authorized spending across all payments (SPAs) within the scope, regardless of how many individual payments are made.
+SBA supports multiple budget scopes. All scopes are cumulative — `maxAmountMinor` represents the total authorized spending across all payments within the scope, regardless of how many individual payments are made.
 
 | Scope | Meaning |
 |-------|---------|
@@ -81,18 +81,19 @@ Budget enforcement is split between two roles:
 
 | Role | Responsibility |
 |------|----------------|
-| Session authority | Tracks cumulative spending per scope. Only issues SPAs within the remaining authorized envelope for the scope. |
-| Verifier | Checks that the current SPA amount does not exceed `maxAmountMinor`. Does not track prior payments. |
+| Session authority (agent) | Tracks cumulative spending per scope. Presents SBAs within the remaining authorized envelope. |
+| Trust Gateway | Independently enforces the PA-signed `budgetMinor` ceiling. Rejects payments that would exceed remaining budget. |
+| Merchant verifier | Checks that the SBA `maxAmountMinor` does not exceed the PA-signed `offlineMaxSinglePayment` cap (offline mode only). |
 
-The verifier's stateless check is:
+The Trust Gateway's stateless check is:
 
 ```
-SPA.amount ≤ SBA.maxAmountMinor
+paymentAmount ≤ signerState.remaining (enforced from PA-signed budgetMinor)
 ```
 
 Both values are in the **on-chain asset's atomic units** — the comparison is a direct numeric check with no currency conversion required. The session authority is responsible for converting the fiat budget into on-chain units at SBA issuance time, using the exchange rate and asset precision applicable at that moment.
 
-This confirms the current payment fits within the authorized envelope. The session authority's signature on each SPA is the cryptographic attestation that cumulative spending remains within bounds — the verifier trusts this by validating the signature.
+This confirms the current payment fits within the authorized envelope. The PA-signed `budgetMinor` in the PolicyGrant is the cryptographic attestation of the ceiling — the gateway enforces this independently of the agent.
 
 Verifiers MUST NOT attempt to track or reconstruct cumulative session spending.
 
@@ -111,7 +112,7 @@ instead of the bare single-payment check. This allows a stateless verifier to co
 **Session authority responsibility:**
 - MUST track cumulative spending per scope (SESSION, DAY, VEHICLE, FLEET)
 - MUST pass `cumulativeSpentMinor` to the verifier for correct enforcement
-- MUST NOT issue new SPAs when cumulative spending would exceed `maxAmountMinor`
+- MUST NOT present SBAs when cumulative spending would exceed `maxAmountMinor`
 
 **Offline trust assumption:**
 In offline or air-gapped environments (e.g., vehicles without real-time connectivity), cumulative enforcement relies on the session authority (typically the vehicle wallet) maintaining the spending counter in trusted local storage. The verifier cannot independently verify the counter's accuracy in offline mode; this is an accepted trust assumption for offline deployments.
@@ -182,9 +183,9 @@ PolicyGrant
     ↓
 SignedBudgetAuthorization (SBA)
     ↓
-SignedPaymentAuthorization (SPA)
+Trust Gateway (verifies SBA + enforces budgetMinor ceiling)
     ↓
-Settlement
+XRPL Settlement + Receipt
 ```
 
 ---

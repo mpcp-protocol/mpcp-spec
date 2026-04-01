@@ -354,18 +354,17 @@ Offline verifiers cannot call a revocation endpoint. A grant revoked by the poli
 
 Three profiles are defined; pick the one that fits your threat model:
 
-| Profile | Use when | intentHash required | Offline capable |
-|---|---|---|---|
-| **Lite** | Single-operator closed-loop (one fleet, one charging network) | No | Yes (via Trust Bundles) |
-| **Full** | Multi-party pipelines where memo/metadata substitution matters (e.g. roaming between charging networks) | Yes | Yes (via Trust Bundles) |
-| **Human-Agent** | A human delegates a spending budget to an AI agent | Yes | Partial (agent online; merchant may be offline) |
+| Profile | Use when | Offline capable |
+|---|---|---|
+| **Gateway** | Fleet or device payments; Trust Gateway enforces PA-signed budget ceiling + escrow | Yes (signature-only via Trust Bundles + `offlineMaxSinglePayment` cap) |
+| **Human-Agent** | A human delegates a spending budget to an AI agent | Partial (agent online; merchant may be offline) |
 
-The profiles also determine how signatures chain:
+Both profiles require a Trust Gateway for online payments. Signatures chain:
 
-- **Lite / Full**: Fleet Operator → Vehicle Wallet → Merchant (three-party chain)
-- **Human-Agent**: Human (DID key) → AI Agent (session key) → Merchant (three-party chain; agent acts as session authority)
+- **Gateway**: Fleet Operator (PA) → Trust Gateway → XRPL settlement
+- **Human-Agent**: Human (DID key) → AI Agent (session key) → Trust Gateway → XRPL settlement
 
-See [Lite Profile](../profiles/lite-profile.md), [Full Profile](../profiles/full-profile.md), and [Human-Agent Profile](../profiles/human-agent-profile.md) for normative details.
+See [Transparent Gateway Profile](../profiles/gateway-profile.md) and [Human-Agent Profile](../profiles/human-agent-profile.md) for normative details.
 
 ---
 

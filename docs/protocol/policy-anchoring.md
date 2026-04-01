@@ -9,8 +9,7 @@ Part of the [Machine Payment Control Protocol (MPCP)](./mpcp.md).
 MPCP supports **on-chain policy anchoring** — recording a commitment to a PolicyGrant's source
 policy document on a distributed ledger to create a tamper-evident, third-party-auditable trail.
 
-This is distinct from [Intent Anchoring](./anchoring.md), which records settlement intent hashes
-for dispute resolution. Policy anchoring records the **policy authorization itself**, enabling
+Policy anchoring records the **policy authorization itself**, enabling
 audit of what constraints were in force when a grant was issued.
 
 Two anchoring patterns are defined:
@@ -303,5 +302,4 @@ merchants SHOULD apply the same offline exception policy as for `revocationEndpo
 
 - [PolicyGrant](./PolicyGrant.md) — `anchorRef` field definition and revocation model
 - [Key Resolution](./key-resolution.md) — `did:xrpl` DID resolution
-- [Intent Anchoring](./anchoring.md) — settlement intent (not policy) anchoring
 - [Human-to-Agent Profile](../profiles/human-agent-profile.md) — revocation and offline guidance

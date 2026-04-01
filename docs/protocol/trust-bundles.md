@@ -20,7 +20,7 @@ Trust Bundles are distinct from [ArtifactBundles](./ArtifactBundle.md). An Artif
 
 ## Purpose
 
-MPCP artifacts (PolicyGrant, SignedBudgetAuthorization, SignedPaymentAuthorization) are signed by different issuers. To verify these signatures, a verifier must obtain the corresponding public key.
+MPCP artifacts (PolicyGrant, SignedBudgetAuthorization) are signed by different issuers. To verify these signatures, a verifier must obtain the corresponding public key.
 
 In online environments, keys are resolved dynamically via the [HTTPS well-known endpoint](./key-resolution.md#https-well-known-endpoint) or [DID resolution](./key-resolution.md#did-resolution--example-didxrpl).
 
@@ -259,7 +259,7 @@ artifact → issuer → lookup key in bundle → verify signature → check expi
 
 ### Revocation in Offline Mode
 
-PolicyGrants and SPAs may carry a `revocationEndpoint`. Offline verifiers cannot call this endpoint. Deployments that use offline verification MUST accept the risk that a revoked grant may be accepted — the revoked grant will remain valid until its `expiresAt` expires or the bundle is refreshed and revocation state is checked.
+PolicyGrants may carry a `revocationEndpoint`. Offline verifiers cannot call this endpoint. Deployments that use offline verification MUST accept the risk that a revoked grant may be accepted — the revoked grant will remain valid until its `expiresAt` expires or the bundle is refreshed and revocation state is checked.
 
 Embedded revocation lists (CRL, bloom filter) are a [planned future extension](#future-extensions). Until that mechanism is available, deployments with strict revocation requirements MUST use online verification.
 
@@ -307,5 +307,5 @@ Trust Bundles MAY be extended in future versions to support:
 - [Key Resolution](./key-resolution.md) — full key resolution algorithm including Trust Bundle lookup
 - [Verification](./verification.md)
 - [ArtifactBundle](./ArtifactBundle.md) — distinct concept: per-transaction artifact packaging
-- [Lite Profile](../profiles/lite-profile.md)
-- [Full Profile](../profiles/full-profile.md)
+- [Transparent Gateway Profile](../profiles/gateway-profile.md)
+- [Human-Agent Profile](../profiles/human-agent-profile.md)
