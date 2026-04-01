@@ -294,4 +294,4 @@ if ("error" in result) {
 - [Signature Schemes](./mpcp.md#signature-schemes)
 - [PolicyGrant](./PolicyGrant.md)
 - [SignedBudgetAuthorization](./SignedBudgetAuthorization.md)
-- [SignedPaymentAuthorization](./SignedPaymentAuthorization.md)
+- [Trust Bundles](./trust-bundles.md)

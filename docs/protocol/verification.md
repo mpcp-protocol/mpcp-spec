@@ -4,46 +4,42 @@ MPCP settlement verification ensures that an executed transaction matches the au
 
 ## Verification Pipeline
 
-The verifier runs checks in order:
+The Trust Gateway verifier runs checks in order:
 
-1. **Schema** — All artifacts parse and validate against expected structure
-2. **Signatures** — PolicyGrant, SBA, and SPA signatures are valid (resolve public keys via `issuer` + `issuerKeyId` using the [Key Resolution](./key-resolution.md) algorithm; in offline deployments, keys are resolved from a pre-loaded [Trust Bundle](./trust-bundles.md))
-3. **Linkage** — `SBA.authorization.grantId` references a valid PolicyGrant; `SPA.authorization.budgetId` references the issuing SBA; constraint subsets are respected
-4. **Hash** — If intentHash is present, it matches `computeSettlementIntentHash(settlementIntent)`
-5. **Policy** — Budget limits, rail/asset/destination constraints, expiration
+1. **Schema** — PolicyGrant and SBA parse and validate against expected structure
+2. **Signatures** — PolicyGrant and SBA signatures are valid (resolve public keys via `issuer` + `issuerKeyId` using the [Key Resolution](./key-resolution.md) algorithm; in offline deployments, keys are resolved from a pre-loaded [Trust Bundle](./trust-bundles.md))
+3. **Linkage** — `SBA.authorization.grantId` references a valid PolicyGrant; constraint subsets are respected
+4. **Policy** — Budget limits, rail/asset/destination constraints, expiration
 
-If any check fails, verification fails with a specific reason.
+If any check fails, verification fails with a specific reason. On success, the gateway submits the XRPL transaction and returns the `txHash` receipt.
 
 ## What Is Verified
 
 | Check | Description |
 |-------|-------------|
-| PolicyGrant | Signature valid; expiresAt not passed; constraints valid |
-| SBA | Signature valid; expiresAt not passed; `authorization.grantId` references a valid PolicyGrant |
-| SBA → decision | Current payment amount ≤ `maxAmountMinor`; rail, asset, destination in allowlists. Check is stateless — session authority manages cumulative budget tracking. |
-| SPA | Signature valid; expiresAt not passed |
-| SPA → settlement | rail, amount, destination, asset match executed settlement |
-| intentHash | If present, equals hash of settlement intent |
+| PolicyGrant schema | Parses and validates against expected structure |
+| PolicyGrant signature | Signature valid; expiresAt not passed; constraints valid |
+| SBA schema | Parses and validates against expected structure |
+| SBA signature | Signature valid; expiresAt not passed; `authorization.grantId` references a valid PolicyGrant |
+| SBA → budget | Current payment amount ≤ `maxAmountMinor`; rail, asset, destination in allowlists. Check is stateless — session authority manages cumulative budget tracking. |
 
 ## Usage
 
 ```typescript
-import { verifySettlement } from "mpcp-service";
+import { verifySignedBudgetAuthorization } from "mpcp-service/sdk";
 
-const result = verifySettlement(context);
+const result = await verifySignedBudgetAuthorization(sba, { policyGrant });
 
 if (result.valid) {
-  // Settlement matches authorization chain
+  // Chain verified — gateway may submit XRPL transaction
 } else {
   // result.reason describes the failure
 }
 ```
 
-The `context` includes policyGrant, signedBudgetAuthorization, signedPaymentAuthorization, settlement, paymentPolicyDecision, decisionId, and optional settlementIntent.
-
 ## Dispute Verification
 
-When a settlement is disputed, `verifyDisputedSettlement` runs full chain verification plus optional ledger anchor verification. If the intent was anchored (e.g., to Hedera HCS), the anchor can be checked against the expected intentHash.
+When a settlement is disputed, the receipt `txHash` can be looked up directly on the XRPL ledger and reconciled against the SBA fields (rail, asset, amount, destination).
 
 See [Dispute Resolution](../guides/dispute-resolution.md) for the guide.
 
@@ -53,5 +49,4 @@ See [Dispute Resolution](../guides/dispute-resolution.md) for the guide.
 - [Hashing](hashing.md)
 - [Key Resolution](./key-resolution.md)
 - [Trust Bundles](./trust-bundles.md) — offline key distribution
-- [Anchoring](anchoring.md)
 - [Reference: CLI](https://mpcp-protocol.github.io/mpcp-reference/reference/cli/) — `mpcp verify` command

@@ -11,16 +11,16 @@ delegating bounded spending authority to an AI agent:
 
 ```
 Fleet (machine) profile:
-  Fleet Operator (DID) → PolicyGrant → Vehicle Wallet → SBA → SPA → Settlement
+  Fleet Operator (DID) → PolicyGrant → Vehicle Wallet → SBA → Trust Gateway → Receipt
 
 Human-to-agent profile:
-  Human (DID)          → PolicyGrant → AI Agent        → SBA → SPA → Settlement
+  Human (DID)          → PolicyGrant → AI Agent        → SBA → Trust Gateway → Receipt
 ```
 
 A **human signs a PolicyGrant** with their DID key, delegating a bounded travel or task budget
-to an AI agent. The agent acts as both **session authority** (creates and signs SBAs) and
-**payment decision service** (signs SPAs). Merchants verify the full chain without calling back
-to the human.
+to an AI agent. The agent acts as **session authority** (creates and signs SBAs). The Trust
+Gateway verifies the full chain and submits the XRPL transaction without calling back to the
+human.
 
 ---
 
@@ -109,8 +109,8 @@ single trip or project.
 ```
 
 The **agent (session authority)** MUST maintain a cumulative spend counter across all sessions
-in the trip. Each SPA reduces the remaining budget. The merchant verifier checks the current
-SPA against the SBA's `maxAmountMinor` using the cumulative counter provided in the verification
+in the trip. Each SPA reduces the remaining budget. The Trust Gateway checks the current payment
+against the SBA's `maxAmountMinor` using the cumulative counter provided in the verification
 context.
 
 **Comparison with SESSION scope:**
@@ -144,11 +144,11 @@ See [Key Resolution](../protocol/key-resolution.md).
 `allowedPurposes` is an **agent-enforced** constraint, not a cryptographic enforcement by the
 MPCP verifier. It documents the human's intent and appears in the audit trail.
 
-**Agent responsibility:** Before signing an SPA, the agent MUST check whether the merchant
-category (purpose) is in the `allowedPurposes` list. If not, the agent refuses to sign — no SBA
-check, no payment.
+**Agent responsibility:** Before issuing an SBA, the agent MUST check whether the merchant
+category (purpose) is in the `allowedPurposes` list. If not, the agent refuses to issue an SBA —
+no payment proceeds.
 
-**Verifier behavior:** The MPCP verifier does NOT enforce `allowedPurposes`. Merchants relying
+**Verifier behavior:** The Trust Gateway does NOT enforce `allowedPurposes`. Operators relying
 on purpose enforcement MUST trust the agent's compliance or implement independent category
 verification.
 
@@ -157,7 +157,7 @@ verification.
 ```javascript
 const purposeAllowed = grant.allowedPurposes?.includes(merchantCategory) ?? true;
 if (!purposeAllowed) {
-  // refuse to sign SPA
+  // refuse to issue SBA
 }
 ```
 
@@ -219,7 +219,7 @@ If the human's DID key is compromised:
 
 ### Agent key compromise
 
-If the agent's SBA/SPA signing key is compromised, the attacker is bounded by:
+If the agent's SBA signing key is compromised, the attacker is bounded by:
 - The `maxAmountMinor` in the SBA
 - The `expiresAt` in the SBA
 - The `allowedPurposes` and `destinationAllowlist`
@@ -242,8 +242,7 @@ Revoke the PolicyGrant immediately to stop new SBAs from being issued.
 
 ¹ `SESSION` is the recommended scope for fleet shift deployments. `DAY`, `VEHICLE`, and `FLEET` scopes are also defined in the [SBA spec](../protocol/SignedBudgetAuthorization.md) for deployments with different budget reset semantics.
 
-Both profiles use the same MPCP artifact chain and the same verifier. The difference is in
-the policy authority, connectivity assumptions, and the new fields for human use cases.
+Both profiles use the same MPCP authorization chain and the same Trust Gateway. The difference is in the policy authority, connectivity assumptions, and the fields for human use cases.
 
 ---
 
@@ -253,4 +252,4 @@ the policy authority, connectivity assumptions, and the new fields for human use
 - [SignedBudgetAuthorization](../protocol/SignedBudgetAuthorization.md) — TRIP scope
 - [Actors](../architecture/actors.md) — AI Agent actor
 - [Comparison with Agent Protocols](../overview/comparison-with-agent-protocols.md)
-- [Full Profile](full-profile.md) — Fleet / vehicle profile for comparison
+- [Transparent Gateway Profile](gateway-profile.md) — gateway-mediated deployment pattern
