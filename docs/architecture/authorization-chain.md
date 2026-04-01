@@ -1,17 +1,9 @@
 # MPCP Authorization Chain
 
-The **authorization chain** is the core visual model for MPCP. Each step produces a verifiable artifact that constrains the next. PolicyGrant, SignedBudgetAuthorization, and SignedPaymentAuthorization are cryptographically signed; verifiers validate all three signatures before accepting settlement. Machines spend within bounds established upstream—no per-transaction approval required.
+The **authorization chain** is the core visual model for MPCP. Each step produces a verifiable artifact that constrains the next. PolicyGrant and SignedBudgetAuthorization are cryptographically signed; the Trust Gateway verifies both signatures before submitting settlement. Machines spend within bounds established upstream—no per-transaction approval required.
 
 ```
-PolicyGrant
-↓
-SignedBudgetAuthorization
-↓
-SignedPaymentAuthorization
-↓
-SettlementIntent
-↓
-Settlement
+PolicyGrant → SBA → Trust Gateway → XRPL Settlement → Receipt
 ```
 
 In fleet deployments, an optional FleetPolicyAuthorization (FPA) layer may sit above PolicyGrant.
@@ -21,13 +13,11 @@ Fleet Policy
 ↓
 PolicyGrant
 ↓
-SignedBudgetAuthorization
+SignedBudgetAuthorization (SBA)
 ↓
-SignedPaymentAuthorization
+Trust Gateway
 ↓
-SettlementIntent
-↓
-Settlement
+XRPL Settlement → Receipt
 ```
 
 ## What Each Step Does
@@ -37,13 +27,12 @@ Settlement
 | **Fleet Policy** | Policy definition | Rules: rails, assets, vendors, caps |
 | **PolicyGrant** | Session entry | "This machine may initiate payment under these constraints" |
 | **SignedBudgetAuthorization** | Spending envelope | "Up to X, on these rails, to these destinations" |
-| **SignedPaymentAuthorization** | Payment binding | "This exact payment was authorized" |
-| **SettlementIntent** | Canonical description | Deterministic settlement parameters (optional hash binding) |
-| **Settlement** | Executed transaction | Rail executes payment; verifier checks chain |
+| **Trust Gateway** | Settlement executor | Verifies the authorization chain and submits the XRPL transaction |
+| **Receipt** | txHash | Confirmed on-chain settlement result |
 
 ## Key Idea
 
-Approval moves **upstream**. The human or policy administrator grants a **session** and **budget**. The machine spends within that budget using pre-authorized intents. Settlement becomes a background operation.
+Approval moves **upstream**. The human or policy administrator grants a **session** and **budget**. The machine spends within that budget. The Trust Gateway verifies the chain and executes settlement — no separate per-payment authorization artifact is required.
 
 ## See Also
 

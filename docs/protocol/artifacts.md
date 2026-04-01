@@ -9,11 +9,9 @@ PolicyGrant
     ↓
 SignedBudgetAuthorization (SBA)
     ↓
-SignedPaymentAuthorization (SPA)
+Trust Gateway (verifies + submits settlement)
     ↓
-Settlement
-    ↓
-Verification
+XRPL Receipt (txHash)
 ```
 
 Each artifact is a subset of the constraints defined by the previous one.
@@ -29,7 +27,7 @@ The **PolicyGrant** is the result of policy evaluation at session entry. It defi
 - **policyHash** — Hash of the policy snapshot
 - **expiresAt** — Maximum validity for downstream artifacts
 
-The PolicyGrant is signed by the policy authority; verifiers use `issuer` and `issuerKeyId` to resolve the policy authority public key. Downstream artifacts (SBA, SPA) must reference this PolicyGrant via `SBA.authorization.grantId` and remain within its constraints.
+The PolicyGrant is signed by the policy authority; verifiers use `issuer` and `issuerKeyId` to resolve the policy authority public key. Downstream artifacts (SBA) must reference this PolicyGrant via `SBA.authorization.grantId` and remain within its constraints.
 
 ---
 
@@ -46,45 +44,17 @@ The SBA is cryptographically signed. A verifier checks the signature over `SHA25
 
 ---
 
-## SignedPaymentAuthorization (SPA)
-
-The **SPA** binds a specific settlement to the authorization chain:
-
-- **decisionId** — Links to the policy decision
-- **rail**, **asset**, **amount**, **destination** — Settlement parameters
-- **intentHash** — Optional binding to canonical settlement intent for replay protection and dispute resolution
-
-The SPA is signed over `SHA256("MPCP:SPA:1.0:" || canonicalJson(authorization))`. When present, `intentHash` ensures the executed settlement matches the authorized intent.
-
----
-
-## Settlement Intent
-
-The **SettlementIntent** describes what will be (or was) executed. It is hashed to produce `intentHash`:
-
-```json
-{
-  "version": "1.0",
-  "rail": "xrpl",
-  "amount": "19440000",
-  "destination": "rDest...",
-  "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
-}
-```
-
-The intentHash binds the SPA to this exact settlement, enabling deterministic verification and optional ledger anchoring.
-
----
-
 ## Verification Chain
 
-A verifier checks:
+The Trust Gateway verifier checks:
 
-1. **Schema** — All artifacts are valid
-2. **Linkage** — `SBA.authorization.grantId` references a valid PolicyGrant; `SPA.authorization.budgetId` references the issuing SBA; constraint subsets are respected
-3. **Signatures** — PolicyGrant, SBA, and SPA signatures are valid
+1. **Schema** — PolicyGrant and SBA are valid
+2. **Linkage** — `SBA.authorization.grantId` references a valid PolicyGrant; constraint subsets are respected
+3. **Signatures** — PolicyGrant and SBA signatures are valid
 4. **Expiration** — No artifact is expired
-5. **Settlement match** — Executed settlement matches SPA (and intentHash if present)
+5. **Budget** — Payment amount ≤ `SBA.maxAmountMinor`
+
+On success, the gateway submits the XRPL transaction and returns the `txHash` as a receipt.
 
 See [Verification](verification.md) for details.
 
@@ -94,4 +64,3 @@ See [Verification](verification.md) for details.
 
 - [Hashing](hashing.md) — Canonical serialization and domain-separated hashing
 - [Verification](verification.md) — Verification algorithm
-- [Anchoring](anchoring.md) — Optional intent attestation

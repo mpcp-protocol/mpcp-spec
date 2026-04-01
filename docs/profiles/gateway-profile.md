@@ -69,7 +69,7 @@ Do **not** use this profile when:
 - The deployment is adversarial (the gateway itself is untrusted by one or both parties)
 - Cryptographic proof of policy compliance must flow unbroken from budget owner to merchant
 
-For those requirements, use native MPCP with the [Full Profile](full-profile.md) or [Human-Agent Profile](human-agent-profile.md).
+For those requirements, use native MPCP with the [Human-Agent Profile](human-agent-profile.md).
 
 ---
 
@@ -249,16 +249,16 @@ This path lets deployments adopt MPCP gradually, proving value at each level bef
 
 ## Comparison with Other Profiles
 
-| | Lite Profile | Full Profile | Human-Agent Profile | Gateway Profile |
-|---|--------------|--------------|---------------------|-----------------|
-| Merchant SDK required | ✓ | ✓ | ✓ | ✗ |
-| PA server required | ✗ | ✓ | ✓ (or gateway) | ✗ (hosted by gateway) |
-| Merchant verifies chain | ✓ | ✓ | ✓ | ✗ (trusts gateway) |
-| Budget owner controls spend | ✓ | ✓ | ✓ | ✓ |
-| Revocation | ✓ | ✓ | ✓ | ✓ (gateway-mediated) |
-| Adoption friction | medium | high | medium | low |
-| Cryptographic audit | ✓ | ✓ | ✓ | gateway receipts |
-| Migration to native MPCP | n/a (native) | n/a (native) | n/a (native) | ✓ progressive |
+| | Human-Agent Profile | Gateway Profile |
+|---|---------------------|-----------------|
+| Merchant SDK required | ✓ | ✗ |
+| PA server required | ✓ (or gateway) | ✗ (hosted by gateway) |
+| Merchant verifies chain | ✓ | ✗ (trusts gateway) |
+| Budget owner controls spend | ✓ | ✓ |
+| Revocation | ✓ | ✓ (gateway-mediated) |
+| Adoption friction | medium | low |
+| Cryptographic audit | ✓ | gateway receipts |
+| Migration to native MPCP | n/a (native) | ✓ progressive |
 
 ---
 
@@ -290,7 +290,6 @@ Revocation takes effect before the next payment attempt (the wallet Session chec
 ## See Also
 
 - [Human-Agent Profile](human-agent-profile.md) — native MPCP for AI agent delegation
-- [Lite Profile](lite-profile.md) — lightweight SBA-only native integration
 - [Integration Guide](../guides/integration-guide.md) — implementation paths for all profiles
 - [Trust Bundles](../protocol/trust-bundles.md) — offline key resolution for embedded device deployments
 - [x402](https://x402.org) — HTTP-native machine payment protocol used on the outbound side

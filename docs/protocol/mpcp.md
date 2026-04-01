@@ -10,7 +10,7 @@ Unlike traditional payment systems that rely on trusted intermediaries, MPCP enf
 
 The protocol introduces a structured authorization flow:
 
-Policy → Grant → Budget Authorization → Payment Authorization → Settlement Verification → Optional Public Attestation
+Policy → Grant → Budget Authorization → Trust Gateway (Settlement) → Receipt
 
 This architecture ensures that machine-initiated payments remain bounded, auditable, and verifiable.
 
@@ -81,7 +81,7 @@ Intent commitments can optionally be anchored to a public ledger for additional 
 MPCP verification is identity-agnostic.
 
 The protocol verifies authorization through cryptographic signatures on MPCP artifacts
-(PolicyGrant → SignedBudgetAuthorization → SignedPaymentAuthorization → SettlementIntent).
+(PolicyGrant → SignedBudgetAuthorization).
 
 Public keys are distributed via **HTTPS well-known endpoints** — the baseline mechanism all conforming implementations MUST support. Keys are expressed as **JWK** (JSON Web Key, RFC 7517).
 
@@ -105,11 +105,8 @@ The MPCP artifact pipeline assigns responsibility for creation and signing as fo
 
 | Artifact | Created By | Signed By | Verified By |
 |--------|-------------|-----------|-------------|
-| PolicyGrant | Policy engine / operator system | Policy authority key | Machine wallet / verifier |
-| SignedBudgetAuthorization (SBA) | Session authority (fleet or operator backend) | Budget authorization key | Machine wallet / verifier |
-| SignedPaymentAuthorization (SPA) | Payment decision service | Payment authorization key | Machine wallet / verifier |
-| SettlementIntent | Wallet or payment execution service | (not signed — canonical payload) | Verifier |
-| IntentCommitment (optional) | Attestation service | (not signed — hash-derived artifact; may be anchored or attested externally) | External verifiers |
+| PolicyGrant | Policy engine / operator system | Policy authority key | Trust Gateway |
+| SignedBudgetAuthorization (SBA) | Session authority (fleet or operator backend) | Budget authorization key | Trust Gateway |
 
 Each artifact constrains the parameters of the next stage in the protocol.
 
@@ -123,7 +120,6 @@ Typical deployments may use the following signing authorities:
 |-----------|---------------|
 | Policy authority | fleet operator or infrastructure provider |
 | Budget authority | fleet backend or session controller |
-| Payment authorization authority | charging station operator or payment service |
 | Wallet key | machine wallet or embedded secure element |
 
 No single key is required to control the entire payment pipeline.
@@ -134,7 +130,6 @@ Implementations MUST verify signatures for the following artifacts:
 
 - PolicyGrant
 - SignedBudgetAuthorization
-- SignedPaymentAuthorization
 
 Signature verification MUST confirm:
 
@@ -156,18 +151,14 @@ See [Key Resolution](./key-resolution.md) for the full resolution algorithm, key
 
 ### Verification Chain
 
-The authorization chain verified during settlement is:
+The authorization chain verified by the Trust Gateway before settlement is:
 
 ```text
 PolicyGrant.signature
 ↓
 SignedBudgetAuthorization.signature
 ↓
-SignedPaymentAuthorization.signature
-↓
-SettlementIntentHash
-↓
-Settlement Transaction
+Trust Gateway → XRPL Settlement → Receipt (txHash)
 ```
 
 Each stage constrains the next stage and ensures that settlement parameters cannot be modified without invalidating the authorization chain.
@@ -245,8 +236,6 @@ Example chain:
 PolicyGrant.version
     ↓
 SBA.version
-    ↓
-SPA.version
 ```
 
 A verifier MAY reject chains containing mixed incompatible versions.
@@ -272,13 +261,9 @@ PolicyGrant
       ↓
 SignedBudgetAuthorization (SBA)
       ↓
-SignedPaymentAuthorization (SPA)
+Trust Gateway (verifies + submits settlement)
       ↓
-Settlement Execution
-      ↓
-Settlement Verification
-      ↓
-Optional Intent Attestation
+XRPL Receipt (txHash)
 ```
 
 Each stage cryptographically binds the parameters for the following stage.
@@ -296,9 +281,6 @@ Implementations MUST be able to parse and validate the following artifacts:
 
 - PolicyGrant
 - SignedBudgetAuthorization (SBA)
-- SignedPaymentAuthorization (SPA)
-- SettlementIntent
-- IntentCommitment (optional)
 
 ### Canonical JSON
 
@@ -316,10 +298,10 @@ Requirements:
 
 Hashes MUST include the MPCP domain prefix.
 
-Example (SettlementIntent uses a [canonical hash payload](#canonical-hash-payload) — subset of fields defining settlement semantics):
+Example:
 
 ```text
-SHA256("MPCP:SettlementIntent:1.0:" || canonical_json(canonicalPayload))
+SHA256("MPCP:SBA:1.0:" || canonical_json(sba.authorization))
 ```
 
 ---
@@ -389,75 +371,6 @@ The SBA ensures that spending remains within defined limits. Verification uses `
 
 ---
 
-### SignedPaymentAuthorization (SPA) (signed by payment authorization authority)
-
-The **SignedPaymentAuthorization (SPA)** authorizes a specific settlement transaction. It is signed by the payment authorization authority; verifiers use `issuer` and `issuerKeyId` to resolve the payment authorization public key.
-
-Example structure:
-
-```json
-{
-  "authorization": {
-    "version": "1.0",
-    "decisionId": "dec_123",
-    "sessionId": "sess_456",
-    "policyHash": "a1b2c3...",
-    "quoteId": "quote_789",
-    "budgetId": "budget_123",
-    "rail": "xrpl",
-    "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
-    "amount": "19440000",
-    "destination": "rDest...",
-    "intentHash": "sha256(...)",
-    "expiresAt": "2026-03-08T14:00:00Z"
-  },
-  "issuer": "did:web:payments.example.com",
-  "issuerKeyId": "payment-auth-key-1",
-  "signature": "..."
-}
-```
-
-The SPA binds the authorized payment parameters and optionally includes an `intentHash` to bind the authorization to a canonical settlement intent.
-
----
-
-### SettlementIntent (not signed — canonical payload)
-
-A **SettlementIntent** describes the canonical form of the transaction that the machine wallet must execute. It is not signed; verification uses the `intentHash` binding in the SPA.
-
-Example structure:
-
-```json
-{
-  "version": "1.0",
-  "rail": "xrpl",
-  "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
-  "amount": "19440000",
-  "destination": "rDest...",
-  "referenceId": "quote_17",
-  "createdAt": "2026-03-08T13:55:00Z"
-}
-```
-
-This structure is used to compute the `intentHash`.
-
----
-
-### IntentCommitment (hash-derived; not signed)
-
-An **IntentCommitment** represents the hashed commitment of the settlement intent. It is not a signed artifact; any attestation or anchor signature applies to the batch or ledger inclusion, not the commitment object itself.
-
-Example:
-
-```text
-commitment = SHA256("MPCP:SettlementIntent:1.0:" || canonical_json(canonicalPayload))
-```
-
-IntentCommitment represents the canonical MPCP artifact used when publishing commitments to an external attestation system such as the Intent Attestation Layer (IAL).
-Commitments may optionally be published to the **Intent Attestation Layer (IAL)** to create a publicly verifiable record that the intent existed prior to settlement.
-
----
-
 ## Artifact Relationships
 
 The protocol artifacts form a dependency chain. Each artifact references the previous stage and constrains the next.
@@ -467,11 +380,7 @@ PolicyGrant
    ↓
 SignedBudgetAuthorization (references grantId)
    ↓
-SignedPaymentAuthorization (references budgetId)
-   ↓
-SettlementIntent (referenced by intentHash)
-   ↓
-IntentCommitment (hash of SettlementIntent)
+Trust Gateway → XRPL Settlement → Receipt (txHash)
 ```
 
 ### Relationship Rules
@@ -481,29 +390,12 @@ IntentCommitment (hash of SettlementIntent)
 - `SBA.authorization.grantId` MUST reference a valid `PolicyGrant.grantId`
 - the SBA must respect the rail, asset, and policy constraints of the grant
 
-**SBA → SPA**
+**SBA → Trust Gateway**
 
-- `SPA.authorization.budgetId` MUST reference the issuing SBA
-- `SPA.authorization.amount` MUST be ≤ `SBA.authorization.maxAmountMinor`
-- `SPA.authorization.rail` MUST be included in `SBA.authorization.allowedRails`
+- The Trust Gateway verifies the SBA signature and checks that the payment amount ≤ `SBA.authorization.maxAmountMinor`
+- The gateway checks that rail and asset are within `SBA.authorization.allowedRails` / `allowedAssets`
 
-The `maxAmountMinor` limit is cumulative across all SPAs within the scope and is expressed in the **on-chain asset's atomic units** — the same denomination as `SPA.authorization.amount`. The session authority converts the fiat budget to on-chain units at SBA issuance time. Verifiers apply this check statelessly against the current payment with no currency conversion required. See [SignedBudgetAuthorization](./SignedBudgetAuthorization.md#stateless-verification-model) for the full model.
-
-**SPA → SettlementIntent**
-
-- the settlement intent must match the payment parameters authorized in the SPA
-- if present, `SPA.authorization.intentHash` MUST equal:
-
-```text
-SHA256("MPCP:SettlementIntent:1.0:" || canonical_json(canonicalPayload))
-```
-
-  (canonicalPayload = [canonical hash payload](#canonical-hash-payload) — subset of intent fields defining settlement semantics)
-
-**SettlementIntent → IntentCommitment**
-
-- the commitment is derived deterministically from the canonical intent
-- commitments may be published to the Intent Attestation Layer (IAL)
+The `maxAmountMinor` limit is expressed in the **on-chain asset's atomic units**. The session authority converts the fiat budget to on-chain units at SBA issuance time. Verifiers apply this check statelessly against the current payment with no currency conversion required. See [SignedBudgetAuthorization](./SignedBudgetAuthorization.md#stateless-verification-model) for the full model.
 
 These relationships ensure that each stage of MPCP cryptographically and logically constrains the following stage, preventing unauthorized mutations or spending outside policy limits.
 
@@ -511,23 +403,24 @@ These relationships ensure that each stage of MPCP cryptographically and logical
 
 # Settlement Verification
 
-Before accepting settlement, the system verifies:
+Before submitting settlement, the Trust Gateway verifies:
 
+- PolicyGrant schema validity
 - PolicyGrant signature validity
+- SBA schema validity
 - SBA signature validity
-- SPA signature validity
+- PolicyGrant → SBA linkage (`SBA.authorization.grantId`)
 - policy hash consistency
 - asset match
 - destination match
 - amount constraints
 - authorization expiration
-- settlement intent match
 
 ---
 
 ## Verification Algorithm
 
-An MPCP verifier MUST perform the following steps before accepting settlement.
+The Trust Gateway MUST perform the following steps before submitting an XRPL transaction.
 
 ### Step 0 — Verify Authorization Artifact Signatures
 
@@ -537,14 +430,12 @@ Each artifact uses domain-separated hashing. The signed payload differs by artif
 
 - **PolicyGrant** (flat structure) — Resolve using `grant.issuer` and `grant.issuerKeyId`. Signed payload: `SHA256("MPCP:PolicyGrant:1.0:" || canonicalJson(grantPayload))` where `grantPayload` is all grant fields except `signature`.
 - **SignedBudgetAuthorization (SBA)** (envelope structure) — Resolve using `sba.issuer` and `sba.issuerKeyId`. Signed payload: `SHA256("MPCP:SBA:1.0:" || canonicalJson(sba.authorization))` — the inner `authorization` object only.
-- **SignedPaymentAuthorization (SPA)** (envelope structure) — Resolve using `spa.issuer` and `spa.issuerKeyId`. Signed payload: `SHA256("MPCP:SPA:1.0:" || canonicalJson(spa.authorization))` — the inner `authorization` object only.
 
 Resolve the public key (as JWK) for each authority using the HTTPS well-known endpoint or pre-configured keys. See [Key Resolution](./key-resolution.md) for the full algorithm.
 
 ```text
 verify_signature(grant.signature, SHA256("MPCP:PolicyGrant:1.0:" || canonicalJson(grantPayload)), policyAuthorityPublicKey)
 verify_signature(sba.signature,   SHA256("MPCP:SBA:1.0:"         || canonicalJson(sba.authorization)), budgetAuthorizationPublicKey)
-verify_signature(spa.signature,   SHA256("MPCP:SPA:1.0:"         || canonicalJson(spa.authorization)), paymentAuthorizationPublicKey)
 ```
 
 If any signature verification fails → **reject settlement**.
@@ -556,14 +447,12 @@ If any signature verification fails → **reject settlement**.
 Ensure that the authorization chain is valid.
 
 ```text
-spa.authorization.budgetId → SignedBudgetAuthorization
-sba.authorization.grantId  → PolicyGrant
+sba.authorization.grantId → PolicyGrant
 ```
 
 Verification rules:
 
-- `SPA.authorization.budgetId` MUST reference an existing SBA
-- `SBA.authorization.grantId` MUST reference an existing PolicyGrant
+- `SBA.authorization.grantId` MUST reference a valid PolicyGrant
 - artifacts MUST NOT be expired
 
 If lineage is invalid → **reject settlement**.
@@ -572,87 +461,42 @@ If lineage is invalid → **reject settlement**.
 
 ### Step 2 — Verify Policy Constraints
 
-Confirm the settlement parameters match the authorized constraints.
+Confirm the payment parameters match the authorized constraints.
 
 Checks include:
 
-- rail match: `SPA.rail ∈ SBA.allowedRails`
-- asset match: `SPA.asset ∈ SBA.allowedAssets` — `kind` and all kind-specific fields must match exactly. See [Asset Matching](#asset).
+- rail match: payment rail ∈ `SBA.allowedRails`
+- asset match: payment asset ∈ `SBA.allowedAssets` — `kind` and all kind-specific fields must match exactly. See [Asset Matching](#asset).
 - destination match
-- amount ≤ authorized limit (`SPA.amount ≤ SBA.maxAmountMinor`) — both values are in the on-chain asset's atomic units; no currency conversion is required at verification time
-- policyHash consistency: the verifier confirms `PolicyGrant.policyHash` matches the expected policy for this deployment context. Because the chain is linked by ID references (`SPA.authorization.budgetId → SBA`, `SBA.authorization.grantId → PolicyGrant`), `policyHash` is the single authoritative value carried on the PolicyGrant. A verifier MAY recompute it as `SHA256("MPCP:Policy:<version>:" || canonicalJson(policyDocument))` when the policy document is available.
+- amount ≤ authorized limit (`payment.amount ≤ SBA.maxAmountMinor`) — both values are in the on-chain asset's atomic units; no currency conversion is required at verification time
+- policyHash consistency: the gateway confirms `PolicyGrant.policyHash` matches the expected policy for this deployment context. A verifier MAY recompute it as `SHA256("MPCP:Policy:<version>:" || canonicalJson(policyDocument))` when the policy document is available.
 
-**Budget verification is stateless.** The verifier checks only that the current payment does not exceed the authorized envelope. The session authority is responsible for tracking cumulative spending across the scope and only issuing SPAs within the remaining budget. Verifiers MUST NOT maintain a ledger of prior session payments.
+**Budget verification is stateless.** The gateway checks only that the current payment does not exceed the authorized envelope. The session authority is responsible for tracking cumulative spending across the scope. Gateways MUST NOT maintain a ledger of prior session payments.
 
 If any constraint fails → **reject settlement**.
 
 ---
 
-### Step 3 — Verify Intent Binding (conditional)
-
-This step applies only when `SPA.intentHash` is present.
-
-If the SPA contains an `intentHash`, the verifier MUST reconstruct the canonical payload (subset of intent fields) and compare hashes.
-
-```text
-computedHash = SHA256("MPCP:SettlementIntent:1.0:" || canonical_json(canonicalPayload))
-```
-
-Verification rule:
-
-```text
-computedHash == SPA.intentHash
-```
-
-If mismatch → **reject settlement**.
-
-**When `intentHash` is absent**, this step is skipped. Settlement verification proceeds on the SPA-bound fields only (rail, asset, amount, destination). This is the Lite profile. Fields outside the SPA — such as memo content or ancillary metadata — are not cryptographically bound in this mode.
-
-See [Deployment Profiles](#deployment-profiles) for guidance on when each mode is appropriate.
-
----
-
-### Step 4 — Verify Expiration
+### Step 3 — Verify Expiration
 
 Check expiration fields:
 
 - `PolicyGrant.expiresAt`
 - `SBA.expiresAt`
-- `SPA.expiresAt`
 
 If any artifact is expired → **reject settlement**.
 
 ---
 
-### Step 5 — Verify Settlement Transaction
+### Step 4 — Submit and Return Receipt
 
-Extract parameters from the executed settlement transaction and confirm they match the SPA.
-
-Checks include:
-
-- destination
-- amount
-- asset
-- rail
-
-If settlement parameters differ from SPA → **reject settlement**.
-
----
-
-### Step 6 — Accept Settlement
-
-If all verification steps succeed:
+If all verification steps succeed, the gateway submits the XRPL transaction:
 
 ```text
-accept settlement
-record session close
+submit XRPL transaction
+return receipt { txHash, ... }
 emit settlement event
 ```
-
-Optional:
-
-- produce `IntentCommitment`
-- publish commitment to the **Intent Attestation Layer (IAL)**.
 
 ---
 
@@ -673,13 +517,13 @@ MPCP:<artifact-type>:<version>:<canonical-json>
 Example:
 
 ```text
-MPCP:SettlementIntent:1.0:{"amount":"19440000","destination":"rDest...","rail":"xrpl"}
+MPCP:SBA:1.0:{"actorId":"ev-847","allowedRails":["xrpl"],...}
 ```
 
-Hash computation therefore becomes (canonicalPayload = [canonical hash payload](#canonical-hash-payload) — subset of intent fields):
+Hash computation example for SBA:
 
 ```text
-intentHash = SHA256("MPCP:SettlementIntent:1.0:" || canonical_json(canonicalPayload))
+SHA256("MPCP:SBA:1.0:" || canonical_json(sba.authorization))
 ```
 
 This ensures:
@@ -692,7 +536,7 @@ Implementations MUST apply the same domain prefix rules when generating and veri
 
 The version component in the domain prefix MUST use the same semantic version string carried in the artifact, for example `1.0`, `1.1`, or `2.0`. This keeps hashing behavior aligned with MPCP version negotiation and prevents ambiguity between artifact formats.
 
-To ensure deterministic hashing across systems, MPCP defines a **canonical JSON encoding** used when computing hashes such as `intentHash`. The `intentHash` is the serialized field name that carries the hash of the canonical SettlementIntent payload; this document refers to that value conceptually as the SettlementIntentHash.
+To ensure deterministic hashing across systems, MPCP defines a **canonical JSON encoding** used when computing artifact hashes.
 
 All implementations MUST apply the same canonicalization rules before hashing.
 
@@ -722,42 +566,10 @@ Canonical form:
 {"amount":"19440000","destination":"rDest...","rail":"xrpl"}
 ```
 
-Hash computation (see [Canonical Hash Payload](#canonical-hash-payload) — excludes metadata such as `createdAt`):
+Hash computation example for SBA:
 
 ```text
-intentHash = SHA256("MPCP:SettlementIntent:1.0:" || canonical_json(canonicalPayload))
-```
-
-## Canonical Hash Payload
-
-The `canonicalPayload` used for `intentHash` computation is a defined subset of the SettlementIntent fields — only those fields that define settlement semantics.
-
-| Field | Included | Notes |
-|-------|----------|-------|
-| version | yes | always present |
-| rail | yes | always present |
-| asset | if present | omit when absent |
-| amount | yes | always present |
-| destination | if present | omit when absent |
-| referenceId | if present | omit when absent |
-| createdAt | **no** | metadata — excluded from hash |
-
-Example:
-
-```json
-{
-  "version": "1.0",
-  "rail": "xrpl",
-  "asset": { "kind": "IOU", "currency": "USDC", "issuer": "rIssuer..." },
-  "amount": "19440000",
-  "destination": "rDest..."
-}
-```
-
-Canonical form (keys sorted, no whitespace):
-
-```text
-{"amount":"19440000","asset":{"currency":"USDC","issuer":"rIssuer...","kind":"IOU"},"destination":"rDest...","rail":"xrpl","version":"1.0"}
+SHA256("MPCP:SBA:1.0:" || canonical_json(sba.authorization))
 ```
 
 ---
@@ -802,56 +614,24 @@ Regardless of scheme, signature verification MUST validate:
 
 MPCP must prevent the reuse of authorization artifacts across multiple settlements.
 
-Replay protection is enforced through **decision ID uniqueness**, optional **intent hash binding**, and **transaction binding**. Each mechanism is owned by the appropriate layer — issuer, verifier, or operator backend — consistent with the stateless verifier model.
+Replay protection is enforced through **SBA ID uniqueness** and **transaction binding**.
 
-### Decision ID Uniqueness
+### SBA ID Uniqueness
 
-Each **SPA** contains a `decisionId`.
+Each **SBA** contains a `budgetId`. The Trust Gateway MUST NOT accept the same SBA for more than one settlement submission.
 
-#### Uniqueness Scope
-
-`decisionId` uniqueness is scoped to the **SPA issuer namespace**. The replay key is:
-
-```text
-(spa.issuer, spa.decisionId)
-```
-
-Two SPAs issued by different authorities may carry the same `decisionId` string without conflict.
-
-#### Issuance Guarantee
-
-The SPA issuer MUST never issue two SPAs with the same `(issuer, decisionId)` pair. This is an **issuer-side guarantee**. It does not require verifiers to maintain a consumed-decisionId ledger.
-
-#### Consumption Semantics
-
-A `decisionId` is considered consumed when its associated settlement is accepted by the operator backend. The operator backend SHOULD record `(issuer, decisionId, settlementTxId)` at settlement acceptance to prevent the same SPA from being applied to a second settlement.
-
-Verifiers MUST NOT be required to maintain a consumed-decisionId ledger. Replay enforcement at the decisionId level is the joint responsibility of the SPA issuer (preventing duplicate issuance) and the operator backend (preventing duplicate settlement acceptance).
-
-### Intent Hash Binding
-
-When present, the `intentHash` binds the SPA to a specific settlement intent.
-
-This prevents mutation of:
-
-- amount
-- destination
-- asset
-- memo fields
-
-See [Deployment Profiles](#deployment-profiles) for when `intentHash` is required vs. optional.
+The operator backend SHOULD record `(sba.budgetId, settlementTxId)` at settlement acceptance to prevent the same SBA from being applied to a second settlement.
 
 ### Transaction Binding
 
-After settlement execution, the operator backend SHOULD record the settlement transaction identifier against the `decisionId`.
+After settlement execution, the operator backend SHOULD record the settlement transaction identifier against the SBA `budgetId`.
 
 Examples:
 
 - XRPL `txHash`
 - Ethereum `transactionHash`
-- Lightning payment hash
 
-Once a transaction identifier is recorded against a `(issuer, decisionId)` pair, the operator backend MUST NOT accept a second settlement for the same pair.
+Once a transaction identifier is recorded against a `budgetId`, the operator backend MUST NOT accept a second settlement for the same SBA.
 
 ---
 
@@ -863,44 +643,35 @@ The MPCP protocol is designed to mitigate the following threats.
 
 A compromised machine wallet cannot exceed authorized budgets because:
 
-- payments require a valid SPA
-- SPA amounts are bounded by the SBA
+- payments require a valid SBA signed by the session authority
+- the Trust Gateway verifies the SBA against the PolicyGrant before submitting
 
 ### Transaction Mutation
 
-Protection against settlement parameter mutation depends on the deployment profile.
-
-**When `intentHash` is present (Full profile):**
-Mutation of any field in the canonical settlement payload (destination, amount, asset, memo, etc.) will invalidate the intent hash binding. The SPA cannot be used to settle a transaction that differs from the committed intent.
-
-**When `intentHash` is omitted (Lite profile):**
-Protection is limited to the settlement fields explicitly carried in the SPA and checked during settlement verification (rail, asset, amount, destination). Fields outside the SPA — such as memo content or ancillary metadata — are not cryptographically bound.
-
-Lite profile is appropriate for closed-loop infrastructure, rails that natively bind settlement parameters, or high-volume micropayment environments where minimizing payload size is a design goal. See [Deployment Profiles](#deployment-profiles).
+The Trust Gateway verifies that the payment parameters (rail, asset, amount, destination) match the constraints in the SBA before submitting. Any attempt to exceed the SBA envelope is rejected.
 
 ### Replay Attacks
 
 Expired or previously used authorizations cannot be reused due to:
 
-- expiration checks on all artifacts (verifier-enforced, stateless)
-- `(issuer, decisionId)` uniqueness guaranteed by the SPA issuer at issuance time
-- `(issuer, decisionId, settlementTxId)` binding recorded by the operator backend at settlement acceptance
+- expiration checks on all artifacts (gateway-enforced, stateless)
+- `(budgetId, settlementTxId)` binding recorded by the operator backend at settlement acceptance
 
 ### Policy Bypass
 
 Machines cannot bypass policy constraints because every authorization chain must derive from:
 
 ```text
-PolicyGrant → SBA → SPA
+PolicyGrant → SBA → Trust Gateway
 ```
 
 ### Cumulative Budget Overspend
 
-The MPCP verifier is stateless and checks only that the current SPA amount does not exceed `SBA.maxAmountMinor`. It does not track prior payments in the session.
+The Trust Gateway is stateless and checks only that the current payment amount does not exceed `SBA.maxAmountMinor`. It does not track prior payments in the session.
 
-**Session authority responsibility:** The session authority MUST maintain a running total of amounts spent within the budget scope and MUST only issue new SPAs within the remaining authorized envelope.
+**Session authority responsibility:** The session authority MUST maintain a running total of amounts spent within the budget scope and MUST only issue new SBAs within the remaining authorized envelope.
 
-The reference implementation exposes `cumulativeSpentMinor` in `SettlementVerificationContext` so callers can pass the running total to the verifier for an accurate cumulative check:
+The reference implementation exposes `cumulativeSpentMinor` in `SettlementVerificationContext` so callers can pass the running total to the gateway for an accurate cumulative check:
 
 ```
 if (cumulativeSpentMinor + currentPayment > maxAmountMinor) → budget_exceeded
@@ -920,7 +691,7 @@ Verification ensures that executed settlement transactions match authorized para
 
 MPCP does not define a revocation mechanism for PolicyGrants or SBAs. Once issued, an artifact remains valid until its `expiresAt` timestamp passes.
 
-**Mitigation:** Issue short-lived grants (recommended: < 15 minutes for high-risk sessions). In scenarios where immediate revocation is required, the session authority should decline to issue new SPAs; the current grant will expire naturally.
+**Mitigation:** Issue short-lived grants (recommended: < 15 minutes for high-risk sessions). In scenarios where immediate revocation is required, the session authority should decline to issue new SBAs; the current grant will expire naturally.
 
 **Revocation extension:** The `revocationEndpoint` field on PolicyGrant supports real-time revocation checks. See the [Human-to-Agent Profile](../profiles/human-agent-profile.md#revocation) for the full revocation contract.
 
@@ -932,16 +703,14 @@ These sections define the core interoperability rules required for MPCP implemen
 
 # Deployment Profiles
 
-MPCP defines two deployment profiles that differ in how deeply the settlement intent is cryptographically bound.
+MPCP defines deployment profiles based on the actors involved and the connectivity requirements. The Trust Gateway is mandatory in all profiles — the authorization chain ends at the SBA.
 
-| Profile | `intentHash` | Binding scope | Typical use |
-|---------|-------------|---------------|-------------|
-| Lite | omitted | SPA-bound fields only (rail, asset, amount, destination) | Closed-loop infrastructure; rails with native parameter binding; high-volume micropayments |
-| Full | required | Full canonical settlement payload | Open settlement; multi-vendor; dispute-sensitive; audit-required |
+| Profile | Description | Typical use |
+|---------|-------------|-------------|
+| Human-Agent | Human signs PolicyGrant (DID key); AI agent issues SBAs; Trust Gateway settles | AI travel/task delegation |
+| Transparent Gateway | Gateway hosts PA internally; budget owner configures via API | SaaS, early-adoption deployments |
 
-Both profiles use the complete MPCP authorization chain (PolicyGrant → SBA → SPA). The difference is whether the SPA also commits to a canonical settlement intent.
-
-See [Lite Profile](../profiles/lite-profile.md) and [Full Profile](../profiles/full-profile.md) for detailed guidance.
+See [Human-Agent Profile](../profiles/human-agent-profile.md) and [Transparent Gateway Profile](../profiles/gateway-profile.md) for detailed guidance.
 
 ---
 
@@ -993,7 +762,7 @@ Examples:
 
 Two `Asset` objects match when their `kind` is equal and all kind-specific fields match exactly.
 
-The `∈` operator used in artifact relationship rules (`SPA.asset ∈ SBA.allowedAssets`) means: at least one entry in `allowedAssets` matches `SPA.asset` using the rules above.
+The `∈` operator used in artifact relationship rules (`payment.asset ∈ SBA.allowedAssets`) means: at least one entry in `allowedAssets` matches the payment asset using the rules above.
 
 ---
 
@@ -1046,58 +815,9 @@ The `∈` operator used in artifact relationship rules (`SPA.asset ∈ SBA.allow
 }
 ```
 
-## SignedPaymentAuthorization Wire Format
-
-```json
-{
-  "authorization": {
-    "version": "1.0",
-    "decisionId": "dec_123",
-    "sessionId": "sess_456",
-    "policyHash": "a1b2c3...",
-    "quoteId": "quote_789",
-    "budgetId": "budget_123",
-    "rail": "xrpl",
-    "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
-    "amount": "19440000",
-    "destination": "rDest...",
-    "intentHash": "sha256(...)",
-    "expiresAt": "2026-03-08T14:00:00Z"
-  },
-  "issuer": "did:web:payments.example.com",
-  "issuerKeyId": "payment-auth-key-1",
-  "signature": "..."
-}
-```
-
-## SettlementIntent Wire Format
-
-```json
-{
-  "version": "1.0",
-  "rail": "xrpl",
-  "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." },
-  "amount": "19440000",
-  "destination": "rDest...",
-  "referenceId": "quote_17",
-  "createdAt": "2026-03-08T13:55:00Z"
-}
-```
-
-## IntentCommitment Wire Format
-
-```json
-{
-  "version": "1.0",
-  "intentHash": "sha256(...)"
-}
-```
-
-The IntentCommitment carries only the hash-derived commitment. Anchor metadata (network reference, consensus timestamp, Merkle proof, etc.) is stored separately in the `ledgerAnchor` field of an ArtifactBundle. See [anchoring.md](./anchoring.md) for the ledger anchor record structure.
-
 ## Artifact Bundle
 
-An **artifact bundle** packages complete payment verification data (policyGrant, sba, spa, settlement, optional settlementIntent and ledgerAnchor) into a single JSON object for exchange between systems. See [ArtifactBundle.md](./ArtifactBundle.md) for the canonical format and schema.
+An **artifact bundle** packages complete payment verification data (policyGrant, sba, receipt/txHash, optional ledgerAnchor) into a single JSON object for exchange between systems. See [ArtifactBundle.md](./ArtifactBundle.md) for the canonical format and schema.
 
 ---
 
@@ -1111,19 +831,15 @@ Recommended codes:
 |------|---------|
 | POLICY_GRANT_SIGNATURE_INVALID | PolicyGrant signature verification failed |
 | SBA_SIGNATURE_INVALID | SBA signature verification failed |
-| SPA_SIGNATURE_INVALID | SPA signature verification failed |
 | POLICY_GRANT_NOT_FOUND | Referenced PolicyGrant does not exist |
 | SBA_NOT_FOUND | Referenced SBA does not exist |
-| SPA_NOT_FOUND | Referenced SPA does not exist |
 | ARTIFACT_EXPIRED | One or more artifacts expired |
 | POLICY_HASH_MISMATCH | Policy hash does not match authorized policy |
-| RAIL_MISMATCH | Settlement rail differs from authorization |
-| ASSET_MISMATCH | Settlement asset differs from authorization |
-| DESTINATION_MISMATCH | Settlement destination differs from authorization |
-| AMOUNT_EXCEEDED | Settlement amount exceeds authorized limit |
-| INTENT_HASH_MISMATCH | Canonical settlement intent hash does not match SPA |
-| DECISION_REPLAYED | decisionId has already been consumed |
-| TX_REPLAYED | settlement transaction identifier has already been consumed |
+| RAIL_MISMATCH | Payment rail differs from authorization |
+| ASSET_MISMATCH | Payment asset differs from authorization |
+| DESTINATION_MISMATCH | Payment destination differs from authorization |
+| AMOUNT_EXCEEDED | Payment amount exceeds authorized limit |
+| TX_REPLAYED | Settlement transaction identifier has already been consumed |
 | SCOPE_UNSUPPORTED | Authorization scope is not supported by the verifier |
 
 Error codes SHOULD remain stable across implementations whenever possible to preserve interoperability.
@@ -1135,32 +851,20 @@ Error codes SHOULD remain stable across implementations whenever possible to pre
 The following pseudocode illustrates a minimal verifier implementation.
 
 ```text
-function verifySettlement(grant, sba, spa, settlementTx):
+function verifyAndSettle(grant, sba, payment):
     verifySignature(grant, policyAuthorityPublicKey)
     verifySignature(sba, budgetAuthorizationPublicKey)
-    verifySignature(spa, paymentAuthorizationPublicKey)
-    verifyLineage(grant, sba, spa)
-    verifyNotExpired(grant, sba, spa)
-    verifyPolicyHash(grant, spa)
-    verifyBudgetConstraints(sba, spa)
-    verifySettlementFields(spa, settlementTx)
+    verifyLineage(grant, sba)
+    verifyNotExpired(grant, sba)
+    verifyPolicyHash(grant, sba)
+    verifyBudgetConstraints(sba, payment)
 
-    if spa.authorization.intentHash is present:
-        canonicalPayload = extractCanonicalPayload(settlementTx)  # see §Canonical Hash Payload
-        computedHash = sha256("MPCP:SettlementIntent:1.0:" || canonical_json(canonicalPayload))
-        assert computedHash == spa.authorization.intentHash
-
-    # The following checks and writes are operator backend responsibilities,
-    # not verifier state. The verifier itself remains stateless.
-    assert operatorBackend.decisionIdNotConsumed(spa.issuer, spa.authorization.decisionId)
-    assert operatorBackend.txIdNotConsumed(settlementTx.id)
-
-    operatorBackend.markDecisionConsumed(spa.issuer, spa.authorization.decisionId)
-    operatorBackend.bindTransaction(spa.issuer, spa.authorization.decisionId, settlementTx.id)
-    acceptSettlement()
+    # Submit XRPL transaction and return receipt
+    txHash = xrpl.submitPayment(payment)
+    return { txHash }
 ```
 
-This pseudocode is illustrative only. The verifier checks signatures, lineage, constraints, and expiration statelessly. The `operatorBackend` calls represent state managed by the deployment's settlement system, not by the verifier.
+This pseudocode is illustrative only. The Trust Gateway checks signatures, lineage, constraints, and expiration before submitting the XRPL payment.
 
 ---
 
@@ -1180,26 +884,17 @@ ISSUED → EXPIRED
 ISSUED → EXPIRED
 ```
 
-## SignedPaymentAuthorization
-
-```text
-ISSUED → CONSUMED
-ISSUED → EXPIRED
-ISSUED → REJECTED
-```
-
 ## Settlement
 
 ```text
-PENDING → VERIFIED
+PENDING → VERIFIED (txHash returned)
 PENDING → REJECTED
 ```
 
 ## State Machine Rules
 
-- A consumed SPA MUST NOT be reused. Enforcement: the operator backend tracks `(issuer, decisionId)` consumption at settlement acceptance.
-- An expired grant, SBA, or SPA MUST NOT authorize settlement. Enforcement: the verifier checks `expiresAt` statelessly.
-- A verified settlement MUST bind to exactly one `(issuer, decisionId)`. Enforcement: the operator backend records the binding.
+- An expired grant or SBA MUST NOT authorize settlement. Enforcement: the gateway checks `expiresAt` statelessly.
+- A verified settlement MUST bind to exactly one SBA. Enforcement: the operator backend records the binding.
 - A rejected settlement MUST NOT advance the session to a closed state.
 
 This state model keeps MPCP deterministic and makes replay protection enforceable without requiring shared state in the verifier.
@@ -1301,9 +996,7 @@ PolicyGrant
         ↓
 SignedBudgetAuthorization
         ↓
-SignedPaymentAuthorization
-        ↓
-SettlementIntent
+Trust Gateway → XRPL Settlement → Receipt
 ```
 
 The FleetPolicyAuthorization artifact defines constraints such as:
