@@ -193,8 +193,9 @@ Deployments that skip the gateway (having the agent submit payments directly) lo
 - `authorizedGateway` binding (any node could submit payments)
 - On-chain audit trail (memo tagging not guaranteed)
 
-The Trust Gateway is listed in the Trust Bundle so offline merchants can verify that an SBA was
-produced by an entity operating under a registered gateway.
+In a planned future extension, the Trust Gateway's XRPL address will be included in the Trust
+Bundle so offline merchants can verify that an SBA was produced by an entity operating under a
+registered gateway. (See roadmap: Gateway key in Trust Bundle.)
 
 ---
 

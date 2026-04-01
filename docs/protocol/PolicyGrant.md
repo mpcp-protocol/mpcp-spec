@@ -90,7 +90,7 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | budgetCurrency | string | optional | Currency of `budgetMinor` (e.g. `"XRP"`). |
 | budgetEscrowRef | string | optional | URI reference to the on-chain budget escrow that pre-reserves the full `budgetMinor`. Format: `"{rail}:{mechanism}:{identifier}"` (e.g. `"xrpl:escrow:{account}:{sequence}"`). PA-signed. See [Rails](./rails.md). |
 | authorizedGateway | string | optional | XRPL address of the only Trust Gateway authorized to submit payments against this grant's escrow. The gateway rejects payment requests if its own address does not match. PA-signed. |
-| offlineMaxSinglePayment | string | optional | PA-signed per-transaction cap (drops) for offline merchant acceptance. Offline merchants MUST reject SBAs whose `maxAmountMinor` exceeds this value. Cumulative budget is not enforced offline. |
+| offlineMaxSinglePayment | string | optional | PA-signed per-transaction cap (in `offlineMaxSinglePaymentCurrency` minor units) for offline merchant acceptance. Offline merchants MUST reject SBAs whose `maxAmountMinor` exceeds this value. Cumulative budget is not enforced offline. |
 | offlineMaxSinglePaymentCurrency | string | optional | Currency of `offlineMaxSinglePayment` (e.g. `"XRP"`). |
 
 ---

@@ -93,8 +93,8 @@ Examples:
 | Rail | budgetEscrowRef | Description |
 |------|-----------------|-------------|
 | XRPL | `xrpl:escrow:{account}:{sequence}` | EscrowObject identified by owner account and offer sequence |
-| Ethereum | `eth:timelock:{contract}:{lockId}` | ERC-4626 timelock or custom hold contract |
-| Stellar | `stellar:clawback:{asset}:{account}` | Clawback-enabled asset hold |
+| Ethereum | `eth:timelock:{contract}:{lockId}` | TimelockController or custom escrow contract |
+| Stellar | `stellar:claimable:{balanceId}` | Claimable balance (closest Stellar analogue to escrow) |
 
 The URI components after the rail identifier are rail-specific. Verifiers that do not recognize
 a rail SHOULD treat `budgetEscrowRef` as opaque metadata.

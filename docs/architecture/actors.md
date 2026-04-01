@@ -65,7 +65,7 @@ XRPL gateway seed and is the only entity that submits payment transactions on be
 
 **Responsibilities:**
 
-- Creates a XRPL budget escrow at grant issuance, pre-reserving the full `budgetMinor` XRP
+- Creates an XRPL budget escrow at grant issuance, pre-reserving the full `budgetMinor` XRP
 - Enforces the PA-signed `budgetMinor` as a hard ceiling — maintains an independent spend counter
 - Verifies each SBA signature and purpose before submitting a XRPL Payment transaction
 - Attaches `mpcp/grant-id` memo to every XRPL payment for on-chain audit traceability
