@@ -58,6 +58,35 @@ An AI agent acting under human authorization, using MPCP to bound its spending a
 > The `actorId` field in SBA artifacts is used for agent identity (e.g. `"ai-trip-planner-v2"`).
 > Agent attestation follows the same key binding recommendations as vehicle wallets.
 
+## Trust Gateway
+
+A mandatory online enforcement actor in MPCP's XRPL profile. The Trust Gateway holds the
+XRPL gateway seed and is the only entity that submits payment transactions on behalf of a grant.
+
+**Responsibilities:**
+
+- Creates a XRPL budget escrow at grant issuance, pre-reserving the full `budgetMinor` XRP
+- Enforces the PA-signed `budgetMinor` as a hard ceiling — maintains an independent spend counter
+- Verifies each SBA signature and purpose before submitting a XRPL Payment transaction
+- Attaches `mpcp/grant-id` memo to every XRPL payment for on-chain audit traceability
+- Releases the escrow on grant revocation (EscrowFinish with preimage) or expiry (EscrowCancel)
+- Rejects payments if `authorizedGateway` in the PA-signed grant does not match its own address
+
+**Why it is mandatory:** Without the Trust Gateway, a compromised or prompt-injected agent could
+self-report any budget ceiling. The gateway enforces the PA-signed limit independently — it never
+trusts the agent's view of remaining budget. Even if the gateway itself were compromised, the
+XRPL escrow provides an on-chain upper bound that the ledger enforces.
+
+**Required for:** Online payments, budget enforcement, escrow create/cancel.
+
+**Optional for:** Offline signature-only mode — merchants can accept payments without the gateway
+using Trust Bundle key verification + `offlineMaxSinglePayment` cap, accepting reduced guarantees
+(SBA signature valid, but cumulative budget not verified).
+
+> **Trust level:** The Trust Gateway sits between the Policy Authority and the Agent in the
+> trust hierarchy. It can enforce PA policy but cannot forge PolicyGrant signatures.
+> See [Trust Model](../protocol/trust-model.md).
+
 ## Service Provider
 
 The entity that receives payment for a service (parking, charging, tolls).

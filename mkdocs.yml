@@ -54,6 +54,8 @@ nav:
     - Verification: protocol/verification.md
     - Key Resolution: protocol/key-resolution.md
     - Trust Bundles: protocol/trust-bundles.md
+    - Trust Model: protocol/trust-model.md
+    - Rails: protocol/rails.md
     - PolicyGrant: protocol/PolicyGrant.md
     - SBA: protocol/SignedBudgetAuthorization.md
     - SPA: protocol/SignedPaymentAuthorization.md
