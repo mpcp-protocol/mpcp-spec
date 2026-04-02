@@ -57,17 +57,20 @@ This reference flow demonstrates the full MPCP lifecycle in a human-to-agent set
 
 ```
 Alice (human principal)
-  │  signs PolicyGrant (TRIP scope, $800, allowed purposes)
+  │  signs PolicyGrant (TRIP scope, $800, allowed purposes, budgetMinor)
+  ▼
+Trust Gateway
+  │  enforces PA-signed budget ceiling, manages XRPL escrow
   ▼
 AI Trip Planner v2
-  │  enforces policy + cumulative spend
-  │  issues SBA (trip budget)
-  │  issues SPA per booking
+  │  enforces allowedPurposes + checks revocation
+  │  signs SBA per booking (maxAmountMinor = this payment)
   ▼
 Service Providers
-  │  verify MPCP chain (no trust in agent required)
+  │  verify PolicyGrant + SBA signatures (no trust in agent required)
   ▼
 Settlement Rail (XRPL / RLUSD)
+  │  Trust Gateway submits XRPL Payment with mpcp/grant-id memo
 ```
 
 Key property:
@@ -132,11 +135,10 @@ The AI agent acts as Alice's authorized payment delegate for the duration of the
 
 Responsibilities:
 
-- enforces `allowedPurposes` — refuses to sign SPAs for merchant categories not permitted in the PolicyGrant
-- tracks cumulative spend across all sessions within the TRIP scope
-- issues a **SignedBudgetAuthorization (SBA)** with `budgetScope: "TRIP"` that covers the full trip
-- issues a **SignedPaymentAuthorization (SPA)** for each approved service
+- enforces `allowedPurposes` — refuses to sign SBAs for merchant categories not permitted in the PolicyGrant
 - checks revocation status before each payment
+- issues a **SignedBudgetAuthorization (SBA)** per booking authorizing the specific amount and destination
+- forwards approved SBAs to the Trust Gateway for XRPL settlement
 
 The agent uses `actorId` as its identity in MPCP artifacts:
 
@@ -144,10 +146,9 @@ The agent uses `actorId` as its identity in MPCP artifacts:
 actorId: ai-trip-planner-v2
 ```
 
-The agent holds two signing keys:
+The agent holds one signing key:
 
-- **SBA key** (`agent-sba-key-1`) — authorizes the trip budget
-- **SPA key** (`agent-spa-key-1`) — authorizes each individual payment
+- **SBA key** (`agent-sba-key-1`) — signs each per-payment authorization
 
 ---
 
@@ -168,9 +169,9 @@ In this scenario:
 Responsibilities:
 
 - send a payment quote to the AI agent
-- receive and verify the MPCP authorization bundle (PolicyGrant, SBA, SPA)
+- receive and verify the MPCP authorization bundle (PolicyGrant + SBA)
 - optionally check revocation status at `revocationEndpoint`
-- provide the service once verification passes
+- provide the service once verification passes; receive XRPL transaction hash as payment receipt
 
 ---
 
@@ -194,9 +195,8 @@ The verifier checks the full authorization chain.
 
 In this scenario the verifier runs at the service provider's backend (or an MPCP-aware proxy). It checks:
 
-- PolicyGrant signature (Alice's DID key)
-- SBA signature and TRIP scope budget constraints
-- SPA signature and payment parameters
+- PolicyGrant signature (Alice's DID key or PA server domain key)
+- SBA signature, TRIP scope, and payment constraints (`maxAmountMinor`, `destinationAllowlist`)
 
 Verification may also occur during post-trip auditing using the stored artifact bundles.
 
@@ -206,13 +206,13 @@ Verification may also occur during post-trip auditing using the stored artifact 
 
 ## TRIP Scope
 
-The SBA `budgetScope` field is set to `"TRIP"`, indicating the budget covers **multiple sessions across multiple days**. This contrasts with `"SESSION"` scope used in single-session flows (e.g., fleet EV charging).
+The SBA `budgetScope` field is set to `"TRIP"`, indicating the authorization covers a multi-day, multi-session delegation window. This contrasts with `"SESSION"` scope used in single-session flows (e.g., fleet EV charging).
 
-The AI agent is responsible for tracking cumulative spend across all individual bookings. The TRIP budget is not enforced per-session but across the entire delegation window.
+Each per-payment SBA carries `maxAmountMinor` = this booking's amount only. Cumulative budget enforcement across all bookings is performed by the **Trust Gateway**, which tracks spend against the PA-signed `budgetMinor` on the PolicyGrant.
 
 ```
 budgetScope: "TRIP"
-maxAmountMinor: "80000"   // $800.00 (USD minor units = cents)
+maxAmountMinor: "25000"   // this booking's amount in USD cents ($250.00)
 ```
 
 ## allowedPurposes
@@ -223,7 +223,7 @@ The PolicyGrant includes an `allowedPurposes` field restricting which merchant c
 "allowedPurposes": ["travel:hotel", "travel:flight", "travel:transport"]
 ```
 
-The agent **refuses to sign an SPA** for any service whose purpose falls outside this list. In this scenario, Stop 3 (restaurant `travel:dining`) is silently refused — no SBA check, no payment, no exception propagated to the provider.
+The agent **refuses to sign an SBA** for any service whose purpose falls outside this list. In this scenario, Stop 3 (restaurant `travel:dining`) is silently refused — no SBA is created, no payment, no exception propagated to the provider.
 
 This gives Alice fine-grained categorical control beyond just the total budget.
 
@@ -260,25 +260,22 @@ This diagram highlights the **separation of roles**:
 
 | Artifact | Issued By | Purpose |
 |----------|-----------|---------|
-| PolicyGrant | Alice (human principal, DID key or PA server) | Defines budget, purposes, revocation endpoint |
-| SignedBudgetAuthorization | AI Agent (SBA key) | Authorizes $800 TRIP budget |
-| SignedPaymentAuthorization | AI Agent (SPA key) | Authorizes each individual service payment |
-| SettlementIntent | AI Agent | Defines settlement parameters for each payment |
-| Settlement Result | Settlement rail | Confirms payment execution |
+| PolicyGrant | Alice (human principal, DID key or PA server) | Defines budget ceiling, allowed purposes, revocation endpoint, escrow ref |
+| SignedBudgetAuthorization | AI Agent (SBA key) | Authorizes each individual service payment (amount + destination) |
+| XRPL Payment + memo | Trust Gateway | Executes on-chain settlement; tagged with `grantId` for audit |
+| Settlement Result | XRPL ledger | Confirms payment execution (transaction hash) |
 
-These artifacts form the **authorization chain** from human principal to on-chain settlement.
+These artifacts form the **authorization chain**: PolicyGrant → SBA → Trust Gateway → XRPL settlement.
 
 ---
 
 # Artifact Storage Matrix
 
-| Artifact | Alice's Wallet | AI Agent | Service Provider | Settlement Rail |
-|----------|---------------|----------|-----------------|-----------------|
-| PolicyGrant | Authoritative copy | Operational copy | Received for verification | — |
-| SBA | Optional audit | Active trip artifact | Received in bundle | — |
-| SPA | Optional audit | Issued per stop | Received and verified | — |
-| SettlementIntent | Optional audit | Runtime artifact | Optional | — |
-| Settlement Result | Reconciliation | Stored receipt | Stored receipt | Authoritative record |
+| Artifact | Alice's Wallet | AI Agent | Trust Gateway | Service Provider | Settlement Rail |
+|----------|---------------|----------|--------------|-----------------|-----------------|
+| PolicyGrant | Authoritative copy | Operational copy | Operational copy | Received for verification | — |
+| SBA | Optional audit | Signed per booking | Received + verified | Received in bundle | — |
+| Settlement Result | Reconciliation | Stored receipt | Stored receipt | Stored receipt | Authoritative record |
 
 ---
 
@@ -381,71 +378,30 @@ Issued by:
 AI Agent (SBA key)
 ```
 
-The SBA is issued **once for the entire trip** before the first service booking. It covers all stops within the delegation window.
+A fresh SBA is issued **per booking**, authorizing the specific payment amount and destination. The `budgetScope: "TRIP"` indicates the delegation spans multiple days.
 
 ```
 budgetScope: TRIP
-maxAmountMinor: "80000"   ($800.00)
+maxAmountMinor: "25000"   ($250.00 — this booking only)
 sessionId: paris-trip-2026-alice
 actorId: ai-trip-planner-v2
-destinationAllowlist: [rHotelMercureParis, rEurostar, rEuropcarParis]
+grantId: pg-alice-paris-2026
+destinationAllowlist: [rHotelMercureParis]
 ```
 
-The agent tracks cumulative spend internally; each SPA reduces the remaining available budget.
+Cumulative budget enforcement (across all trip bookings) is performed by the **Trust Gateway**, which tracks spend against the PA-signed `budgetMinor`.
 
 Stored by:
 
-- AI agent (active trip artifact)
+- AI agent (per-booking, before submission to gateway)
 - service provider authorization bundle
 - Alice's audit log (optional)
 
 ---
 
-## SettlementIntent
+## Trust Gateway Settlement
 
-Issued by:
-
-```
-AI Agent
-```
-
-Created per booking, after the service provider sends a quote.
-
-Contains:
-
-- rail
-- asset
-- destination
-- amount (atomic units)
-- timestamp
-
-An **intentHash** (SHA-256 of the SettlementIntent) may be included in the SPA for tamper-evident binding.
-
----
-
-## SignedPaymentAuthorization (SPA)
-
-Issued by:
-
-```
-AI Agent (SPA key)
-```
-
-Issued per service booking. Authorizes a specific payment amount to a specific destination.
-
-Contains:
-
-- session reference
-- settlement parameters (rail, asset, amount, destination)
-- intentHash (optional)
-- decisionId
-- signature
-
-Stored by:
-
-- AI agent
-- service provider
-- audit log
+The Trust Gateway receives the SBA from the agent, verifies the cumulative spend against the PA-signed `budgetMinor`, and submits the XRPL Payment transaction. The XRPL transaction hash (with `mpcp/grant-id` memo) is returned to the service provider as the payment receipt.
 
 ---
 
@@ -490,21 +446,11 @@ Optionally: Alice's wallet anchors the policy document to HCS and stores the `an
 
 ---
 
-## T-1h — Agent Pre-loads SBA
+## T-1h — Agent Loads PolicyGrant
 
-The AI agent issues a **SignedBudgetAuthorization** for the full trip before any bookings begin.
+The AI agent receives the PolicyGrant from Alice's wallet (or PA server) and verifies the signature. The Trust Gateway has already created the XRPL budget escrow for `budgetMinor` XRP.
 
-```
-budgetScope:         TRIP
-maxAmountMinor:      "80000"   ($800.00)
-sessionId:           paris-trip-2026-alice
-actorId:             ai-trip-planner-v2
-grantId:             pg-alice-paris-2026
-destinationAllowlist: [rHotelMercureParis, rEurostar, rEuropcarParis]
-expiresAt:           2026-04-13T00:00:00Z
-```
-
-This SBA is included in every subsequent authorization bundle.
+The agent is now ready to accept service quotes and issue per-payment SBAs.
 
 ---
 
@@ -523,27 +469,26 @@ quoteId:      q-hotel-001
 ### Agent validates
 
 - purpose `travel:hotel` is in `allowedPurposes` — permitted
-- cumulative spend: $0 + $250 = $250 ≤ $800 — within budget
-- destination `rHotelMercureParis` is on SBA `destinationAllowlist`
+- destination `rHotelMercureParis` is an approved recipient
+- revocation check: `{ revoked: false }` → grant active
 
-### Agent issues SPA
+### Agent signs SBA
 
 ```
-decisionId:   dec-hotel-001
-amount:       250000000 RLUSD (6 decimals)
-destination:  rHotelMercureParis
+budgetScope:          TRIP
+maxAmountMinor:       "25000"   ($250.00)
+destinationAllowlist: [rHotelMercureParis]
+grantId:              pg-alice-paris-2026
 ```
 
 ### Provider verifies
 
-1. Resolves Alice's DID key
+1. Resolves Alice's DID key (or HTTPS well-known)
 2. Verifies PolicyGrant signature
 3. Confirms `travel:hotel` is in `allowedPurposes`
-4. Verifies SBA signature and TRIP budget
-5. Verifies SPA signature and parameters match quote
-6. Checks revocation: `{ revoked: false }` → grant active
+4. Verifies SBA signature and `maxAmountMinor` covers the quote
 
-Service confirmed. Settlement executes on XRPL.
+Service confirmed. Agent forwards SBA to Trust Gateway → Trust Gateway submits XRPL Payment → provider receives tx hash.
 
 **Cumulative: $250 / $800**
 
@@ -564,20 +509,21 @@ quoteId:      q-train-001
 ### Agent validates
 
 - purpose `travel:flight` is in `allowedPurposes` — permitted
-- cumulative spend: $250 + $120 = $370 ≤ $800 — within budget
-- destination `rEurostar` is on SBA `destinationAllowlist`
+- destination `rEurostar` is an approved recipient
+- revocation check: `{ revoked: false }` → grant active
 
-### Agent issues SPA
+### Agent signs SBA
 
 ```
-decisionId:   dec-train-001
-amount:       120000000 RLUSD
-destination:  rEurostar
+budgetScope:          TRIP
+maxAmountMinor:       "12000"   ($120.00)
+destinationAllowlist: [rEurostar]
+grantId:              pg-alice-paris-2026
 ```
 
 ### Provider verifies and confirms
 
-Service confirmed. Settlement executes on XRPL.
+PolicyGrant + SBA signatures verified. Trust Gateway submits XRPL Payment. Provider receives tx hash.
 
 **Cumulative: $370 / $800**
 
@@ -606,9 +552,9 @@ Any subsequent `checkRevocation(endpoint, grantId)` call returns `{ revoked: tru
 
 ## Apr 12 — Stop 4: Car Rental (Europcar)
 
-The car rental booking was made **before** Alice revoked (workflow pre-authorization). The agent had pre-authorized this booking in an earlier session before revocation occurred. The settlement executes on Apr 12 against the existing SPA.
+The car rental booking was made **before** Alice revoked. The agent had signed the SBA and the Trust Gateway had already submitted the XRPL payment before revocation took effect. The settlement is complete.
 
-> Note: In implementations that check revocation at settlement time (not just at authorization time), this booking would be blocked. The reference flow assumes the SPA was issued before revocation and settlement completes.
+> Note: In implementations that check revocation at Trust Gateway submission time (not just at authorization time), a pending (not yet submitted) payment would be blocked. This reference flow assumes the Trust Gateway submitted payment before the revocation timestamp.
 
 ```
 provider:   Europcar Paris
@@ -623,21 +569,13 @@ Settlement executes. **Cumulative: $550 / $800**
 
 ## Apr 12 — Stop 5: Extra Hotel Night — REJECTED
 
-The agent attempts to book an additional hotel night ($300) but checks cumulative spend:
-
-```
-$550 + $300 = $850 > $800 budget
-```
-
-The agent refuses to sign the SPA. Payment is refused.
-
-The agent also checks revocation:
+The agent attempts to book an additional hotel night ($300) but checks revocation first:
 
 ```
 checkRevocation() → { revoked: true }
 ```
 
-Even if the budget were available, the revoked grant would prevent new authorizations.
+The agent refuses to sign the SBA. No payment request reaches the Trust Gateway. Even without revocation, the Trust Gateway would reject a payment that would push cumulative spend past `budgetMinor` ($800).
 
 ---
 
@@ -648,10 +586,8 @@ All three settled bundles (hotel, Eurostar, car rental) can be independently ver
 Each bundle contains:
 
 - PolicyGrant (Alice's signed delegation)
-- SBA (TRIP-scope trip authorization)
-- SPA (individual booking authorization)
-- SettlementIntent
-- Settlement result
+- SBA (per-booking authorization)
+- XRPL transaction hash (settlement receipt, including `mpcp/grant-id` memo)
 
 Any auditor with Alice's public key can reconstruct and verify the full authorization chain.
 
@@ -670,18 +606,15 @@ Any auditor with Alice's public key can reconstruct and verify the full authoriz
 ## AI Agent Stores
 
 - active PolicyGrant
-- active SBA (TRIP scope)
-- issued SPAs (per booking)
-- SettlementIntents
-- settlement receipts
-- cumulative spend tracker
+- per-booking SBAs (before and after gateway submission)
+- settlement receipts (XRPL transaction hashes returned by Trust Gateway)
 
 ---
 
 ## Service Provider Stores
 
 - payment quote
-- received authorization bundle (PolicyGrant + SBA + SPA)
+- received authorization bundle (PolicyGrant + SBA)
 - verification result
 - settlement reference
 - booking record
@@ -708,13 +641,12 @@ public verification key
 verify PolicyGrant signature
 ```
 
-## Agent Verification (before issuing SPA)
+## Agent Verification (before issuing SBA)
 
-Before signing each SPA, the agent checks:
+Before signing each SBA, the agent checks:
 
 - `allowedPurposes` contains the service purpose
-- cumulative spend + this payment ≤ `maxAmountMinor`
-- destination is on SBA `destinationAllowlist`
+- destination is a known and expected recipient
 - settlement rail and asset are allowed
 - PolicyGrant is not expired
 - revocation status via `revocationEndpoint`
@@ -725,11 +657,10 @@ Before signing each SPA, the agent checks:
 
 Before confirming service:
 
-1. resolve Alice's DID key and verify PolicyGrant signature
+1. resolve Alice's DID key (or HTTPS well-known) and verify PolicyGrant signature
 2. PolicyGrant not expired; `allowedPurposes` includes the requested category
-3. SBA signature valid; TRIP budget sufficient
-4. SPA signature valid; payment parameters match the quote
-5. check `revocationEndpoint` (optional but recommended)
+3. SBA signature valid; `maxAmountMinor` covers the quoted amount; `destinationAllowlist` includes the provider's address
+4. check `revocationEndpoint` (optional but recommended)
 
 ---
 
@@ -738,9 +669,9 @@ Before confirming service:
 After trip:
 
 - each bundle independently verifiable
-- settlement amounts match SPA amounts
-- cumulative spend within TRIP budget
-- no SPAs issued for revoked grant (post-revocation-timestamp check)
+- XRPL transaction amounts match SBA `maxAmountMinor` amounts
+- cumulative spend within PA-signed `budgetMinor` (verifiable via on-chain escrow + `mpcp/grant-id` memo sum)
+- no SBAs signed for the grant after revocation timestamp
 
 ---
 
@@ -748,37 +679,37 @@ After trip:
 
 ## Purpose Not Allowed
 
-Agent refuses to issue SPA. Service provider receives no authorization. No payment.
+Agent refuses to issue SBA. Service provider receives no authorization. No payment.
 
 ---
 
 ## Budget Exceeded
 
-Agent checks cumulative spend before signing SPA. If `cumulative + amount > maxAmountMinor`, agent refuses. No SPA, no payment.
+Trust Gateway tracks cumulative spend. If `cumulative + amount > budgetMinor`, the gateway rejects the SBA. No XRPL payment is submitted. The on-chain escrow provides a tamper-proof upper bound — the gateway cannot overspend regardless of agent behavior.
 
 ---
 
 ## Grant Revoked
 
-`checkRevocation()` returns `{ revoked: true }`. Agent refuses further SPAs. Service provider rejects authorization bundle.
+`checkRevocation()` returns `{ revoked: true }`. Agent refuses to sign further SBAs. The Trust Gateway also rejects any SBA against a revoked grant and releases the escrow.
 
 ---
 
 ## PolicyGrant Expired
 
-Service provider rejects authorization (expired grant). Agent should not issue new SPAs against an expired grant.
+Service provider rejects authorization (expired grant). Agent should not issue new SBAs against an expired grant. Trust Gateway rejects expired grants and releases the XRPL escrow via `EscrowCancel`.
 
 ---
 
 ## Destination Not on Allowlist
 
-SBA `destinationAllowlist` does not include the destination. Agent refuses to sign SPA.
+Agent refuses to sign SBA for an unlisted destination. Even if signed, the Trust Gateway verifies the SBA `destinationAllowlist` before submitting the XRPL payment.
 
 ---
 
 ## Signature Verification Failure
 
-DID resolution fails or PolicyGrant/SBA/SPA signature is invalid. Service provider rejects the bundle.
+DID resolution fails or PolicyGrant/SBA signature is invalid. Service provider rejects the bundle. Trust Gateway also rejects SBAs with invalid signatures.
 
 ---
 
@@ -787,13 +718,11 @@ DID resolution fails or PolicyGrant/SBA/SPA signature is invalid. Service provid
 For audit or dispute resolution, the following bundle may be stored per service booking:
 
 - PolicyGrant (Alice's signed delegation)
-- SBA (TRIP-scope authorization)
-- SPA (booking-specific authorization)
-- SettlementIntent
+- SBA (booking-specific authorization)
 - Payment quote metadata
-- Settlement receipt (XRPL transaction hash)
+- Settlement receipt (XRPL transaction hash with `mpcp/grant-id` memo)
 - Optional: revocation check result at time of authorization
-- Optional: anchorRef (HCS policy anchor, if Alice published the policy on-chain)
+- Optional: `anchorRef` (HCS policy anchor, if Alice published the policy on-chain)
 
 This bundle allows full replay of the authorization chain from Alice's delegation to on-chain settlement.
 
@@ -803,9 +732,9 @@ This bundle allows full replay of the authorization chain from Alice's delegatio
 
 The following example shows the self-contained authorization bundle for Stop 1 (Hotel Mercure Paris).
 
-This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel → XRPL settlement.
+This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Trust Gateway → Hotel → XRPL settlement.
 
-> Amounts are in atomic units. `"250000000"` represents 250.00 RLUSD with 6 decimal places (XRPL IOU convention).
+> SBA amounts are in USD cents. XRPL on-chain amounts are in RLUSD atomic units (6 decimal places).
 
 ```json
 {
@@ -818,6 +747,10 @@ This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel 
     ],
     "allowedPurposes": ["travel:hotel", "travel:flight", "travel:transport"],
     "revocationEndpoint": "https://wallet.alice.example.com/revoke",
+    "budgetMinor": 80000,
+    "budgetEscrowRef": "xrpl:escrow:rGateway...:87654321",
+    "authorizedGateway": "rGateway...",
+    "offlineMaxSinglePayment": 5000,
     "expiresAt": "2026-04-13T00:00:00Z",
     "issuer": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK",
     "issuerKeyId": "alice-did-key-1",
@@ -827,7 +760,7 @@ This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel 
   "sba": {
     "authorization": {
       "version": "1.0",
-      "budgetId": "bud-paris-trip-2026",
+      "budgetId": "bud-hotel-stop1",
       "grantId": "pg-alice-paris-2026",
       "sessionId": "paris-trip-2026-alice",
       "actorId": "ai-trip-planner-v2",
@@ -835,55 +768,27 @@ This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel 
       "currency": "USD",
       "minorUnit": 2,
       "budgetScope": "TRIP",
-      "maxAmountMinor": "80000",
+      "maxAmountMinor": "25000",
       "allowedRails": ["xrpl"],
       "allowedAssets": [
         { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
       ],
-      "destinationAllowlist": [
-        "rHotelMercureParis",
-        "rEurostar",
-        "rEuropcarParis"
-      ],
-      "expiresAt": "2026-04-13T00:00:00Z"
+      "destinationAllowlist": ["rHotelMercureParis"],
+      "expiresAt": "2026-04-10T23:59:00Z"
     },
+    "issuer": "ai-trip-planner-v2.alice.example.com",
     "issuerKeyId": "agent-sba-key-1",
     "signature": "base64encodedSbaSignature..."
   },
 
-  "settlementIntent": {
-    "version": "1.0",
-    "rail": "xrpl",
-    "amount": "250000000",
-    "destination": "rHotelMercureParis",
-    "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
-    "createdAt": "2026-04-10T15:00:00Z"
-  },
-
-  "spa": {
-    "authorization": {
-      "version": "1.0",
-      "decisionId": "dec-hotel-001",
-      "sessionId": "paris-trip-2026-alice",
-      "policyHash": "a1b2c3d4e5f6",
-      "budgetId": "bud-paris-trip-2026",
-      "quoteId": "q-hotel-001",
-      "rail": "xrpl",
-      "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
-      "amount": "250000000",
-      "destination": "rHotelMercureParis",
-      "intentHash": "sha256ofSettlementIntent...",
-      "expiresAt": "2026-04-13T00:00:00Z"
-    },
-    "issuerKeyId": "agent-spa-key-1",
-    "signature": "base64encodedSpaSignature..."
-  },
-
   "settlement": {
     "rail": "xrpl",
+    "txHash": "FEDCBA9876...",
     "amount": "250000000",
     "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
     "destination": "rHotelMercureParis",
+    "submittedBy": "rGateway...",
+    "memoGrantId": "pg-alice-paris-2026",
     "nowISO": "2026-04-10T15:00:00Z"
   }
 }
@@ -892,11 +797,13 @@ This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel 
 ## Notes on the Example Bundle
 
 - `policyGrant.issuer` is Alice's DID — the human principal who signed the delegation
-- `sba.authorization.budgetScope` is `"TRIP"` — the budget covers the full 3-day trip, not just this session
+- `policyGrant.budgetMinor` = `80000` (cents = $800.00) — the PA-signed ceiling enforced by the Trust Gateway; `budgetEscrowRef` links to the on-chain XRPL escrow pre-reserving this amount
+- `sba.authorization.budgetScope` is `"TRIP"` — informational metadata indicating the delegation spans multiple days
+- `sba.authorization.maxAmountMinor` = `"25000"` (this booking only, in USD cents = $250.00); cumulative enforcement is the Trust Gateway's responsibility
 - `sba.authorization.actorId` is the AI agent identifier — works for vehicles, AI agents, robots, or any autonomous payment actor
-- `spa.authorization.budgetId` links to `sba.authorization.budgetId` — tying the payment to the trip-level budget
-- `policyGrant.allowedPurposes` is enforced by the agent before signing any SPA — the hotel (`travel:hotel`) is permitted; the restaurant (`travel:dining`) would not be
-- amounts are in atomic units: `"250000000"` = 250.00 RLUSD with 6 decimal places
+- `sba.issuer` is required — used by service providers and the Trust Gateway for key resolution
+- `policyGrant.allowedPurposes` is enforced by the agent before signing any SBA — the hotel (`travel:hotel`) is permitted; the restaurant (`travel:dining`) would not be
+- `settlement.txHash` is the XRPL transaction submitted by the Trust Gateway; the `mpcp/grant-id` memo links the payment to the grant for on-chain audit
 
 ## Differences from Fleet EV Charging Bundle
 
@@ -904,7 +811,7 @@ This illustrates the TRIP-scoped delegation chain: Alice → AI Agent → Hotel 
 |-----------|----------|-----------------|
 | PolicyGrant issuer | Fleet Operator (organization or domain) | Alice (DID key or PA server domain) |
 | SBA budgetScope | SESSION (per-shift, multi-merchant) | TRIP (multi-day, multi-session) |
-| Spend enforcement | On-vehicle wallet Session (shift ceiling) | Cumulative across trip, by agent |
+| Budget enforcement | Trust Gateway counter + XRPL escrow | Trust Gateway counter + XRPL escrow |
 | allowedPurposes | Not typically used | Core control mechanism |
 | Revocation | `revocationEndpoint` — fleet disables vehicle mid-shift | `revocationEndpoint` — human cancels delegation |
 | Key resolution | Trust Bundle (offline, pre-loaded at merchants) | DID or HTTPS well-known (PA server) |
