@@ -901,29 +901,24 @@ This state model keeps MPCP deterministic and makes replay protection enforceabl
 
 ---
 
-# Optional Intent Attestation
+# Optional Policy Attestation
 
-To enhance auditability, MPCP can publish hashed commitments of payment intents to a public attestation layer.
+To enhance auditability, MPCP supports anchoring the policy document hash to a public ledger at grant issuance time.
 
-Example flow:
+The `anchorRef` field on PolicyGrant points to an on-chain record:
 
 ```text
-intent
-  ↓
-hash(intent)
-  ↓
-Merkle tree
-  ↓
-public ledger anchor
+"hcs:{topicId}:{sequenceNumber}"   — Hedera HCS message
+"xrpl:nft:{tokenId}"               — XRPL non-transferable NFToken
 ```
 
 This provides:
 
-- tamper-evident authorization history
+- tamper-evident policy history
 - public timestamp proofs
 - dispute resolution capabilities
 
-The **Intent Attestation Layer (IAL)** can provide this functionality.
+See [Policy Anchoring](./policy-anchoring.md) for the full specification.
 
 ---
 
@@ -952,16 +947,6 @@ MPCP can be applied across many autonomous payment scenarios:
 - fleet management
 - IoT service payments
 - AI agent marketplaces
-
----
-
-# Parker as Reference Implementation
-
-The Parker system implements MPCP for autonomous parking payments.
-
-Its architecture demonstrates how policy enforcement, authorization artifacts, and settlement verification can operate together.
-
-Parker therefore serves as a reference implementation for the Machine Payment Control Protocol.
 
 ---
 

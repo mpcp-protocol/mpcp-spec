@@ -22,11 +22,11 @@ Resides in each machine (EV, robot, IoT device) and enforces MPCP constraints.
 **Responsibilities:**
 
 - Enforces policy constraints
-- Manages charging/payment budgets
-- Issues SignedBudgetAuthorization and SignedPaymentAuthorization
-- Executes settlement transactions
+- Manages payment budgets
+- Issues SignedBudgetAuthorization (SBA) per payment request
+- Submits SBAs to the Trust Gateway for settlement
 
-The wallet is the MPCP actor that signs SignedBudgetAuthorization and SignedPaymentAuthorization.
+The wallet is the MPCP actor that signs SignedBudgetAuthorizations. Settlement is executed by the Trust Gateway.
 
 > **Note on Actor Identity:** The `actorId` field in SBA artifacts is self-reported by the wallet. Production deployments SHOULD establish actor attestation via device key binding (e.g., a hardware-backed key whose public key is registered with the fleet operator). Without attestation, `actorId` cannot be cryptographically verified and is informational only.
 
@@ -40,9 +40,9 @@ An AI agent acting under human authorization, using MPCP to bound its spending a
 
 - Receives a PolicyGrant from a human principal (DID-signed) and acts as its spending subject
 - Acts as **session authority** — creates and signs SBAs (typically with TRIP scope)
-- Acts as **payment decision service** — enforces `allowedPurposes` and signs SPAs
+- Enforces `allowedPurposes` before issuing each SBA — refuses payments for disallowed merchant categories
 - Maintains cumulative spend counter across all sessions in the trip/project
-- SHOULD check `revocationEndpoint` before signing each SPA (agents are online by design)
+- SHOULD check `revocationEndpoint` before issuing each SBA (agents are online by design)
 
 **Contrast with Vehicle Wallet:**
 
@@ -50,7 +50,7 @@ An AI agent acting under human authorization, using MPCP to bound its spending a
 |---|----------------|---------|
 | Policy authority | Fleet operator | Human (DID) |
 | Connectivity | Offline-capable | Online by design |
-| Revocation | Not applicable | SHOULD check before each payment |
+| Revocation | Not applicable | SHOULD check before each SBA |
 | Budget scope | SESSION / DAY | TRIP (multi-day) |
 
 **Examples:** Travel booking agent, subscription manager, event budget agent.
