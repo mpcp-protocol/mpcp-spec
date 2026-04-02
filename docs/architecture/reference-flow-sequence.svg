@@ -120,13 +120,13 @@
   <text x="322" y="313" fill="#7C3AED" font-size="10">    grantId → PolicyGrant</text>
 
   <line x1="320" y1="324" x2="468" y2="324" stroke="#C4B5FD" stroke-width="1"/>
-  <text x="322" y="339" fill="#4C1D95" font-size="11.5" font-weight="700">7. Create SettlementIntent</text>
-  <text x="322" y="354" fill="#7C3AED" font-size="10">    → compute intentHash</text>
+  <text x="322" y="339" fill="#4C1D95" font-size="11.5" font-weight="700">7. Sign SBA (this payment)</text>
+  <text x="322" y="354" fill="#7C3AED" font-size="10">    → maxAmountMinor · destination</text>
 
   <line x1="320" y1="365" x2="468" y2="365" stroke="#C4B5FD" stroke-width="1"/>
-  <text x="322" y="380" fill="#4C1D95" font-size="11.5" font-weight="700">8. Payment decision logic</text>
-  <text x="322" y="395" fill="#7C3AED" font-size="10">    → assign decisionId &amp; quoteId</text>
-  <text x="322" y="410" fill="#7C3AED" font-size="10">    → create &amp; sign SPA</text>
+  <text x="322" y="380" fill="#4C1D95" font-size="11.5" font-weight="700">8. Check revocation endpoint</text>
+  <text x="322" y="395" fill="#7C3AED" font-size="10">    → checkRevocation → active ✓</text>
+  <text x="322" y="410" fill="#7C3AED" font-size="10">    → submit SBA to Trust Gateway</text>
 
   <!-- ========================================================= -->
   <!-- SEND AUTHORIZATION BUNDLE — Vehicle → Charging Op Backend -->
@@ -134,7 +134,7 @@
   <!-- ========================================================= -->
   <line x1="308" y1="498" x2="688" y2="498" stroke="#111827" stroke-width="2.5" marker-end="url(#arr)"/>
   <text x="498" y="488" text-anchor="middle" fill="#111827" font-size="12" font-weight="700">Send authorization bundle</text>
-  <text x="498" y="510" text-anchor="middle" fill="#6B7280" font-size="10">SPA · SBA · PolicyGrant · SettlementIntent</text>
+  <text x="498" y="510" text-anchor="middle" fill="#6B7280" font-size="10">SBA · PolicyGrant</text>
 
   <!-- ========================================================= -->
   <!-- STEP 9 — Charging Op Backend: Verify artifact chain  (y=526–692) -->
@@ -145,9 +145,9 @@
   <text x="721" y="562" fill="#78350F" font-size="10">  · resolve issuer public keys</text>
   <text x="721" y="576" fill="#78350F" font-size="10">    (HTTPS well-known or DID)</text>
   <text x="721" y="591" fill="#78350F" font-size="10">  · verify PolicyGrant signature</text>
-  <text x="721" y="605" fill="#78350F" font-size="10">  · verify SBA (budget + chain)</text>
-  <text x="721" y="619" fill="#78350F" font-size="10">  · verify SPA (signature + params)</text>
-  <text x="721" y="633" fill="#78350F" font-size="10">  · confirm SPA ↔ quote match</text>
+  <text x="721" y="605" fill="#78350F" font-size="10">  · verify SBA (budget + scope)</text>
+  <text x="721" y="619" fill="#78350F" font-size="10">  · confirm SBA ↔ quote match</text>
+  <text x="721" y="633" fill="#78350F" font-size="10">  · check revocationEndpoint</text>
 
   <!-- ========================================================= -->
   <!-- STEP 10 — Backend → Charging Station: Verification passed -->
@@ -160,11 +160,10 @@
   <text x="500" y="741" text-anchor="middle" fill="#064E3B" font-size="11" font-weight="600">Energy delivery begins</text>
 
   <!-- ========================================================= -->
-  <!-- STEP 11 — Vehicle → Settlement Rail: Submit XRPL payment -->
-  <!-- (crosses Charging Station and Backend lifelines) -->
+  <!-- STEP 11 — Trust Gateway → Settlement Rail: Submit XRPL payment -->
   <!-- ========================================================= -->
-  <line x1="308" y1="782" x2="888" y2="782" stroke="#111827" stroke-width="2.5" marker-end="url(#arr)"/>
-  <text x="598" y="772" text-anchor="middle" fill="#111827" font-size="12" font-weight="700">11. Submit XRPL payment</text>
+  <line x1="708" y1="782" x2="888" y2="782" stroke="#111827" stroke-width="2.5" marker-end="url(#arr)"/>
+  <text x="798" y="772" text-anchor="middle" fill="#111827" font-size="12" font-weight="700">11. Trust Gateway → XRPL payment</text>
 
   <!-- ========================================================= -->
   <!-- STEP 12 — Charging Op Backend: Post-settlement  (y=808–964) -->
@@ -178,14 +177,14 @@
   <text x="721" y="887" fill="#78350F" font-size="10">  · store complete audit bundle</text>
 
   <!-- ========================================================= -->
-  <!-- STEP 13 — Charging Op Backend: Anchor intentHash to HCS (optional) -->
+  <!-- STEP 13 — Charging Op Backend: Anchor policy hash to HCS (optional) -->
   <!-- ========================================================= -->
   <rect x="684" y="1005" width="30" height="72" rx="3" fill="#EDE9FE" stroke="#A78BFA" stroke-dasharray="5,3" stroke-width="2"/>
 
-  <text x="721" y="1025" fill="#6D28D9" font-size="11.5" font-weight="700">13. Anchor intentHash to HCS</text>
-  <text x="721" y="1041" fill="#7C3AED" font-size="10">  · submit intentHash to HCS topic</text>
+  <text x="721" y="1025" fill="#6D28D9" font-size="11.5" font-weight="700">13. Anchor policy hash to HCS</text>
+  <text x="721" y="1041" fill="#7C3AED" font-size="10">  · submit policyHash to HCS topic</text>
   <text x="721" y="1055" fill="#7C3AED" font-size="10">  · store consensus timestamp</text>
-  <text x="721" y="1069" fill="#7C3AED" font-size="10">  · add anchor ref to audit bundle</text>
+  <text x="721" y="1069" fill="#7C3AED" font-size="10">  · add anchorRef to PolicyGrant</text>
 
   <!-- ========================================================= -->
   <!-- FOOTER -->

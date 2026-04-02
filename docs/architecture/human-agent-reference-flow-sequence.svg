@@ -122,7 +122,7 @@
   <text x="455" y="292" text-anchor="middle" fill="#374151" font-size="12" font-weight="600">4. Send quote</text>
   <text x="455" y="313" text-anchor="middle" fill="#6B7280" font-size="10">Stop 1 · Hotel · $250 · travel:hotel</text>
 
-  <!-- Step 5–8: Agent activation box for policy decision + SPA -->
+  <!-- Step 5–8: Agent activation box for policy decision + SBA -->
   <rect x="321" y="326" width="30" height="240" rx="3" fill="#DDD6FE" stroke="#7C3AED" stroke-width="2"/>
 
   <text x="359" y="348" fill="#4C1D95" font-size="11.5" font-weight="700">5. Check allowedPurposes</text>
@@ -133,12 +133,12 @@
   <text x="359" y="405" fill="#059669" font-size="10">    $0 + $250 = $250 ≤ $800 ✓</text>
 
   <line x1="357" y1="416" x2="545" y2="416" stroke="#C4B5FD" stroke-width="1"/>
-  <text x="359" y="432" fill="#4C1D95" font-size="11.5" font-weight="700">7. Create SettlementIntent</text>
-  <text x="359" y="447" fill="#7C3AED" font-size="10">    → compute intentHash</text>
+  <text x="359" y="432" fill="#4C1D95" font-size="11.5" font-weight="700">7. Sign SBA (this booking)</text>
+  <text x="359" y="447" fill="#7C3AED" font-size="10">    → maxAmountMinor · destination</text>
 
   <line x1="357" y1="458" x2="545" y2="458" stroke="#C4B5FD" stroke-width="1"/>
-  <text x="359" y="474" fill="#4C1D95" font-size="11.5" font-weight="700">8. Sign SPA</text>
-  <text x="359" y="489" fill="#7C3AED" font-size="10">    dec-hotel-001 · 250000000 RLUSD</text>
+  <text x="359" y="474" fill="#4C1D95" font-size="11.5" font-weight="700">8. Submit SBA to Trust Gateway</text>
+  <text x="359" y="489" fill="#7C3AED" font-size="10">    hotel-001 · $250 RLUSD</text>
 
   <line x1="357" y1="500" x2="545" y2="500" stroke="#C4B5FD" stroke-width="1"/>
   <text x="359" y="516" fill="#7C3AED" font-size="10">    cumulative: $250 / $800</text>
@@ -146,7 +146,7 @@
   <!-- Step 9: Agent → Provider: Send authorization bundle -->
   <line x1="351" y1="548" x2="550" y2="548" stroke="#111827" stroke-width="2.5" marker-end="url(#arr)"/>
   <text x="455" y="538" text-anchor="middle" fill="#111827" font-size="12" font-weight="700">9. Send authorization bundle</text>
-  <text x="455" y="561" text-anchor="middle" fill="#6B7280" font-size="10">SPA · SBA · PolicyGrant</text>
+  <text x="455" y="561" text-anchor="middle" fill="#6B7280" font-size="10">SBA · PolicyGrant</text>
 
   <!-- Step 10: Provider verification box -->
   <rect x="546" y="576" width="30" height="140" rx="3" fill="#FDE68A" stroke="#D97706" stroke-width="2"/>
@@ -155,16 +155,16 @@
   <text x="584" y="611" fill="#78350F" font-size="10">  · resolve Alice's DID key</text>
   <text x="584" y="625" fill="#78350F" font-size="10">  · verify PolicyGrant signature</text>
   <text x="584" y="639" fill="#78350F" font-size="10">  · verify SBA (TRIP scope)</text>
-  <text x="584" y="653" fill="#78350F" font-size="10">  · verify SPA + quote match</text>
+  <text x="584" y="653" fill="#78350F" font-size="10">  · verify SBA (amount + destination)</text>
   <text x="584" y="667" fill="#78350F" font-size="10">  · checkRevocation → active ✓</text>
 
   <!-- Step 11: Service confirmed, Agent → Rail -->
   <rect x="496" y="728" width="132" height="22" rx="4" fill="#D1FAE5" stroke="#34D399" stroke-width="1.5"/>
   <text x="562" y="743" text-anchor="middle" fill="#064E3B" font-size="11" font-weight="600">11. Service confirmed</text>
 
-  <!-- Step 12: Agent → Rail: Submit XRPL payment -->
-  <line x1="351" y1="588" x2="775" y2="588" stroke="#111827" stroke-width="2" marker-end="url(#arr)"/>
-  <text x="563" y="578" text-anchor="middle" fill="#111827" font-size="11" font-weight="600">12. Submit XRPL payment (250 RLUSD)</text>
+  <!-- Step 12: Trust Gateway → Rail: Submit XRPL payment -->
+  <line x1="570" y1="588" x2="775" y2="588" stroke="#111827" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="672" y="578" text-anchor="middle" fill="#111827" font-size="11" font-weight="600">12. Trust Gateway → XRPL (250 RLUSD)</text>
 
   <!-- ========================================================= -->
   <!-- PHASE 4 — SKIP (Stop 3: Restaurant / travel:dining) -->
@@ -178,7 +178,7 @@
   <!-- Agent: Purpose not allowed -->
   <rect x="349" y="688" width="200" height="44" rx="4" fill="#FEE2E2" stroke="#EF4444" stroke-width="1.5"/>
   <text x="353" y="704" fill="#991B1B" font-size="10.5" font-weight="700">14. allowedPurposes check:</text>
-  <text x="353" y="719" fill="#DC2626" font-size="10">    travel:dining ✗ — SPA refused</text>
+  <text x="353" y="719" fill="#DC2626" font-size="10">    travel:dining ✗ — SBA refused</text>
 
   <!-- ========================================================= -->
   <!-- PHASE 5 — REVOCATION -->
@@ -209,7 +209,7 @@
   <!-- Agent: Budget exceeded + revoked -->
   <rect x="349" y="892" width="200" height="44" rx="4" fill="#FEE2E2" stroke="#EF4444" stroke-width="1.5"/>
   <text x="353" y="908" fill="#991B1B" font-size="10.5" font-weight="700">18. Budget check: $550+$300=$850&gt;$800</text>
-  <text x="353" y="923" fill="#DC2626" font-size="10">    Also: grant revoked ✗ — SPA refused</text>
+  <text x="353" y="923" fill="#DC2626" font-size="10">    Also: grant revoked ✗ — SBA refused</text>
 
   <!-- ========================================================= -->
   <!-- PHASE 7 — POST-TRIP AUDIT -->
