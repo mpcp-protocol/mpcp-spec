@@ -896,7 +896,6 @@ This bundle illustrates the canonical MPCP artifact structure:
 - `sba.authorization.maxAmountMinor` = `"780"` (this payment only, in USD cents); the Trust Gateway enforces cumulative ≤ `policyGrant.budgetMinor`
 - `chargingQuote` is not an MPCP artifact but is operationally important — the operator must verify that the SBA `maxAmountMinor` and `destinationAllowlist` cover the quoted amount and destination
 - `settlement.txHash` is the XRPL transaction submitted by the Trust Gateway; the `mpcp/grant-id` memo links the on-chain payment to the grant for audit
-- There is no SPA or SettlementIntent — the authorization chain ends at the SBA; the Trust Gateway handles all settlement parameters
 
 In a production deployment, the exact bundle shape may vary, but it should preserve the same key property:
 
