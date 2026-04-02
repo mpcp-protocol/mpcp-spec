@@ -39,5 +39,6 @@ MPCP does **not**:
 ## Next Steps
 
 - [Problem Statement](problem-statement.md) — Why existing payment systems fail for machines
+- [Why XRPL](why-xrpl.md) — The rationale behind MPCP's XRPL-primary settlement layer
 - [Comparison with Agent Protocols](comparison-with-agent-protocols.md) — How MPCP differs from x402, AP2, and others
 - [Protocol: Artifacts](../protocol/artifacts.md) — The authorization chain in detail
