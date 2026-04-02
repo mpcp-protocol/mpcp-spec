@@ -1,72 +1,87 @@
 # Dispute Resolution
 
-When a settlement is disputed, MPCP supports verification of the full authorization chain plus optional ledger anchor.
+When a settlement is disputed, MPCP supports verification of the full authorization chain plus optional on-chain audit.
 
 ## Verification Flow
 
-1. **MPCP chain** — Verify PolicyGrant → SBA → SPA → SettlementIntent
-2. **Ledger anchor** (optional) — If intent was anchored, verify the anchor matches the intent hash
+1. **PolicyGrant signature** — Verify the PA-signed grant (issuer key via Trust Bundle or HTTPS well-known)
+2. **SBA signature** — Verify the machine-signed per-payment authorization
+3. **XRPL on-chain evidence** — Sum all XRPL Payments with `mpcp/grant-id` memo matching the `grantId`; verify total ≤ `budgetMinor`
+4. **Policy anchor** (optional) — If the PolicyGrant has an `anchorRef`, verify the policy hash matches the on-chain record
 
 ## Usage
 
-### Sync (Mock Anchor or Hedera with intentHash)
+### Verify Authorization Chain
 
 ```javascript
-import { verifyDispute } from "mpcp-service/service";
+import { verifyPolicyGrant, verifySignedSessionBudgetAuthorization } from "mpcp-service/sdk";
 
-const result = verifyDispute({
-  context: settlementVerificationContext,
-  ledgerAnchor: anchorResult,  // optional
+// Verify PA-signed PolicyGrant
+const grantValid = await verifyPolicyGrant(policyGrant);
+
+// Verify machine-signed SBA against the grant
+const sbaResult = await verifySignedSessionBudgetAuthorization(sba, {
+  policyGrant,
 });
 
-if (result.verified) {
-  // Settlement and anchor (if provided) are valid
-} else {
-  // result.reason describes the failure
+if (grantValid && sbaResult.valid) {
+  // Authorization chain is intact
 }
 ```
 
-### Async (Hedera HCS Mirror)
+### On-Chain Audit via mpcp/grant-id Memo
 
-For Hedera HCS anchors, use the async verifier to fetch from the mirror node:
+The Trust Gateway attaches an `mpcp/grant-id` memo to every XRPL Payment it submits. Auditors can independently sum all payments linked to a grant:
 
-```javascript
-import { verifyDisputeAsync } from "mpcp-service/service";
-
-const result = await verifyDisputeAsync({
-  context: settlementVerificationContext,
-  ledgerAnchor: anchorResult,
-});
+```
+GET /account_tx (XRPL JSON-RPC)
+→ filter by MemoType = hex("mpcp/grant-id"), MemoData = hex(grantId)
+→ sum(Amount) ≤ policyGrant.budgetMinor   (escrow guarantee)
 ```
 
-## Anchoring for Disputes
+The on-chain escrow provides a hard upper bound — the sum can never exceed `budgetMinor` because that amount was pre-reserved at grant issuance.
 
-Publishing the intent hash to a ledger (e.g., Hedera HCS) provides:
+### Verify Policy Anchor (Optional HCS)
 
-- **Non-repudiation** — Intent was committed before settlement
-- **Ordering** — Consensus timestamp establishes when intent was published
-- **Auditability** — Third parties can verify without seeing payment details
+If the PolicyGrant includes an `anchorRef` pointing to a Hedera HCS record:
 
 ```javascript
-import { anchorIntent, computeSettlementIntentHash } from "mpcp-service/service";
-
-const intentHash = computeSettlementIntentHash(settlementIntent);
-const anchor = await anchorIntent(intentHash, { rail: "hedera-hcs" });
-
-// Store anchor with settlement for dispute resolution
+// Auditor retrieves full policy document from the PA/custodian
+// Then verifies the hash matches the on-chain anchor:
+// GET https://testnet.mirrornode.hedera.com/api/v1/topics/{topicId}/messages/{seq}
+// Decode message, verify policyHash matches policyGrant.policyHash
 ```
+
+See [Policy Anchoring](../protocol/policy-anchoring.md) for the full verification procedure.
+
+## Evidence Bundle
+
+For dispute resolution, collect the following bundle per disputed payment:
+
+| Item | Source |
+|------|--------|
+| PolicyGrant | PA server or on-chain anchor |
+| SBA | Machine wallet / merchant storage |
+| XRPL transaction | Ledger (filtered by `mpcp/grant-id` memo) |
+| Policy document (optional) | PA custodian — hash must match `policyGrant.policyHash` |
+| Revocation check result | `revocationEndpoint` at time of authorization |
 
 ## Failure Reasons
 
 | Reason | Meaning |
 |--------|---------|
-| settlement_verification_failed | MPCP chain verification failed |
-| anchor_provided_but_settlement_intent_missing | Anchor given but no settlement intent in context |
-| intent_hash_mismatch | Anchor intentHash does not match computed hash |
-| anchor_mismatch: ... | Mock anchor txHash does not match |
-| hedera_hcs_requires_async_verification | Use verifyDisputeAsync for Hedera |
+| `policy_grant_invalid` | PolicyGrant signature does not verify |
+| `policy_grant_expired` | Grant was expired at time of payment |
+| `sba_invalid` | SBA signature does not verify |
+| `sba_grant_mismatch` | SBA `grantId` does not match PolicyGrant |
+| `sba_amount_exceeded` | SBA `maxAmountMinor` exceeded the quoted amount |
+| `destination_not_in_allowlist` | Payment destination not in SBA `destinationAllowlist` |
+| `budget_exceeded` | Sum of on-chain payments > `budgetMinor` (Trust Gateway failure) |
+| `grant_revoked` | Revocation endpoint returned `{ revoked: true }` |
 
 ## See Also
 
-- [Protocol: Anchoring](../protocol/anchoring.md)
-- [Reference: Service API](https://mpcp-protocol.github.io/mpcp-reference/reference/service-api/)
+- [Policy Anchoring](../protocol/policy-anchoring.md) — HCS and XRPL NFT anchoring
+- [Trust Model](../protocol/trust-model.md) — Escrow as proof-of-reservation; on-chain audit
+- [Rails](../protocol/rails.md) — `mpcp/grant-id` memo format
+- [ArtifactBundle](../protocol/ArtifactBundle.md) — Packaging artifacts for audit

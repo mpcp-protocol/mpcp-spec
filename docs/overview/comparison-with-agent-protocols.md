@@ -100,7 +100,7 @@ of the spending that results. They are complementary layers:
 
 ```
 TAPC: Agent negotiates price with service → initiates payment
-MPCP: PolicyGrant → SBA → SPA bounds what that payment can be
+MPCP: PolicyGrant → SBA → Trust Gateway bounds and executes that payment
 ```
 
 MPCP provides the cryptographic guarantees (bounded budget, signed chain, offline verification)

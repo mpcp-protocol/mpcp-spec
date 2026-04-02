@@ -29,4 +29,4 @@ MPCP is not a settlement rail — it is the authorization layer above settlement
 
 ## Reference Implementation
 
-The [reference implementation](https://mpcp-protocol.github.io/reference/) provides the canonical TypeScript SDK, verifier, on-chain adapters, and Trust Bundle support.
+The reference implementation provides the canonical TypeScript SDK, verifier, Policy Authority server, Trust Bundle support, and on-chain adapters. See the [Integration Guide](guides/integration-guide.md) for a full stack walkthrough.

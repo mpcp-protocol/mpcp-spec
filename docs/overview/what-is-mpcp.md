@@ -7,10 +7,10 @@ The **Machine Payment Control Protocol (MPCP)** is a cryptographically enforced 
 Machines need to **spend within bounds**, not ask for approval on every transaction. MPCP provides that control layer:
 
 ```
-Policy → PolicyGrant → Budget (SBA) → Payment (SPA) → Settlement → Verification
+PolicyGrant → SignedBudgetAuthorization (SBA) → Trust Gateway → XRPL Settlement
 ```
 
-Each step produces signed artifacts that constrain the next. The machine can execute payments autonomously—as long as it stays within the bounds established when the session and budget were granted.
+Each step narrows what the machine is allowed to do. The machine signs a per-payment SBA; the Trust Gateway verifies the chain, enforces the PA-signed budget ceiling, and submits the XRPL transaction.
 
 ## Key Characteristics
 

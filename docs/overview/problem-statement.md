@@ -47,10 +47,9 @@ The alternative—blocking every payment on human approval—doesn't scale and d
 MPCP solves this by shifting approval **upstream**:
 
 1. **Policy** — Defines rules: where, when, how much, and under what conditions spending is allowed
-2. **Budget (SBA)** — Authorizes a spending envelope for a session (e.g., $30 for parking today)
-3. **Payment (SPA)** — Binds each specific settlement to the approved quote
+2. **Budget (SBA)** — Authorizes each specific payment (amount + destination), signed by the machine
 
-The human (or policy administrator) approves a **session** and a **budget**. The machine spends within that budget using pre-authorized intents. Settlement becomes a background operation, not an interactive one.
+The human (or policy administrator) approves a **grant** with a budget ceiling. The machine signs per-payment SBAs; the Trust Gateway enforces the ceiling and submits settlement. No per-transaction human approval required.
 
 When the network is unavailable, the machine holds the policy chain onboard and can sign payments locally. The verifier (e.g., parking meter) validates the chain locally. No central backend is contacted at payment time.
 

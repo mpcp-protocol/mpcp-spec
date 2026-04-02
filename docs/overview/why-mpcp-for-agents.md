@@ -8,9 +8,7 @@ When a human delegates spending authority to an AI agent, three things must be t
    stateless verification at the point of payment
 3. **The human can cancel** — revocation that propagates to merchants
 
-MPCP provides all three. The human signs a PolicyGrant with their [DID](https://www.w3.org/TR/did-core/) key; the agent pre-loads
-a signed budget authorization; merchants verify the full chain (PolicyGrant → SBA → SPA →
-Settlement) locally, with an optional online revocation check.
+MPCP provides all three. The human signs a PolicyGrant with their [DID](https://www.w3.org/TR/did-core/) key; the agent signs per-payment SBAs; merchants verify the chain (PolicyGrant + SBA) locally; and the Trust Gateway enforces the budget ceiling and submits XRPL settlement — with an optional online revocation check.
 
 ---
 
@@ -20,15 +18,15 @@ MPCP's authorization chain maps directly onto human-to-agent spending delegation
 
 ```
 Fleet (machine) profile:
-  Fleet Operator (DID) → PolicyGrant → Vehicle Wallet → SBA → SPA → Settlement
+  Fleet Operator → PolicyGrant → Trust Gateway → Vehicle Wallet → SBA → XRPL Settlement
 
 Human-to-agent profile:
-  Human (DID)          → PolicyGrant → AI Agent        → SBA → SPA → Settlement
+  Human (DID)    → PolicyGrant → Trust Gateway → AI Agent        → SBA → XRPL Settlement
 ```
 
 Both profiles use the **same MPCP artifacts and the same verifier**. The difference is in who
-signs the PolicyGrant (a human with a DID key) and what the agent does with it (books hotels,
-not charges EVs).
+signs the PolicyGrant (a human with a DID key or PA server) and what the agent does with it
+(books hotels, not charges EVs).
 
 ---
 
@@ -48,17 +46,18 @@ spending is still bounded — the agent cannot exceed `maxAmountMinor` or pay ou
 
 ### Cryptographic spending bounds, not just policy text
 
-The SBA is a *signed* artifact specifying the exact maximum spend in atomic units. Merchants
-verify the signature and the budget math independently. There is no "trust the agent" step.
+The SBA is a *signed* artifact specifying the exact maximum spend for this payment. Merchants verify the signature independently. There is no "trust the agent" step. And the Trust Gateway enforces the cumulative budget ceiling on top — a compromised or prompt-injected agent cannot cause overspending.
 
 ```
-SBA.maxAmountMinor = "80000"   (USD cents → $800.00)
-SBA.budgetScope    = "TRIP"    (covers the full Paris trip)
+SBA.maxAmountMinor = "25000"   (USD cents → $250.00 — this booking)
+SBA.budgetScope    = "TRIP"    (delegation spans the full Paris trip)
 SBA.expiresAt      = "2026-04-13T23:59:59Z"
+
+PolicyGrant.budgetMinor = 80000  (PA-signed ceiling → $800.00 total, enforced by Trust Gateway)
 ```
 
-The agent cannot forge a larger SBA — it doesn't hold the SBA signing key (that belongs to
-the session authority, which the human or a human-controlled service provisions).
+The agent cannot forge a larger SBA — it doesn't hold the SBA signing key. And even if it
+did, the Trust Gateway rejects any SBA that would push cumulative spend past `budgetMinor`.
 
 ### Human revocation mid-delegation
 
@@ -79,7 +78,7 @@ revocation is a separate online check the merchant makes using `checkRevocation(
 "allowedPurposes": ["travel:hotel", "travel:flight", "travel:transport"]
 ```
 
-The agent enforces this filter — it refuses to sign an SPA for a restaurant booking because
+The agent enforces this filter — it refuses to sign an SBA for a restaurant booking because
 `travel:dining` is not in the list. The merchant sees the `allowedPurposes` field in the
 PolicyGrant during verification and can confirm the payment category was permitted.
 
@@ -95,7 +94,7 @@ A travel agent powered by MCP tools might:
 ```
 MCP tool call:    search_hotels("Paris", dates)   → returns options
 MCP tool call:    book_hotel("Mercure Paris")      → initiates booking
-MPCP payment:     SPA signed for $250             → bounded by Alice's $800 PolicyGrant
+MPCP payment:     SBA signed for $250             → Trust Gateway enforces Alice's $800 ceiling
 ```
 
 The protocols are additive. An agent runtime can use MCP for task execution and MPCP for
@@ -111,8 +110,8 @@ cryptographic spending layer on top.
 | Agent books travel across multiple days | TRIP scope SBA covers the whole trip |
 | Human needs to cancel mid-delegation | `revocationEndpoint` → `checkRevocation()` |
 | Agent should only pay for certain categories | `allowedPurposes` filter |
-| Merchant needs offline-capable verification | PolicyGrant + SBA chain verifies locally |
-| Agent spending must be auditable | Full artifact bundle per payment, signed chain |
+| Merchant needs offline-capable verification | PolicyGrant + SBA chain verifies locally via Trust Bundle |
+| Agent spending must be auditable | On-chain `mpcp/grant-id` memo + PolicyGrant + SBA bundle |
 | Human uses a DID key (not a service account) | `issuer` = DID, standard key resolution |
 
 ---
