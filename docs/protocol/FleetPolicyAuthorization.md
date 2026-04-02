@@ -14,7 +14,6 @@ While MPCP already defines operator-issued controls such as:
 
 - PolicyGrant
 - SignedBudgetAuthorization (SBA)
-- SignedPaymentAuthorization (SPA)
 
 large autonomous fleets require **their own governance layer** over machine payments.
 
@@ -40,11 +39,7 @@ Operator Policy
       ↓
 PolicyGrant
       ↓
-SBA
-      ↓
-SPA
-      ↓
-Settlement
+SBA → Trust Gateway → XRPL Settlement
 ```
 
 This model is insufficient for enterprise fleets because:
@@ -70,11 +65,7 @@ Operator Policy (PolicyGrant)
         ↓
 Effective Grant
         ↓
-SBA
-        ↓
-SPA
-        ↓
-Settlement
+SBA → Trust Gateway → XRPL Settlement
 ```
 
 Rules:
@@ -195,11 +186,7 @@ FPA
  ↓
 PolicyGrant
  ↓
-SBA
- ↓
-SPA
- ↓
-SettlementIntent
+SBA → Trust Gateway → XRPL Settlement
 ```
 
 ---
@@ -247,11 +234,9 @@ PolicyGrant
         ↓
 SignedBudgetAuthorization (SBA)
         ↓
-SignedPaymentAuthorization (SPA)
+Trust Gateway
         ↓
-SettlementIntent
-        ↓
-Settlement
+XRPL Settlement
 ```
 
 Each artifact must remain compliant with the constraints of the artifacts above it.

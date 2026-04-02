@@ -22,10 +22,11 @@ Payments must complete when the network is unavailable. Underground parking, tun
 
 ### 3. Verifiable Chain
 
-Every settlement must be independently verifiable against the authorization chain. PolicyGrant → SBA → SPA → Settlement forms a traceable, auditable sequence.
+Every settlement must be independently verifiable against the authorization chain. PolicyGrant → SBA → Trust Gateway → XRPL Settlement forms a traceable, auditable sequence.
 
 - Each step produces a signed or verifiable artifact
-- Operators and auditors can trace from settlement back to policy
+- On-chain `mpcp/grant-id` memo links every XRPL payment back to the originating grant
+- Operators and auditors can trace from settlement receipt back to policy
 - Deterministic verification rules
 
 ### 4. Settlement-Agnostic Policy
@@ -38,10 +39,10 @@ Policy and budget are expressed in abstract terms (caps, rails, destinations). S
 
 ### 5. Separation of Concerns
 
-Policy evaluation is distinct from budget issuance, which is distinct from payment binding. Each layer can be audited, tested, and replaced independently.
+Policy evaluation is distinct from budget authorization, which is distinct from settlement execution. Each layer can be audited, tested, and replaced independently.
 
-- Minimal disclosure: budget does not need to know every future payment
-- Payment authorization binds only what is necessary for that settlement
+- Minimal disclosure: SBA specifies only what is necessary for the current payment
+- Trust Gateway enforces the policy ceiling independently of agent behavior
 
 ## Architecture Principles
 
@@ -50,22 +51,20 @@ The protocol follows a deliberate pipeline:
 ```
 Policy
    ↓
-PolicyGrant (session entry)
+PolicyGrant (session entry — PA-signed budget ceiling, escrow ref, authorized gateway)
    ↓
-SignedBudgetAuthorization (spending envelope)
+SignedBudgetAuthorization (per-payment authorization — amount + destination)
    ↓
-SignedPaymentAuthorization (binding to specific settlement)
+Trust Gateway (enforces ceiling, manages escrow, submits XRPL Payment)
    ↓
-Settlement Execution
-   ↓
-Settlement Verification
+XRPL Settlement (transaction hash + mpcp/grant-id memo)
 ```
 
 This sequence ensures:
 
 1. **Separation of concerns** — Each layer has a single responsibility
 2. **Minimal disclosure** — No over-sharing of payment details
-3. **Verifiable chain** — Signed artifacts at each step
+3. **Verifiable chain** — Signed artifacts at each step; on-chain audit via memo
 4. **Settlement-agnostic policy** — Abstract constraints, concrete execution
 
 ## Comparison with Alternatives

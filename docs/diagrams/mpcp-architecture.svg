@@ -29,9 +29,8 @@
   <text x="850" y="30" text-anchor="middle" class="title">MPCP Architecture Overview</text>
   <text x="850" y="50" text-anchor="middle" class="sub">Policy → Authorization Chain → Settlement · Each artifact cryptographically constrains the next</text>
 
-  <!-- Native MPCP direct path label (inside gateway column, above gateway box) -->
-  <text x="837" y="98" text-anchor="middle" class="aNote" fill="#4ade80">Auth Bundle (PolicyGrant + SBA + SPA)</text>
-  <text x="837" y="112" text-anchor="middle" class="aNote" fill="#4ade80">native MPCP agents bypass gateway — direct to Service Provider</text>
+  <!-- Trust Gateway column header -->
+  <text x="837" y="78" text-anchor="middle" class="colHdr">TRUST GATEWAY</text>
 
   <!--
        Column layout (1700px canvas, 70px gaps)
@@ -55,8 +54,7 @@
   <text x="1147" y="78" text-anchor="middle" class="colHdr">SERVICE PROVIDER</text>
   <text x="1494" y="78" text-anchor="middle" class="colHdr">SETTLEMENT RAIL</text>
 
-  <!-- Direct native MPCP path: Agent right edge → SP left edge, routed through gateway column space -->
-  <path d="M662,122 L1005,122" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ahG)"/>
+  <!-- (direct bypass path removed — Trust Gateway is mandatory for XRPL profile) -->
 
   <!-- ================================================================
        COL 1 — POLICY AUTHORITY
@@ -97,7 +95,7 @@
   <text x="526" y="139" text-anchor="middle" fill="#86efac" class="bSub">Vehicle Wallet</text>
   <text x="406" y="158" class="detail">• stores PolicyGrant (offline-capable)</text>
   <text x="406" y="176" class="detail">• signs SBA (SESSION / DAY scope)</text>
-  <text x="406" y="194" class="detail">• signs SPA per payment request</text>
+  <text x="406" y="194" class="detail">• signs SBA per payment request</text>
   <text x="406" y="212" class="detail">• hardware key binding (device key)</text>
   <text x="526" y="232" text-anchor="middle" class="bSub" fill="#64748b">EV · Robot · IoT device</text>
 
@@ -108,53 +106,58 @@
   <text x="406" y="301" class="detail">• signs SBA with TRIP scope</text>
   <text x="406" y="319" class="detail">• enforces allowedPurposes per request</text>
   <text x="406" y="337" class="detail">• tracks cumulative spend across TRIP</text>
-  <text x="406" y="355" class="detail">• checks revocationEndpoint before SPA</text>
+  <text x="406" y="355" class="detail">• checks revocationEndpoint before SBA</text>
   <text x="526" y="375" text-anchor="middle" class="bSub" fill="#64748b">Travel · Subscription · Compute</text>
 
   <line x1="406" y1="387" x2="646" y2="387" stroke="#14532d" stroke-width="1"/>
-  <text x="526" y="406" text-anchor="middle" class="dim">PolicyGrant → SBA → SPA</text>
+  <text x="526" y="406" text-anchor="middle" class="dim">PolicyGrant → SBA → Trust Gateway</text>
   <text x="526" y="424" text-anchor="middle" class="dim">stateless · verifiable offline</text>
   <text x="526" y="442" text-anchor="middle" class="dim">Wallet SDK · @mpcp/agent · @mpcp/core</text>
   <text x="526" y="460" text-anchor="middle" class="dim">@mpcp/react · createX402Client</text>
-  <text x="526" y="478" text-anchor="middle" class="dim">mpcp-gateway-client · session.fetch()</text>
+  <text x="526" y="478" text-anchor="middle" class="dim">session.fetch() — drop-in fetch</text>
   <text x="526" y="496" text-anchor="middle" class="dim">LangChain / Vercel AI / AutoGen adapters</text>
   <text x="526" y="514" text-anchor="middle" class="dim">x402 merchant mode via gateway</text>
 
   <!-- ================================================================
-       COL 3 — MPCP GATEWAY (optional)
+       COL 3 — TRUST GATEWAY (mandatory)
        ================================================================ -->
 
-  <!-- Gateway box: x=732 y=160 w=210 h=432 -->
-  <rect x="732" y="160" width="210" height="432" rx="6" fill="#0c1f1e" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="6 3"/>
-  <text x="837" y="181" text-anchor="middle" class="bTitle" fill="#2dd4bf">MPCP Gateway</text>
-  <line x1="748" y1="189" x2="926" y2="189" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- Gateway box: x=732 y=120 w=210 h=472 -->
+  <rect x="732" y="120" width="210" height="472" rx="6" fill="#0c1f1e" stroke="#0d9488" stroke-width="2"/>
+  <text x="837" y="141" text-anchor="middle" class="bTitle" fill="#2dd4bf">Trust Gateway</text>
+  <line x1="748" y1="149" x2="926" y2="149" stroke="#134e4a" stroke-width="1"/>
 
-  <text x="837" y="207" text-anchor="middle" fill="#5eead4" class="bSub">gateway-client  (agent-side)</text>
-  <text x="748" y="226" class="detail">• GatewayClient + GatewaySession</text>
-  <text x="748" y="244" class="detail">• session.fetch() — drop-in fetch</text>
-  <text x="748" y="262" class="detail">• onSoftLimit callback</text>
-  <text x="748" y="280" class="detail">• LangChain / Vercel AI adapters</text>
+  <text x="837" y="169" text-anchor="middle" fill="#5eead4" class="bSub">Grant Issuance</text>
+  <text x="748" y="188" class="detail">• creates XRPL budget escrow</text>
+  <text x="748" y="206" class="detail">• locks budgetMinor XRP on-chain</text>
+  <text x="748" y="224" class="detail">• budgetEscrowRef → PolicyGrant</text>
 
-  <line x1="748" y1="292" x2="926" y2="292" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
+  <line x1="748" y1="236" x2="926" y2="236" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
 
-  <text x="837" y="310" text-anchor="middle" fill="#5eead4" class="bSub">gateway server  (transparent proxy)</text>
-  <text x="748" y="329" class="detail">• intercepts HTTP 402</text>
-  <text x="748" y="347" class="detail">• enforces budget + purposes</text>
-  <text x="748" y="365" class="detail">• executes x402 payment</text>
-  <text x="748" y="383" class="detail">• attaches X-Mpcp-Sba header</text>
-  <text x="748" y="401" class="detail">• Trust Bundle at /.well-known</text>
-  <text x="748" y="419" class="detail">• spend webhooks · soft limits</text>
-  <text x="748" y="437" class="detail">• merchant allow/blocklist</text>
-  <text x="748" y="455" class="detail">• velocity limits · signed receipts</text>
+  <text x="837" y="256" text-anchor="middle" fill="#5eead4" class="bSub">Per-Payment Settlement</text>
+  <text x="748" y="275" class="detail">• holds XRPL gateway seed</text>
+  <text x="748" y="293" class="detail">• receives SBA from agent</text>
+  <text x="748" y="311" class="detail">• verifies SBA signature</text>
+  <text x="748" y="329" class="detail">• enforces PA-signed budgetMinor</text>
+  <text x="748" y="347" class="detail">• submits XRPL Payment</text>
+  <text x="748" y="365" class="detail">• attaches mpcp/grant-id memo</text>
+  <text x="748" y="383" class="detail">• spend webhooks · soft limits</text>
+  <text x="748" y="401" class="detail">• merchant allow/blocklist</text>
 
-  <line x1="748" y1="467" x2="926" y2="467" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
-  <text x="837" y="485" text-anchor="middle" class="dim">bridges non-MPCP agents to</text>
-  <text x="837" y="503" text-anchor="middle" class="dim">MPCP-aware merchants</text>
-  <text x="837" y="521" text-anchor="middle" class="dim">native MPCP agents bypass this layer</text>
+  <line x1="748" y1="413" x2="926" y2="413" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
 
-  <!-- Optional badge -->
-  <rect x="772" y="533" width="130" height="21" rx="4" fill="#134e4a" stroke="#0d9488" stroke-width="1"/>
-  <text x="837" y="548" text-anchor="middle" fill="#2dd4bf" style="font: bold 10px system-ui,sans-serif; letter-spacing:0.5px">OPTIONAL LAYER</text>
+  <text x="837" y="433" text-anchor="middle" fill="#5eead4" class="bSub">Grant Lifecycle</text>
+  <text x="748" y="452" class="detail">• EscrowFinish on revocation</text>
+  <text x="748" y="470" class="detail">• EscrowCancel on expiry</text>
+  <text x="748" y="488" class="detail">• on-chain audit via grant-id memo</text>
+
+  <line x1="748" y1="500" x2="926" y2="500" stroke="#134e4a" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="837" y="520" text-anchor="middle" class="dim">mpcp-gateway · Trust Gateway</text>
+  <text x="837" y="538" text-anchor="middle" class="dim">mandatory for XRPL profile</text>
+
+  <!-- Mandatory badge -->
+  <rect x="762" y="555" width="150" height="21" rx="4" fill="#134e4a" stroke="#0d9488" stroke-width="1.5"/>
+  <text x="837" y="570" text-anchor="middle" fill="#2dd4bf" style="font: bold 10px system-ui,sans-serif; letter-spacing:0.5px">MANDATORY ACTOR</text>
 
   <!-- ================================================================
        COL 4 — SERVICE PROVIDER
@@ -170,7 +173,7 @@
   <text x="1028" y="173" class="detail">• resolves issuer DID → public key</text>
   <text x="1028" y="191" class="detail">• verifies PolicyGrant signature ✓</text>
   <text x="1028" y="209" class="detail">• verifies SBA (budget + scope) ✓</text>
-  <text x="1028" y="227" class="detail">• verifies SPA (amount + destination) ✓</text>
+  <text x="1028" y="227" class="detail">• receives XRPL payment from gateway</text>
   <text x="1028" y="245" class="detail">• optional: check revocationEndpoint</text>
   <text x="1028" y="263" class="detail">• grants service or returns 402</text>
 
@@ -233,7 +236,7 @@
   <text x="526" y="599" text-anchor="middle" class="bSub" fill="#fb7185">(hosted by policy authority)</text>
   <line x1="406" y1="607" x2="646" y2="607" stroke="#334155" stroke-width="1" stroke-dasharray="4 3"/>
   <text x="406" y="625" class="detail">• GET /revoke?grantId= → { revoked }</text>
-  <text x="406" y="643" class="detail">• checked before each SPA signing</text>
+  <text x="406" y="643" class="detail">• checked before each SBA signing</text>
   <text x="406" y="661" class="detail">• checked by verifier before service</text>
   <text x="406" y="679" class="detail">• TTL cache in merchant-sdk</text>
 
@@ -253,13 +256,13 @@
 
   <!-- Agent → Gateway-client (y=245) -->
   <path d="M662,245 L732,245" fill="none" stroke="#2dd4bf" stroke-width="2" marker-end="url(#ahT)"/>
-  <text x="697" y="239" text-anchor="middle" class="aNote" fill="#2dd4bf">session</text>
-  <text x="697" y="252" text-anchor="middle" class="aNote" fill="#2dd4bf">.fetch()</text>
+  <text x="697" y="239" text-anchor="middle" class="aNote" fill="#2dd4bf">SBA</text>
+  <text x="697" y="252" text-anchor="middle" class="aNote" fill="#2dd4bf">+ grant</text>
 
   <!-- Gateway server → SP (y=380) -->
   <path d="M942,380 L1012,380" fill="none" stroke="#2dd4bf" stroke-width="2" marker-end="url(#ahT)"/>
-  <text x="977" y="372" text-anchor="middle" class="aNote" fill="#2dd4bf">x402</text>
-  <text x="977" y="388" text-anchor="middle" class="aNote" fill="#2dd4bf">+ SBA</text>
+  <text x="977" y="372" text-anchor="middle" class="aNote" fill="#2dd4bf">XRPL</text>
+  <text x="977" y="388" text-anchor="middle" class="aNote" fill="#2dd4bf">payment</text>
 
   <!-- Settlement: SP → Rail (y=222) -->
   <path d="M1282,222 L1352,222" fill="none" stroke="#a78bfa" stroke-width="2" marker-end="url(#ahV)"/>
@@ -279,6 +282,6 @@
 
   <rect x="20" y="756" width="1660" height="54" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
   <text x="850" y="776" text-anchor="middle" class="sub" fill="#475569">Authorization Chain</text>
-  <text x="850" y="797" text-anchor="middle" class="chain">PolicyGrant → SignedBudgetAuthorization → SignedPaymentAuthorization → SettlementIntent → Settlement</text>
+  <text x="850" y="797" text-anchor="middle" class="chain">PolicyGrant → SignedBudgetAuthorization → Trust Gateway → XRPL Settlement</text>
 
 </svg>

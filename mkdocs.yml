@@ -32,7 +32,6 @@ theme:
 
 nav:
   - MPCP: https://mpcp-protocol.github.io/
-  - Reference: https://mpcp-protocol.github.io/reference/
   - Home: index.md
   - Overview:
     - What is MPCP: overview/what-is-mpcp.md
