@@ -58,9 +58,7 @@ An optional **DID/VC layer** may supplement this in deployments that require:
 - verifiable credential metadata
 - decentralized key discovery via on-chain DID methods (`did:xrpl`, `did:hedera`, `did:web`, etc.)
 
-DIDs and VCs do **not** replace MPCP artifacts such as `SignedBudgetAuthorization`, `SignedPaymentAuthorization`, or `SettlementIntent`.
-
-MPCP remains the **runtime payment authorization protocol** regardless of which key resolution method is used.
+DIDs and VCs do **not** replace MPCP's authorization chain. The `SignedBudgetAuthorization` and the Trust Gateway remain the core runtime payment control mechanism regardless of which key resolution method is used.
 
 ## Vehicle Wallet
 
@@ -74,14 +72,8 @@ Each EV contains a **machine wallet** responsible for:
 The wallet is the MPCP actor that signs:
 
 - SignedBudgetAuthorization (SBA)
-- SignedPaymentAuthorization (SPA)
 
-In this autonomous deployment model, the vehicle wallet **embeds both the session authority and the payment decision service roles**:
-
-- **session authority**: creates and signs the SBA, defining the session-level budget and permitted destinations
-- **payment decision service**: evaluates each quote against the policy, assigns a `decisionId`, and signs the SPA
-
-The wallet also maintains a **shift-level cumulative budget tracker**. Before signing each SBA, it checks whether the new payment would exceed the shift ceiling. If so, it refuses — no SBA is created, no network call is made, and no authorization bundle reaches the merchant. This enforcement is deterministic and requires no server dependency.
+The wallet signs a per-payment SBA that bounds the amount and destination for each transaction. It does **not** submit XRPL payments directly — the **Trust Gateway** is the mandatory settlement actor.
 
 The wallet also checks the fleet's **revocation endpoint** before signing each SBA. If the fleet operator has disabled the vehicle, the wallet refuses to sign, regardless of remaining budget.
 
@@ -130,20 +122,24 @@ Note: MPCP artifact verification is performed by the **Charging Operator Backend
 
 ---
 
+## Trust Gateway
+
+The Trust Gateway is a **mandatory** actor in MPCP's XRPL profile. It:
+
+- receives the PA-signed PolicyGrant and creates the XRPL budget escrow at grant issuance
+- holds the XRPL gateway seed — no other actor submits payments on its behalf
+- enforces the PA-signed `budgetMinor` as a hard ceiling across all payments in the session
+- verifies each SBA before signing the XRPL Payment transaction
+- attaches an `mpcp/grant-id` memo to every on-chain payment for audit traceability
+- releases the escrow at grant expiry or revocation
+
 ## Settlement Rail
 
 The settlement layer executes the payment.
 
-Examples:
+In this reference flow: **XRPL + RLUSD**. Other rails (EVM, Stellar) follow the same authorization model with rail-specific escrow mechanisms.
 
-- XRPL + RLUSD
-- stablecoin rails
-- blockchain settlement systems
-- traditional payment networks
-
-MPCP does not replace settlement systems.
-
-It **controls authorization above them**.
+MPCP does not replace settlement systems. It **controls authorization above them**.
 
 ---
 
@@ -207,15 +203,12 @@ The EV charging flow uses the following MPCP artifacts.
 
 | Artifact | Issued By | Purpose |
 |--------|--------|--------|
-| PolicyGrant | Fleet policy service | Defines global payment constraints |
-| SignedBudgetAuthorization | Vehicle wallet (session authority role) | Defines session‑level spending limits |
-| SignedPaymentAuthorization | Vehicle wallet (payment decision service role) | Authorizes a specific payment |
-| SettlementIntent | Vehicle wallet | Defines settlement parameters |
-| Settlement Result | Settlement rail | Confirms payment execution |
-| Intent Anchor *(optional)* | Charging Operator Backend | Anchors `intentHash` to public ledger for tamper-evident audit |
+| PolicyGrant | Fleet policy service | Defines global payment constraints, budget ceiling, escrow ref |
+| SignedBudgetAuthorization | Vehicle wallet | Authorizes a specific payment (amount + destination) |
+| XRPL Payment + memo | Trust Gateway | Executes on-chain settlement; tagged with `grantId` for audit |
+| Settlement Result | XRPL ledger | Confirms payment execution (transaction hash) |
 
-
-These artifacts form the **authorization chain**.
+These artifacts form the **authorization chain**: PolicyGrant → SBA → Trust Gateway → XRPL settlement.
 
 ---
 
@@ -238,13 +231,11 @@ This diagram highlights the **separation of roles**:
 
 The following table summarizes **where each artifact typically resides**.
 
-| Artifact | Fleet Backend | Vehicle Wallet | Charging Operator | Settlement Rail |
-|---|---|---|---|---|
-| PolicyGrant | Authoritative copy | Operational copy | Optional reference | — |
-| SignedBudgetAuthorization | Optional audit | Active session artifact | Received during authorization | — |
-| SignedPaymentAuthorization | Optional audit | Created and signed | Received and verified | — |
-| SettlementIntent | Optional audit | Runtime artifact | Optional (for verification) | — |
-| Settlement Result | Reconciliation | Stored receipt | Stored receipt | Authoritative record |
+| Artifact | Fleet Backend | Vehicle Wallet | Trust Gateway | Charging Operator | Settlement Rail |
+|---|---|---|---|---|---|
+| PolicyGrant | Authoritative copy | Operational copy | Operational copy | Optional reference | — |
+| SignedBudgetAuthorization | Optional audit | Signed per payment | Received + verified | Received for verification | — |
+| Settlement Result | Reconciliation | Stored receipt | Stored receipt | Stored receipt | Authoritative record |
 
 This matrix helps implementers understand **where artifacts should be persisted and where they are transient**.
 
@@ -460,57 +451,11 @@ Stored by:
 
 ---
 
-## SettlementIntent
+## Trust Gateway Settlement
 
-Issued by:
+The Trust Gateway is responsible for submitting the XRPL Payment transaction after verifying the SBA. It does not create a separate MPCP artifact — the settlement proof is the XRPL transaction itself, tagged with an `mpcp/grant-id` memo.
 
-```
-Vehicle Wallet
-```
-
-Created after the charging station provides a quote.
-
-Contains:
-
-- rail
-- asset
-- destination
-- amount
-- optional connector metadata
-
-SettlementIntent may produce an **intentHash** used in the SPA.
-
-The SettlementIntent remains an MPCP-native runtime artifact and is **not typically modeled as a Verifiable Credential**, because it is ephemeral and optimized for deterministic hashing and lightweight transport.
-
----
-
-## SignedPaymentAuthorization (SPA)
-
-Issued by:
-
-```
-Vehicle Wallet
-```
-
-Purpose:
-
-Authorize a specific payment request.
-
-Contains:
-
-- session reference
-- settlement parameters
-- optional intentHash
-- decision ID
-- signature
-
-Stored by:
-
-- vehicle wallet
-- charging network backend
-- audit logs
-
-The SPA is also an MPCP-native runtime artifact and is usually verified directly against the vehicle wallet's signing key rather than wrapped as a VC.
+The Trust Gateway tracks cumulative spend for the grant and refuses any SBA that would cause the total to exceed the PA-signed `budgetMinor`.
 
 ---
 
@@ -592,76 +537,36 @@ Vehicle checks:
 
 ---
 
-## T+15s — Budget Authorization
+## T+15s — Payment Authorization
 
-The vehicle wallet **creates** a fresh `SignedBudgetAuthorization` for this session (or **loads** an existing one if this session is already active).
-
-Example:
+The vehicle wallet signs a **SignedBudgetAuthorization** for this payment:
 
 ```
-maxAmountMinor: 2500   (USD, minor units)
+maxAmountMinor: 780   (USD cents = $7.80)
 budgetScope: SESSION
-session: charging-session-847
+sessionId: charging-session-847
 grantId: pg-983745
+destinationAllowlist: [ChargeNet account]
 ```
 
----
+The authorization bundle is sent to the charger:
 
-## T+20s — Settlement Intent
-
-Vehicle constructs a **SettlementIntent**:
-
-```
-rail: XRPL
-asset: RLUSD
-amount: 780000   (atomic units, 6 decimal places = 0.78 RLUSD)
-destination: ChargeNet account
-```
-
-An **intentHash** may be generated.
-
----
-
-## T+22s — Payment Decision and Authorization
-
-The vehicle wallet's payment decision logic evaluates the quote:
-
-- confirms the destination is on the SBA `destinationAllowlist`
-- confirms the amount fits within the session budget
-- assigns a `decisionId` and links it to the `quoteId`
-
-The wallet then signs a **SignedPaymentAuthorization** (SPA) binding:
-
-- `decisionId` and `quoteId`
-- session ID and budget ID
-- settlement parameters (rail, asset, amount, destination)
-- optional `intentHash` (SHA-256 of the SettlementIntent)
-
----
-
-## T+25s — Authorization Sent to Charger
-
-The charger receives:
-
-- SignedPaymentAuthorization
 - SignedBudgetAuthorization
 - PolicyGrant (or reference)
-- SettlementIntent (optional)
 
 ---
 
-## T+27s — Charging Operator Verification
+## T+18s — Charging Operator Verification
 
 The **charging operator backend** verifies:
 
-1. issuer public key resolves (via HTTPS well-known, or DID if configured)
+1. issuer public key resolves (via Trust Bundle, HTTPS well-known, or DID)
 2. PolicyGrant is valid and not expired
 3. SignedBudgetAuthorization signature and constraints are valid
-4. SPA signature is valid
-5. SPA parameters match the quote
-6. settlement parameters match the allowed policy
+4. SBA `maxAmountMinor` covers the quoted amount
+5. `destinationAllowlist` includes the operator's settlement address
 
-If verification passes, the backend signals the physical charging station to begin.
+If verification passes, the backend signals the physical charging station to begin and forwards the SBA to the Trust Gateway for settlement.
 
 ---
 
@@ -687,57 +592,24 @@ Payment may be:
 
 ## T+Session End — Settlement
 
-Vehicle wallet submits payment to the settlement rail:
+The **Trust Gateway** submits an XRPL Payment transaction to the settlement rail:
 
 ```
 XRPL payment
-vehicle_wallet → ChargeNet account
+gateway_account → ChargeNet account
+memo: mpcp/grant-id = hex(grantId)
 ```
+
+The Trust Gateway:
+
+- verifies cumulative spend for this grant does not exceed `budgetMinor`
+- submits the XRPL Payment
+- returns the transaction hash to the charging operator as the payment receipt
 
 Charging operator backend then:
 
-- verifies the settlement transaction
-- binds the tx to the `decisionId`
-- marks the authorization consumed
-- stores the audit bundle
-
----
-
-## T+Session End+35s — Intent Attestation *(optional)*
-
-The charging operator backend optionally anchors the `intentHash` to a public ledger for a tamper-evident audit trail.
-
-Example using Hedera Consensus Service (HCS):
-
-```
-intentHash + decisionId
-        ↓
-HCS topic submission
-        ↓
-consensus timestamp + sequence number
-        ↓
-anchor reference stored in audit bundle
-```
-
-The anchor record stored alongside the audit bundle:
-
-```json
-{
-  "intentHash": "sha256ofSettlementIntent...",
-  "ledger": "hedera-hcs",
-  "topicId": "0.0.12345",
-  "sequenceNumber": 42,
-  "consensusTimestamp": "2026-03-12T14:31:45Z"
-}
-```
-
-The anchor provides:
-
-- **tamper detection** — any modification to the settlement parameters invalidates the `intentHash`
-- **public auditability** — the anchor is visible on the public ledger to any third party
-- **dispute protection** — proves the authorized intent was committed before settlement executed
-
-Intent anchoring is **optional** and does not block or affect the payment flow. Settlement and verification are complete without it.
+- verifies the XRPL transaction on-chain
+- stores the transaction hash alongside the authorization bundle
 
 ---
 
@@ -764,7 +636,7 @@ Each merchant verifies the SBA independently using a pre-loaded **Trust Bundle**
 Key properties of this pattern:
 
 - **Single PolicyGrant, multiple payments** — the grant covers the entire shift; each SBA is signed per payment with a per-payment `maxAmountMinor`
-- **On-vehicle enforcement** — the wallet Session tracks cumulative spend; overspend refusals happen before any authorization bundle is created
+- **Trust Gateway enforcement** — the gateway tracks cumulative spend and enforces the PA-signed `budgetMinor` as a hard ceiling; the on-chain escrow provides an independent upper bound
 - **Trust Bundle key resolution** — pre-loaded at merchant startup; resolves the vehicle's public key by `issuer` identifier without any live network call
 - **Revocation before signing** — the wallet checks the fleet's revocation endpoint before signing each SBA; a disabled vehicle cannot issue new authorizations regardless of remaining budget
 
@@ -787,10 +659,8 @@ This is the recommended pattern for third-party infrastructure (toll terminals, 
 ## Vehicle Wallet Stores
 
 - active PolicyGrant
-- active SignedBudgetAuthorization
-- SettlementIntent
-- SignedPaymentAuthorization
-- settlement receipts
+- per-payment SignedBudgetAuthorizations (signed, not yet submitted)
+- settlement receipts (XRPL transaction hashes)
 
 ---
 
@@ -868,11 +738,11 @@ Before authorizing payment:
 
 Before charging begins:
 
-- issuer public key resolved and PolicyGrant signature is valid
+- issuer public key resolved (Trust Bundle preferred; HTTPS well-known fallback) and PolicyGrant signature is valid
 - PolicyGrant not expired and constraints match
 - SignedBudgetAuthorization signature and constraints are valid
-- SPA signature valid
-- payment parameters match the quote
+- SBA `maxAmountMinor` covers the quoted amount
+- SBA `destinationAllowlist` includes the operator's settlement address
 - authorization not expired
 
 ---
@@ -936,11 +806,8 @@ For audit or dispute resolution, the following bundle may be stored:
 
 - PolicyGrant
 - SignedBudgetAuthorization
-- SignedPaymentAuthorization
-- SettlementIntent
 - charging quote metadata
-- settlement receipt
-- optional intent anchor (ledger hash for tamper-detection)
+- XRPL transaction hash (settlement receipt, including `mpcp/grant-id` memo)
 - optional issuer DID resolution record (when DID/VC layer is used)
 
 This bundle allows full replay of the authorization chain.
@@ -951,9 +818,9 @@ This bundle allows full replay of the authorization chain.
 
 The following example shows the kind of **self-contained authorization bundle** a charging operator could receive and store for verification, audit, or dispute replay.
 
-This example is intentionally simplified, but it illustrates how the full MPCP chain may be packaged.
+This example is intentionally simplified, but it illustrates how the full MPCP authorization bundle may be packaged for audit.
 
-> Note: Amounts are encoded in atomic units. For example, `"780000"` represents 0.78 RLUSD with 6 decimal places, consistent with XRPL IOU conventions.
+> Note: SBA amounts are in USD minor units (cents). On-chain XRPL amounts are in drops or RLUSD atomic units depending on the asset.
 
 ```json
 {
@@ -964,6 +831,10 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
     "allowedAssets": [
       { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
     ],
+    "budgetMinor": 2500,
+    "budgetEscrowRef": "xrpl:escrow:rGateway...:12345678",
+    "authorizedGateway": "rGateway...",
+    "offlineMaxSinglePayment": 500,
     "expiresAt": "2026-03-13T23:59:00Z"
   },
 
@@ -978,7 +849,7 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
       "currency": "USD",
       "minorUnit": 2,
       "budgetScope": "SESSION",
-      "maxAmountMinor": "2500",
+      "maxAmountMinor": "780",
       "allowedRails": ["xrpl"],
       "allowedAssets": [
         { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }
@@ -1003,39 +874,14 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
     "expiresAt": "2026-03-12T14:35:00Z"
   },
 
-  "settlementIntent": {
-    "version": "1.0",
-    "rail": "xrpl",
-    "amount": "780000",
-    "destination": "rChargeNetDestination",
-    "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
-    "createdAt": "2026-03-12T14:30:20Z"
-  },
-
-  "spa": {
-    "authorization": {
-      "version": "1.0",
-      "decisionId": "dec-9001",
-      "sessionId": "charging-session-847",
-      "policyHash": "abc123...",
-      "budgetId": "bud-session-847",
-      "quoteId": "quote-4421",
-      "rail": "xrpl",
-      "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
-      "amount": "780000",
-      "destination": "rChargeNetDestination",
-      "intentHash": "sha256ofSettlementIntent...",
-      "expiresAt": "2026-03-12T14:35:00Z"
-    },
-    "issuerKeyId": "mpcp-spa-signing-key-1",
-    "signature": "base64encodedSignature..."
-  },
-
   "settlement": {
     "rail": "xrpl",
+    "txHash": "ABCDEF1234...",
     "amount": "780000",
     "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
     "destination": "rChargeNetDestination",
+    "submittedBy": "rGateway...",
+    "memoGrantId": "pg-983745",
     "nowISO": "2026-03-12T14:31:10Z"
   }
 }
@@ -1045,21 +891,20 @@ This example is intentionally simplified, but it illustrates how the full MPCP c
 
 This bundle illustrates the canonical MPCP artifact structure:
 
-- `policyGrant` contains only the MPCP-native grant fields (`grantId`, `policyHash`, `allowedRails`, `allowedAssets`, `expiresAt`)
-- `sba` uses the signed envelope format: `{ authorization: {...}, issuerKeyId, signature }` — the `authorization` object is what gets hashed and signed
-- `spa` uses the same signed envelope format; `authorization.budgetId` links to `sba.authorization.budgetId`; `authorization.grantId` in the SBA links to `policyGrant.grantId`
-- `chargingQuote` is not an MPCP artifact but is operationally important — the operator must verify that the SPA `amount` and `destination` match the quote
-- amounts are encoded in atomic units (e.g., `"780000"` for 0.78 RLUSD with 6 decimal places)
-- `settlement` records what was actually submitted to the settlement rail; the operator verifies it matches the SPA
+- `policyGrant` includes `budgetMinor`, `budgetEscrowRef`, and `authorizedGateway` — the PA-signed fields that enable Trust Gateway enforcement and on-chain escrow
+- `sba` uses the signed envelope format: `{ authorization: {...}, issuer, issuerKeyId, signature }` — the `authorization` object is what gets hashed and signed; `issuer` is required for Trust Bundle key resolution at offline merchants
+- `sba.authorization.maxAmountMinor` = `"780"` (this payment only, in USD cents); the Trust Gateway enforces cumulative ≤ `policyGrant.budgetMinor`
+- `chargingQuote` is not an MPCP artifact but is operationally important — the operator must verify that the SBA `maxAmountMinor` and `destinationAllowlist` cover the quoted amount and destination
+- `settlement.txHash` is the XRPL transaction submitted by the Trust Gateway; the `mpcp/grant-id` memo links the on-chain payment to the grant for audit
+- There is no SPA or SettlementIntent — the authorization chain ends at the SBA; the Trust Gateway handles all settlement parameters
 
 In a production deployment, the exact bundle shape may vary, but it should preserve the same key property:
 
-**a verifier must be able to reconstruct and validate the full authorization chain from policy issuance to settlement.**
+**a verifier must be able to reconstruct and validate the full authorization chain from policy issuance to on-chain settlement.**
 
 Optional additions (not shown above):
-- `issuer` field on `sba` or `spa` envelopes — **required** when the verifier uses Trust Bundle key resolution (offline fleet terminals, third-party chargers); optional when the verifier uses a pre-configured key or HTTPS well-known
-- intent anchor (ledger hash of the `settlementIntent`)
 - DID resolution records (when DID/VC layer is used)
+- `anchorRef` on the PolicyGrant (HCS policy anchor, if the fleet operator published the policy on-chain)
 
 # Summary
 
