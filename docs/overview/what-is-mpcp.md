@@ -15,8 +15,8 @@ Each step narrows what the machine is allowed to do. The machine signs a per-pay
 ## Key Characteristics
 
 - **Bounded authorization** — Pre-authorized spending envelopes (budgets) instead of per-transaction approval
-- **Deterministic verification** — Every settlement can be verified against the authorization chain
-- **Settlement-agnostic** — Works with XRPL, EVM chains, Stripe, hosted providers, and other rails
+- **Deterministic verification** — Every settlement can be verified against the authorization chain; on-chain via `mpcp/grant-id` memo
+- **XRPL-primary** — v1.0 uses XRPL escrow + RLUSD for settlement; other rails supported via future profiles
 - **Offline-capable** — Payments can complete when the network is unavailable (e.g., underground garage)
 - **Policy-first** — All spending derives from explicit policy rules (rails, assets, destinations, caps)
 
@@ -31,9 +31,9 @@ Each step narrows what the machine is allowed to do. The machine signs a per-pay
 
 MPCP does **not**:
 
-- Replace the settlement rail (XRPL, EVM, etc.) — it sits in front of it
+- Replace the settlement rail — it sits in front of it as the authorization layer
 - Define how money moves — it defines how authorization is granted and verified
-- Require a specific blockchain — it is rail-agnostic
+- Require per-transaction approval — authorization is pre-granted within a policy envelope
 - Handle human-present card flows — it is designed for machine-initiated, bounded spending
 
 ## Next Steps

@@ -17,21 +17,17 @@ The bundle is a JSON object with artifact-keyed fields. Required fields:
 |-------|------|--------------|
 | `policyGrant` | object | Policy grant constraining the session |
 | `sba` | object | SignedBudgetAuthorization artifact |
-| `spa` | object | SignedPaymentAuthorization artifact |
-| `settlement` | object | Executed settlement result |
+| `settlement` | object | Executed settlement result (XRPL txHash + memo) |
 
 Optional fields:
 
 | Field | Type | Description |
 |-------|------|--------------|
-| `settlementIntent` | object | Settlement intent (required when SPA has intentHash) |
-| `paymentPolicyDecision` | object | Payment policy decision (derived from SPA if omitted) |
-| `ledgerAnchor` | object | Optional ledger attestation for disputed settlements |
+| `ledgerAnchor` | object | On-chain attestation (HCS or XRPL NFT anchor ref) |
 | `policyGrantPublicKeyPem` | string | PolicyGrant signing public key PEM — makes bundle self-contained |
 | `sbaPublicKeyPem` | string | SBA signing public key PEM — makes bundle self-contained |
-| `spaPublicKeyPem` | string | SPA signing public key PEM — makes bundle self-contained |
 
-When `policyGrantPublicKeyPem`, `sbaPublicKeyPem`, and `spaPublicKeyPem` are present, verification can run without the corresponding environment variables.
+When `policyGrantPublicKeyPem` and `sbaPublicKeyPem` are present, verification can run without the corresponding environment variables.
 
 ## Example
 
@@ -43,23 +39,36 @@ When `policyGrantPublicKeyPem`, `sbaPublicKeyPem`, and `spaPublicKeyPem` are pre
     "expiresAt": "2030-12-31T23:59:59Z",
     "allowedRails": ["xrpl"],
     "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }],
+    "budgetMinor": "50000",
+    "budgetEscrowRef": "xrpl:escrow:rGateway:12345",
+    "authorizedGateway": "rGateway...",
     "issuer": "did:web:operator.example.com",
     "issuerKeyId": "policy-auth-key-1",
     "signature": "..."
   },
-  "sba": { "authorization": {...}, "issuer": "did:web:fleet.example.com", "issuerKeyId": "budget-auth-key-1", "signature": "..." },
-  "spa": { "authorization": {...}, "issuer": "did:web:payments.example.com", "issuerKeyId": "payment-auth-key-1", "signature": "..." },
+  "sba": {
+    "authorization": {
+      "grantId": "grant-1",
+      "maxAmountMinor": "780",
+      "budgetScope": "SESSION",
+      "allowedRails": ["xrpl"],
+      "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" }]
+    },
+    "issuer": "did:web:fleet.example.com",
+    "issuerKeyId": "budget-auth-key-1",
+    "signature": "..."
+  },
   "settlement": {
-    "amount": "19440000",
+    "txHash": "ABC123...",
     "rail": "xrpl",
+    "amount": "780",
     "asset": { "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer" },
     "destination": "rDestination",
+    "grantId": "grant-1",
     "nowISO": "2026-01-15T12:00:00Z"
   },
-  "settlementIntent": { "version": "1.0", "rail": "xrpl", "amount": "19440000", ... },
   "policyGrantPublicKeyPem": "-----BEGIN PUBLIC KEY-----\n...",
-  "sbaPublicKeyPem": "-----BEGIN PUBLIC KEY-----\n...",
-  "spaPublicKeyPem": "-----BEGIN PUBLIC KEY-----\n..."
+  "sbaPublicKeyPem": "-----BEGIN PUBLIC KEY-----\n..."
 }
 ```
 
@@ -72,10 +81,8 @@ mpcp verify settlement-bundle.json
 mpcp verify settlement-bundle.json --append-log audit.jsonl
 ```
 
-Bundles are distinguished from full `SettlementVerificationContext` by the presence of `sba`/`spa` keys (artifact-keyed) rather than `signedBudgetAuthorization`/`signedPaymentAuthorization` (context-keyed).
-
 ## Schema
 
-The bundle format is defined by `artifactBundleSchema` in `src/schema/artifactBundle.ts`. Each nested artifact conforms to its respective MPCP schema (PolicyGrant, SignedBudgetAuthorization, SignedPaymentAuthorization, SettlementIntent, SettlementResult).
+The bundle format is defined by `artifactBundleSchema` in `src/schema/artifactBundle.ts`. Each nested artifact conforms to its respective MPCP schema (PolicyGrant, SignedBudgetAuthorization, SettlementResult).
 
-**Note:** `paymentPolicyDecision` and `ledgerAnchor` are currently loosely typed (generic object) in the schema. They will be formalized with strict schemas in a later update.
+**Note:** `ledgerAnchor` is currently loosely typed (generic object) in the schema. It will be formalized with a strict schema in a later update.

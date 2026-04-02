@@ -23,16 +23,16 @@ MPCP is a protocol, not a product. Adoption requires implementations at every la
   │   (machine wallet or agent) │  creates SBAs within grant bounds, tracks budget
   └─────────────────────────────┘
         │
-        │  SignedBudgetAuthorization → SignedPaymentAuthorization
+        │  SignedBudgetAuthorization
         ▼
   ┌─────────────────────────────┐
   │   mpcp-merchant-sdk         │  Merchant / Service Provider
   │   (Express/Fastify/Next.js) │  verifies full chain, checks revocation, records spend
   └─────────────────────────────┘
         │
-        │  SettlementIntent
+        │  SBA → Trust Gateway
         ▼
-  Settlement Rail  (XRPL, EVM, RLUSD, Stripe, …)
+  XRPL Settlement  (Trust Gateway submits payment + mpcp/grant-id memo)
 ```
 
 The protocol spec and reference implementation sit underneath all of this — they define the artifact formats, verification rules, and canonical SDK that every layer depends on.
@@ -150,9 +150,9 @@ The end-to-end flow across all components:
                   + checkRevocation (cached)
                   + trackSpend
 
-4. SETTLEMENT RAIL
-   SPA signed by merchant → submitted to XRPL / EVM / other rail
-   SettlementIntent recorded for audit
+4. TRUST GATEWAY  (mpcp-gateway)
+   SBA verified → XRPL Payment submitted with mpcp/grant-id memo
+   txHash returned as settlement receipt
 ```
 
 ---
@@ -162,7 +162,7 @@ The end-to-end flow across all components:
 MPCP deliberately does not dictate:
 
 - **Identity system** — the policy authority can be a `did:web` domain, a `did:key`, an XRPL account, or any verifiable key. Enterprises use their IAM system; crypto wallets use their existing keys.
-- **Settlement rail** — XRPL, EVM, Stripe, bank transfer, any payment system can be used. MPCP governs authorization, not settlement mechanics.
+- **Settlement rail** — v1.0 uses XRPL + RLUSD via the Trust Gateway. The authorization model is designed to be extensible to other rails in future profiles.
 - **Deployment topology** — the policy authority can be a standalone service, embedded in an agent platform, or part of a wallet provider backend.
 
 This means each SDK has an adapters layer for the platform-specific concerns, while the protocol core remains stable.

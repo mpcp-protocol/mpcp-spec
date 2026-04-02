@@ -29,13 +29,13 @@ Every settlement must be independently verifiable against the authorization chai
 - Operators and auditors can trace from settlement receipt back to policy
 - Deterministic verification rules
 
-### 4. Settlement-Agnostic Policy
+### 4. XRPL-Primary Settlement
 
-Policy and budget are expressed in abstract terms (caps, rails, destinations). Settlement details (tx hash, chain) are handled at execution and verification.
+Policy and budget are expressed in abstract terms (caps, rails, destinations). The v1.0 profile settles via XRPL: the Trust Gateway pre-reserves a budget escrow and submits XRPL Payments with `mpcp/grant-id` memos for on-chain audit.
 
-- Works with XRPL, EVM, Stripe, hosted—any rail
-- One authorization model, pluggable settlement backends
-- Rail-agnostic from the start
+- v1.0 profile: XRPL escrow + RLUSD
+- Authorization model is designed to be extensible — other rails (EVM, Stripe) are future profiles
+- Settlement details (txHash, chain) are handled at execution and verification
 
 ### 5. Separation of Concerns
 
@@ -65,7 +65,7 @@ This sequence ensures:
 1. **Separation of concerns** — Each layer has a single responsibility
 2. **Minimal disclosure** — No over-sharing of payment details
 3. **Verifiable chain** — Signed artifacts at each step; on-chain audit via memo
-4. **Settlement-agnostic policy** — Abstract constraints, concrete execution
+4. **Extensible settlement** — Abstract policy constraints; v1.0 executes via XRPL
 
 ## Comparison with Alternatives
 
@@ -74,7 +74,7 @@ This sequence ensures:
 | **Primary use case** | Physical machines, fleet payments, variable sessions | API access payments, pay-per-request | Agent commerce |
 | **Authorization model** | Pre-authorized budgets | Per-request payment | Verifiable mandates |
 | **Offline** | Yes | No | No |
-| **Settlement rails** | Any | Stablecoins on supported chains | Cards, x402 |
+| **Settlement rails** | XRPL/RLUSD (v1.0); other rails via future profiles | Stablecoins on supported chains | Cards, x402 |
 
 See [Comparison with Agent Protocols](comparison-with-agent-protocols.md) for a detailed comparison.
 
