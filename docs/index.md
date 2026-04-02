@@ -10,7 +10,7 @@ Autonomous vehicles, AI agents, and machines increasingly pay for real-world ser
 
 A machine payment is accepted only if the recipient can verify a chain of signed artifacts:
 
-**[Fleet Policy](protocol/FleetPolicyAuthorization.md) → [PolicyGrant](protocol/PolicyGrant.md) → [SignedBudgetAuthorization](protocol/SignedBudgetAuthorization.md) → Trust Gateway → XRPL Settlement**
+**[Fleet Policy](protocol/FleetPolicyAuthorization.md) → [PolicyGrant](protocol/PolicyGrant.md) → [SignedBudgetAuthorization](protocol/SignedBudgetAuthorization.md) → [Trust Gateway](architecture/actors.md#trust-gateway) → [XRPL Settlement](protocol/rails.md)**
 
 Each step narrows what the machine is allowed to do.
 
