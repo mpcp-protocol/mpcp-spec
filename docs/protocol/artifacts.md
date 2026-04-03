@@ -22,7 +22,7 @@ Each artifact is a subset of the constraints defined by the previous one.
 
 The **PolicyGrant** is the result of policy evaluation at session entry. It defines the initial permission envelope:
 
-- **allowedRails** — Which payment rails (xrpl, evm, stripe, hosted) are permitted
+- **allowedRails** — **MPCP v1:** exactly `["xrpl"]` on conforming PolicyGrants
 - **allowedAssets** — Which assets may be used (array of `Asset` objects with `kind`, and kind-specific fields)
 - **policyHash** — Hash of the policy snapshot
 - **expiresAt** — Maximum validity for downstream artifacts

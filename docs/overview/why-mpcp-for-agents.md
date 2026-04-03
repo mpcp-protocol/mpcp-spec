@@ -61,14 +61,10 @@ did, the Trust Gateway rejects any SBA that would push cumulative spend past `bu
 
 ### Human revocation mid-delegation
 
-```
-GET {revocationEndpoint}?grantId={grantId}
-Response: { "revoked": boolean, "revokedAt": "ISO8601" }
-```
-
-Alice can cancel her AI trip planner's budget at any time. Merchants who check the
-revocation endpoint before processing payment will refuse. The MPCP verifier stays stateless —
-revocation is a separate online check the merchant makes using `checkRevocation()`.
+Alice can cancel her AI trip planner's budget at any time by **CredentialDelete** on XRPL for the
+active-grant credential (`activeGrantCredentialIssuer`). The Trust Gateway MUST reject settlement
+when the credential is missing (`ACTIVE_GRANT_CREDENTIAL_MISSING`). Conforming PolicyGrants do not
+use HTTP `revocationEndpoint`.
 
 ### Merchant category filter with auditability
 
@@ -108,7 +104,7 @@ cryptographic spending layer on top.
 | Situation | MPCP fit |
 |-----------|---------|
 | Agent books travel across multiple days | TRIP scope SBA covers the whole trip |
-| Human needs to cancel mid-delegation | XRPL: `CredentialDelete` on active-grant credential; non-XRPL: `revocationEndpoint` → `checkRevocation()` |
+| Human needs to cancel mid-delegation | XRPL: `CredentialDelete` on active-grant credential (`activeGrantCredentialIssuer`) |
 | Agent should only pay for certain categories | `allowedPurposes` filter |
 | Merchant needs offline-capable verification | PolicyGrant + SBA chain verifies locally via Trust Bundle |
 | Agent spending must be auditable | On-chain `mpcp/grant-id` memo + PolicyGrant + SBA bundle |
@@ -120,6 +116,6 @@ cryptographic spending layer on top.
 
 - [Human-to-Agent Delegation Profile](../profiles/human-agent-profile.md) — full deployment guide
 - [Comparison with Agent Protocols](comparison-with-agent-protocols.md) — x402, AP2, ACP, TAPC
-- [PolicyGrant](../protocol/PolicyGrant.md) — `activeGrantCredentialIssuer`, `revocationEndpoint`, `allowedPurposes`
+- [PolicyGrant](../protocol/PolicyGrant.md) — `activeGrantCredentialIssuer`, `authorizedGateway`, `velocityLimit`, `allowedPurposes`
 - [SignedBudgetAuthorization](../protocol/SignedBudgetAuthorization.md) — TRIP scope
 - [Actors](../architecture/actors.md) — AI Agent actor

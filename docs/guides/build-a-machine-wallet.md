@@ -12,7 +12,7 @@ A **machine wallet** holds:
 When a payment is requested, the wallet:
 
 1. Checks the request against policy (rail, asset, purpose, destination)
-2. Checks revocation status (optional, via `revocationEndpoint`)
+2. Checks grant liveness (optional XRPL active-grant credential when `activeGrantCredentialIssuer` is set)
 3. Signs a per-payment SBA (amount + destination for this payment)
 4. Sends the SBA to the Trust Gateway for settlement
 
@@ -87,19 +87,7 @@ Before signing, the wallet MUST verify:
 1. **Rail and asset** — Permitted by PolicyGrant `allowedRails` and `allowedAssets`
 2. **Destination** — Expected recipient (cross-check with quote)
 3. **Expiration** — PolicyGrant not expired
-4. **Revocation** — Check `revocationEndpoint` if present (fail-open for offline)
-
-```javascript
-import { checkRevocation } from "mpcp-service/sdk";
-
-if (policyGrant.revocationEndpoint) {
-  const { revoked } = await checkRevocation(
-    policyGrant.revocationEndpoint,
-    policyGrant.grantId,
-  );
-  if (revoked) throw new Error("Grant revoked");
-}
-```
+4. **Grant liveness** — When `activeGrantCredentialIssuer` is set and the wallet is online, query XRPL for the active-grant credential; if absent, refuse new SBAs. Conforming grants omit `revocationEndpoint`.
 
 ## Trust Bundle for Offline Merchants
 

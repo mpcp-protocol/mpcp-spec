@@ -9,10 +9,11 @@ The Trust Gateway verifier runs checks in order:
 1. **Schema** — PolicyGrant and SBA parse and validate against expected structure
 2. **Signatures** — PolicyGrant and SBA signatures are valid (resolve public keys via `issuer` + `issuerKeyId` using the [Key Resolution](./key-resolution.md) algorithm; in offline deployments, keys are resolved from a pre-loaded [Trust Bundle](./trust-bundles.md))
 3. **Linkage** — `SBA.authorization.grantId` references a valid PolicyGrant; constraint subsets are respected
-4. **Policy** — Budget limits, rail/asset/destination constraints, expiration; when `subjectCredentialIssuer` is present, confirm `authorization.actorId` equals the XRPL classic address of the credential Subject (see [Subject Attestation](./PolicyGrant.md#subject-attestation))
-5. **Purpose** — When `PolicyGrant.allowedPurposes` is present and the settlement request includes a `purpose` field, verify `purpose ∈ allowedPurposes`. See [PolicyGrant — Purpose Enforcement](./PolicyGrant.md#purpose-enforcement).
-6. **Destination** — When `PolicyGrant.destinationAllowlist` or `PolicyGrant.merchantCredentialIssuer` is present, verify the payment destination is approved. See [PolicyGrant — Destination Enforcement](./PolicyGrant.md#destination-enforcement).
-7. **Grant liveness (XRPL Credential)** — When `PolicyGrant.activeGrantCredentialIssuer` is present, verify the active-grant XLS-70 Credential exists on the subject's XRPL account for this `grantId`. Reject with `ACTIVE_GRANT_CREDENTIAL_MISSING` if absent or expired. See [PolicyGrant — Revocation](./PolicyGrant.md#revocation).
+4. **Conformance (MPCP v1)** — PolicyGrant satisfies [MPCP conformance](./PolicyGrant.md#mpcp-conformance-mandatory-xrpl): `allowedRails` is exactly `["xrpl"]`; `authorizedGateway` and `velocityLimit` present; `revocationEndpoint` absent.
+5. **Policy** — Budget limits, rail/asset/destination constraints, expiration; `authorizedGateway` matches this gateway; when `gatewayCredentialIssuer` / `gatewayCredentialType` are set, verify gateway on-chain credential; enforce `velocityLimit`; when `subjectCredentialIssuer` is present, confirm `authorization.actorId` equals the XRPL classic address of the credential Subject (see [Subject Attestation](./PolicyGrant.md#subject-attestation)); durable `budgetMinor` spend state (see [Trust Model — Gateway durable spend state](./trust-model.md#gateway-durable-spend-state-must))
+6. **Purpose** — When `PolicyGrant.allowedPurposes` is present and the settlement request includes a `purpose` field, verify `purpose ∈ allowedPurposes`. See [PolicyGrant — Purpose Enforcement](./PolicyGrant.md#purpose-enforcement).
+7. **Destination** — When `PolicyGrant.destinationAllowlist` or `PolicyGrant.merchantCredentialIssuer` is present, verify the payment destination is approved. See [PolicyGrant — Destination Enforcement](./PolicyGrant.md#destination-enforcement).
+8. **Grant liveness (XRPL Credential)** — When `PolicyGrant.activeGrantCredentialIssuer` is present, verify the active-grant XLS-70 Credential exists on the subject's XRPL account for this `grantId`. Reject with `ACTIVE_GRANT_CREDENTIAL_MISSING` if absent or expired. See [PolicyGrant — Revocation](./PolicyGrant.md#revocation).
 
 If any check fails, verification fails with a specific reason. On success, the gateway submits the XRPL transaction and returns the `txHash` receipt.
 
@@ -46,7 +47,7 @@ monitoring), not additional protocol fields.
 | PolicyGrant signature | Signature valid; expiresAt not passed; constraints valid |
 | SBA schema | Parses and validates against expected structure |
 | SBA signature | Signature valid; expiresAt not passed; `authorization.grantId` references a valid PolicyGrant |
-| SBA → budget | Current payment amount ≤ `maxAmountMinor`; rail, asset, destination in allowlists. Check is stateless — session authority manages cumulative budget tracking. |
+| SBA → budget | Current payment amount ≤ `maxAmountMinor`; rail (`["xrpl"]` only), asset, destination in allowlists. Trust Gateway also enforces durable cumulative spend vs `budgetMinor`, `velocityLimit`, and gateway binding. Session authority tracks SBA-scope cumulative totals. |
 | Purpose | When `PolicyGrant.allowedPurposes` is present and settlement request includes `purpose`: verify `purpose ∈ allowedPurposes`. Reject with `PURPOSE_NOT_ALLOWED` on mismatch. |
 | Destination | When `PolicyGrant.destinationAllowlist` is present: verify `payment.destination ∈ destinationAllowlist`. When `PolicyGrant.merchantCredentialIssuer` is present: verify destination holds a matching on-chain credential. If both are set, either match suffices. Reject with `DESTINATION_NOT_ALLOWED` or `DESTINATION_NOT_CREDENTIALED`. |
 | Grant liveness | When `PolicyGrant.activeGrantCredentialIssuer` is present: verify on-chain active-grant credential for this `grantId`. Reject with `ACTIVE_GRANT_CREDENTIAL_MISSING` if revoked. |

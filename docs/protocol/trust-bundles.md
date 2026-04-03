@@ -270,7 +270,7 @@ artifact → issuer → lookup key in bundle → verify signature → check expi
 
 ### Revocation in Offline Mode
 
-PolicyGrants may carry `activeGrantCredentialIssuer` (XRPL) or a legacy `revocationEndpoint`
+PolicyGrants carry `activeGrantCredentialIssuer` (XRPL) for on-chain revocation; historic artifacts may include a legacy `revocationEndpoint` (non-conforming)
 (HTTP). Offline verifiers cannot query either. Deployments that use offline verification MUST
 accept the risk that a revoked grant may be accepted — the grant remains valid until
 `expiresAt` or the bundle is refreshed and revocation state is re-checked when online.

@@ -35,7 +35,7 @@ It is issued after a PolicyGrant and presented to the Trust Gateway, which verif
 | minorUnit | number | yes | Informational: decimal scale of the fiat reference currency (e.g. `2` for USD cents). Not used in verification arithmetic. |
 | budgetScope | string | yes | SESSION \| DAY \| VEHICLE \| FLEET \| TRIP |
 | maxAmountMinor | string | yes | Maximum authorized spend expressed in the **on-chain asset's atomic units** (e.g. drops for XRP). The session authority converts the fiat budget to on-chain units at SBA issuance time. |
-| allowedRails | Rail[] | yes | Permitted payment rails (xrpl, evm, stripe, hosted) |
+| allowedRails | Rail[] | yes | **Conforming SBAs:** MUST be exactly `["xrpl"]`. Must match the PolicyGrant rail set. |
 | allowedAssets | Asset[] | yes | Permitted assets |
 | destinationAllowlist | string[] | no | Optional allowed destination addresses |
 | expiresAt | string | yes | ISO 8601 expiration timestamp |
@@ -71,47 +71,42 @@ Examples:
 - `budgetScope: "VEHICLE"` with `scopeId` = vehicle identifier
 - `budgetScope: "FLEET"` with `scopeId` = fleet identifier
 
-## Stateless Verification Model
+## Budget and verification roles
 
-MPCP verifiers are stateless. They do not track cumulative spending across payments.
-
-This ensures that MPCP verification is deployable across independent, parallel, or ephemeral verifier instances without shared state.
-
-Budget enforcement is split between two roles:
+Budget enforcement is split between roles. **Merchant verifiers** (offline acceptance) are stateless
+per payment. The **Trust Gateway** is **not** stateless for the PA-signed `budgetMinor` ceiling —
+it MUST maintain durable cumulative spend state and velocity counters (see [Trust Model — Gateway durable spend state](./trust-model.md#gateway-durable-spend-state-must) and [PolicyGrant — Velocity limit enforcement](./PolicyGrant.md#velocity-limit-enforcement)).
 
 | Role | Responsibility |
 |------|----------------|
-| Session authority (agent) | Tracks cumulative spending per scope. Presents SBAs within the remaining authorized envelope. |
-| Trust Gateway | Independently enforces the PA-signed `budgetMinor` ceiling. Rejects payments that would exceed remaining budget. |
+| Session authority (agent) | Tracks cumulative spending per scope. Presents SBAs within the remaining authorized envelope (`maxAmountMinor`). |
+| Trust Gateway | Enforces PA-signed `budgetMinor`, `authorizedGateway`, `velocityLimit`, and optional gateway credentials; persists spend state across restarts. |
 | Merchant verifier | Checks that the SBA `maxAmountMinor` does not exceed the PA-signed `offlineMaxSinglePayment` cap (offline mode only). |
 
-The Trust Gateway's stateless check is:
+Per-payment check at the gateway (in addition to durable `budgetMinor` tally):
 
 ```
-paymentAmount ≤ signerState.remaining (enforced from PA-signed budgetMinor)
+currentPayment ≤ remainingAuthorizedEnvelope (from SBA and grant constraints)
 ```
 
 Both values are in the **on-chain asset's atomic units** — the comparison is a direct numeric check with no currency conversion required. The session authority is responsible for converting the fiat budget into on-chain units at SBA issuance time, using the exchange rate and asset precision applicable at that moment.
 
-This confirms the current payment fits within the authorized envelope. The PA-signed `budgetMinor` in the PolicyGrant is the cryptographic attestation of the ceiling — the gateway enforces this independently of the agent.
+## Cumulative enforcement (session authority)
 
-Verifiers MUST NOT attempt to track or reconstruct cumulative session spending.
+To align session-level totals with the gateway, callers MAY pass the running total of prior spending via `cumulativeSpentMinor` when invoking verifier helpers.
 
-## Cumulative Enforcement
-
-To enable accurate cumulative budget enforcement within a session, callers MAY pass the running total of prior spending to the verifier via `cumulativeSpentMinor`.
-
-When provided, the verifier applies:
+When provided, a **stateless helper** may apply:
 
 ```
 cumulativeSpentMinor + currentPayment <= maxAmountMinor
 ```
 
-instead of the bare single-payment check. This allows a stateless verifier to correctly reject payments that would exceed the cumulative budget even if each individual payment would fit.
+instead of the bare single-payment check. This does not replace the gateway's durable `budgetMinor`
+enforcement.
 
 **Session authority responsibility:**
 - MUST track cumulative spending per scope (SESSION, DAY, VEHICLE, FLEET)
-- MUST pass `cumulativeSpentMinor` to the verifier for correct enforcement
+- MAY pass `cumulativeSpentMinor` to verifier helpers for local checks
 - MUST NOT present SBAs when cumulative spending would exceed `maxAmountMinor`
 
 **Offline trust assumption:**

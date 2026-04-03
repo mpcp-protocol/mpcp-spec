@@ -64,7 +64,7 @@ For dispute resolution, collect the following bundle per disputed payment:
 | SBA | Machine wallet / merchant storage |
 | XRPL transaction | Ledger (filtered by `mpcp/grant-id` memo) |
 | Policy document (optional) | PA custodian — hash must match `policyGrant.policyHash` |
-| Revocation check result | On-chain credential status or `revocationEndpoint` response at time of authorization |
+| Revocation / liveness | On-chain active-grant credential status at time of authorization (conforming grants) |
 
 ## Failure Reasons
 

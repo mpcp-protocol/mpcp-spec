@@ -57,6 +57,24 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 
 ---
 
+## MPCP conformance (mandatory XRPL)
+
+MPCP **v1.0** defines a single normative settlement rail: **XRPL**. A PolicyGrant is **conforming**
+only if all of the following hold:
+
+1. **`allowedRails`** is exactly `["xrpl"]` (no additional or alternate rail identifiers).
+2. **`authorizedGateway`** is present — the PA binds settlement to one Trust Gateway XRPL address.
+3. **`velocityLimit`** is present — the PA sets a gateway-enforceable cap on settlement frequency
+   (see [Velocity limit enforcement](#velocity-limit-enforcement)).
+4. **`revocationEndpoint`** MUST NOT be present — use `activeGrantCredentialIssuer` and XLS-70
+   Credentials for revocation (see [Revocation](#revocation)).
+
+Verifiers and Trust Gateways MUST reject non-conforming PolicyGrants at settlement. Fields such as
+`gatewayCredentialIssuer` / `gatewayCredentialType` are **optional** strengtheners for on-chain
+gateway authorization.
+
+---
+
 ## Structure
 
 ### PolicyGrant (payload)
@@ -69,7 +87,7 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | subjectId | string | yes | Identifier of the entity receiving the grant (vehicle, agent, wallet, etc.) |
 | operatorId | string | optional | Service operator identifier |
 | scope | string | yes | Scope of the grant (SESSION, VEHICLE, FLEET, etc.) |
-| allowedRails | Rail[] | yes | Payment rails permitted by policy |
+| allowedRails | Rail[] | yes | **Conforming grants:** MUST be exactly `["xrpl"]`. MPCP v1 does not define multi-rail settlement. |
 | allowedAssets | Asset[] | conditional | Allowed assets for on-chain rails |
 | maxSpend | object | optional | Spending caps defined by policy |
 | expiresAt | string | yes | ISO 8601 expiration timestamp |
@@ -78,14 +96,17 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | issuer | string | yes | Identifier for the policy authority (e.g. DID, domain, or registry ID). Verifiers use this to resolve the signing key. |
 | issuerKeyId | string | yes | Identifies the specific key used to sign (for deployments with multiple keys per issuer). |
 | signature | string | yes | Cryptographic signature over the canonical JSON of the grant payload (all fields except `signature`). |
-| revocationEndpoint | string | optional | **Legacy — HTTP revocation** for non-XRPL rails or transitional deployments. If present, merchants MAY call this URL before accepting payment. **XRPL deployments SHOULD use `activeGrantCredentialIssuer` instead** — see **Revocation** below. |
-| activeGrantCredentialIssuer | string | optional | XRPL address of the PA (or delegate) that issues the **active grant** XLS-70 Credential. When present, online verifiers (including the Trust Gateway) MUST treat the grant as revoked if that credential does not exist on the subject's XRPL account. Replaces HTTP `revocationEndpoint` for XRPL-native flows. See **Revocation** below. |
+| revocationEndpoint | string | **deprecated** | **MUST NOT** appear on conforming PolicyGrants. Reserved for reading historic artifacts only; MPCP v1 revocation is XRPL Credentials only. See **Revocation** below. |
+| activeGrantCredentialIssuer | string | optional | XRPL address of the PA (or delegate) that issues the **active grant** XLS-70 Credential. When present, online verifiers (including the Trust Gateway) MUST treat the grant as revoked if that credential does not exist on the subject's XRPL account. **Conforming grants SHOULD set this field** so revocation is ledger-native. See **Revocation** below. |
 | allowedPurposes | string[] | optional | Merchant category allowlist (e.g. `["travel:hotel", "travel:flight"]`). PA-signed. The agent MUST check purpose before issuing each SBA. The Trust Gateway SHOULD enforce purpose when the settlement request includes a `purpose` field. See **Purpose Enforcement** section below. |
 | anchorRef | string | optional | Pointer to an on-chain record of the policy document. Format: `"hcs:{topicId}:{sequenceNumber}"` (Hedera HCS). The historical `xrpl:nft:{tokenId}` pattern is **deprecated** and MUST NOT be used in new deployments; use HCS (or off-chain custody) for policy hash audit and `activeGrantCredentialIssuer` for XRPL grant revocation. See **Policy Document Anchoring** below. |
 | budgetMinor | string | optional | PA-signed budget ceiling in the smallest currency unit (e.g. drops for XRP). The Trust Gateway enforces this as a hard ceiling — it is never read from the UI or agent. |
 | budgetCurrency | string | optional | Currency of `budgetMinor` (e.g. `"XRP"`). |
 | budgetEscrowRef | string | optional | URI reference to the on-chain budget escrow that pre-reserves the full `budgetMinor`. Format: `"{rail}:{mechanism}:{identifier}"` (e.g. `"xrpl:escrow:{account}:{sequence}"`). PA-signed. See [Rails](./rails.md). |
-| authorizedGateway | string | optional | XRPL address of the only Trust Gateway authorized to submit payments against this grant's escrow. The gateway rejects payment requests if its own address does not match. PA-signed. |
+| authorizedGateway | string | yes | XRPL classic address of the **only** Trust Gateway authorized to submit XRPL payments for this grant. The Trust Gateway MUST reject settlement if its own XRPL address does not match. PA-signed. **Required for MPCP v1 conformance** (see [MPCP conformance](#mpcp-conformance-mandatory-xrpl)). |
+| gatewayCredentialIssuer | string | optional | XRPL address of the credential issuer for **gateway** authorization (XLS-70). When present together with `gatewayCredentialType`, the Trust Gateway MUST verify on-chain that its settlement account holds a valid, non-expired credential from this issuer and type before submitting each payment; on compromise, the PA revokes by **CredentialDelete**. |
+| gatewayCredentialType | string | optional | Hex-encoded credential type the gateway account must hold (e.g. `hex("mpcp:authorized-gateway")`). Used with `gatewayCredentialIssuer`. |
+| velocityLimit | object | yes | PA-signed velocity cap for settlements. **Required for MPCP v1 conformance.** Fields: `maxPayments` (integer ≥ 1) and `windowSeconds` (integer ≥ 1). See [Velocity limit enforcement](#velocity-limit-enforcement). |
 | destinationAllowlist | string[] | optional | PA-signed allowlist of permitted payment destination addresses (e.g. XRPL `r`-addresses). When present, the Trust Gateway MUST verify that the payment destination is in this list before settling. SBA `destinationAllowlist` MUST be a subset. See **Destination Enforcement** section below. |
 | merchantCredentialIssuer | string | optional | XRPL address of the credential issuer for approved merchants. Used with XLS-70 on-chain Credentials for dynamic destination enforcement. See **Destination Enforcement** section below. |
 | merchantCredentialType | string | optional | Hex-encoded credential type that approved merchants must hold (e.g. `hex("mpcp:approved-merchant")`). Used with `merchantCredentialIssuer`. |
@@ -108,9 +129,13 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
   "subjectId": "vehicle_1284",
   "operatorId": "operator_12",
   "scope": "SESSION",
-  "allowedRails": ["xrpl", "stripe"],
+  "allowedRails": ["xrpl"],
   "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
   "allowedPurposes": ["transport:toll", "transport:charging", "transport:parking"],
+  "authorizedGateway": "rTrustGatewayMain...",
+  "gatewayCredentialIssuer": "rPolicyAuthorityXrpl...",
+  "gatewayCredentialType": "6D7063703A617574686F72697A65642D67617465776179",
+  "velocityLimit": { "maxPayments": 120, "windowSeconds": 3600 },
   "destinationAllowlist": ["rChargingStation1", "rTollBooth42"],
   "merchantCredentialIssuer": "rPAMerchantRegistry",
   "merchantCredentialType": "6D7063703A617070726F7665642D6D65726368616E74",
@@ -272,10 +297,60 @@ HCS message format and environment variables. **XRPL grant revocation** uses XLS
 
 ---
 
+## Velocity limit enforcement
+
+The `velocityLimit` object limits how many **successful XRPL settlements** the Trust Gateway may
+execute for this grant within a sliding wall-clock window. It mitigates rapid-fire draining of
+`budgetMinor` by a compromised agent before operators can react.
+
+### Shape
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `maxPayments` | integer | Maximum settlements allowed in each window. MUST be ≥ 1. |
+| `windowSeconds` | integer | Window length in seconds. MUST be ≥ 1. |
+
+### Gateway behaviour (MUST)
+
+Before submitting a payment that would settle against this grant, the Trust Gateway MUST:
+
+1. Count how many settlements it has already completed for this `grantId` within the preceding
+   `windowSeconds` (inclusive of the current verification instant), using a **sliding window** in
+   wall-clock time.
+2. If that count is already ≥ `maxPayments` → **reject** with `VELOCITY_LIMIT_EXCEEDED`.
+3. Otherwise, if the payment is submitted successfully, include the settlement in the count for
+   future windows.
+
+Implementations MAY use a fixed clock window (e.g. calendar hour) if behaviour is documented and
+is **no looser** than the sliding-window semantics above.
+
+### Error code
+
+| Code | Meaning |
+|------|---------|
+| `VELOCITY_LIMIT_EXCEEDED` | Settlement would exceed `PolicyGrant.velocityLimit` for this `grantId` |
+
+---
+
+## Gateway credential binding (optional)
+
+When both `gatewayCredentialIssuer` and `gatewayCredentialType` are present, the Trust Gateway MUST
+verify on-chain — before each XRPL `Payment` — that **its own** XRPL account (the same address as
+`authorizedGateway`) holds a valid, non-expired XLS-70 Credential with:
+
+- `Issuer` = `gatewayCredentialIssuer`
+- `CredentialType` = `gatewayCredentialType` (e.g. `hex("mpcp:authorized-gateway")`)
+
+If the credential is missing or expired → **reject settlement** (implementation SHOULD use
+`GATEWAY_NOT_CREDENTIALED`). On gateway compromise, the PA revokes by **CredentialDelete** without
+reissuing the PolicyGrant.
+
+---
+
 ## Revocation
 
-MPCP defines two revocation channels. **XRPL-native deployments SHOULD use Credentials only**
-and omit `revocationEndpoint`. Non-XRPL rails MAY use HTTP only.
+MPCP v1 defines **XRPL Credential-based revocation** via `activeGrantCredentialIssuer`. The field
+`revocationEndpoint` is **deprecated** and MUST NOT appear on conforming PolicyGrants.
 
 ### XRPL Credential grant revocation (recommended for XRPL)
 
@@ -306,44 +381,22 @@ XLS-70 tooling.
 **Offline verifiers:** Cannot query the ledger; they remain subject to the usual offline
 revocation limitations (TTL cache, bundle refresh, `expiresAt`).
 
-### Legacy `revocationEndpoint` (HTTP, non-XRPL)
+### Deprecated: `revocationEndpoint` (HTTP)
 
-For rails or deployments that do not use XRPL Credentials, the optional `revocationEndpoint`
-URL MAY be used. Verifiers and merchants MAY check whether the grant has been revoked before
-accepting a payment.
-
-**Endpoint contract:**
-
-```
-GET {revocationEndpoint}?grantId={grantId}
-Response: { "revoked": boolean, "revokedAt": "ISO8601" }
-```
-
-**Verifier behaviour:** The core MPCP verifier pipeline treats this as a separate step (not part
-of the synchronous settlement math). Callers MAY use `checkRevocation()` from the SDK.
-
-**Merchant responsibility:** If only `revocationEndpoint` is present (no credential issuer),
-merchants SHOULD call it when online. If the endpoint is unreachable, the merchant makes a
-risk-based decision (see [Human-to-Agent Profile](../profiles/human-agent-profile.md)).
-
-```javascript
-import { checkRevocation } from "mpcp-service/sdk";
-
-const { revoked, revokedAt, error } = await checkRevocation(
-  grant.revocationEndpoint,
-  grant.grantId,
-  { timeoutMs: 3000 }
-);
-```
+Historic artifacts MAY carry `revocationEndpoint` for backward compatibility with pre-v1
+implementations. **Conforming PolicyGrants MUST NOT include this field.** Verifiers processing
+legacy grants MAY still call HTTP revocation when no `activeGrantCredentialIssuer` is present, but
+such grants are outside MPCP v1 conformance.
 
 ### Choosing a mechanism
 
-**New XRPL grants** SHOULD set `activeGrantCredentialIssuer` and omit `revocationEndpoint` so
-revocation is ledger-native. **Non-XRPL rails** MAY use `revocationEndpoint` only.
+**New grants** MUST omit `revocationEndpoint` and SHOULD set `activeGrantCredentialIssuer` for
+on-chain revocation.
 
-If both fields appear on one grant (e.g. during migration), verifiers that support Credentials
+If both fields appear on one artifact (e.g. during migration), verifiers that support Credentials
 MUST apply the on-chain check when `activeGrantCredentialIssuer` is present; HTTP is optional
-redundancy, not a substitute for a missing credential.
+redundancy for legacy consumers only, not a substitute for a missing credential on conforming
+deployments.
 
 ### Deprecated: XRPL NFToken burn
 

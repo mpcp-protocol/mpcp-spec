@@ -11,9 +11,9 @@ MPCP is the right authorization layer for human-to-agent spending delegation.
 | **Primary use case** | Physical machines + AI agents; bounded budget delegation | API access, pay-per-request | Agent commerce; mandate-based | Agent-to-agent communication | Agent payment negotiation |
 | **Authorization model** | Pre-authorized budgets; spend within envelope | Per-request payment | Verifiable mandates (Cart, Intent) | Task/capability negotiation | Payment protocol inside agent tasks |
 | **Offline** | Yes — pre-loaded chain, local verification | No — HTTP round-trip | No — online mandate exchange | No | No |
-| **Settlement rails** | Any (XRPL, EVM, Stripe, hosted) | Stablecoins (USDC, EURC) | Cards, x402 | Rail-agnostic (unspecified) | Unspecified |
+| **Settlement rails** | **XRPL** (MPCP v1.0 conformance) | Stablecoins (USDC, EURC) | Cards, x402 | Rail-agnostic (unspecified) | Unspecified |
 | **Approval flow** | Budget granted upstream; agent spends within bounds | Pay per API call | User signs Cart or Intent mandate | Capability exchange | Payment negotiation |
-| **Human revocation** | Yes — XRPL Credentials and/or `revocationEndpoint` | No | Yes (mandate expiry) | N/A | N/A |
+| **Human revocation** | Yes — XRPL Credentials (`activeGrantCredentialIssuer` / CredentialDelete) | No | Yes (mandate expiry) | N/A | N/A |
 | **Focus** | Bounded autonomy, verification, auditability | Micropayments, no API keys | Accountability, authenticity, user control | Agent interoperability | Agent payment flows |
 
 ---
@@ -38,8 +38,9 @@ and serves the response.
    MPCP optimizes for **machines and agents** paying for bounded real-world services — parking,
    charging, hotel bookings, transport — often in environments where connectivity is intermittent.
 
-4. **Stablecoins vs rail-agnostic** — x402 is built around stablecoins on specific chains. MPCP
-   defines the authorization chain; the settlement rail is a pluggable backend.
+4. **Stablecoins vs XRPL-native settlement** — x402 is built around stablecoins on specific chains.
+   MPCP v1.0 defines the authorization chain with **XRPL** as the normative settlement rail (e.g.
+   RLUSD IOU on XRPL).
 
 ---
 
@@ -58,8 +59,8 @@ uses Verifiable Digital Credentials (VDCs): Payment Mandate, Cart Mandate, and I
 2. **Offline and physical machines** — AP2 assumes online mandate exchange. MPCP supports offline
    payment: the machine holds PolicyGrant + SBA onboard and signs payments when disconnected.
 
-3. **Cards vs multi-rail** — AP2's initial focus is card payments, with x402 for crypto. MPCP is
-   rail-agnostic from the start: XRPL, EVM, Stripe, hosted.
+3. **Cards vs XRPL** — AP2's initial focus is card payments, with x402 for crypto. MPCP v1.0
+   standardizes on **XRPL** for settlement while keeping a rich authorization model.
 
 4. **Scope** — AP2 addresses accountability, authenticity, and authorization across agent commerce.
    MPCP addresses **bounded spending** in policy-defined sessions. Different problems, complementary
@@ -127,7 +128,7 @@ Use MPCP when:
 - Machines or AI agents need to spend autonomously within policy limits
 - Payments may work **offline** (vehicles in garages, agents in low-connectivity environments)
 - You need **pre-authorized budgets** (session/trip spending envelopes) rather than per-request payment
-- You want **any settlement rail** (XRPL, EVM, Stripe, hosted) with a single authorization model
+- You want **XRPL settlement** with a single authorization model (PolicyGrant → SBA → Trust Gateway)
 - The human needs to **revoke** the agent's spending authority mid-delegation
 - Verification and auditability of the authorization chain matter
 

@@ -14,6 +14,10 @@ Policy → Grant → Budget Authorization → Trust Gateway (Settlement) → Rec
 
 This architecture ensures that machine-initiated payments remain bounded, auditable, and verifiable.
 
+**Normative rail (v1.0):** MPCP conformance requires **XRPL** as the sole settlement rail. PolicyGrants
+MUST use `allowedRails: ["xrpl"]` only, MUST include `authorizedGateway` and `velocityLimit`, and
+MUST NOT include `revocationEndpoint`. See [PolicyGrant — MPCP conformance](./PolicyGrant.md#mpcp-conformance-mandatory-xrpl).
+
 ---
 
 # Motivation
@@ -325,6 +329,8 @@ Example structure:
   "scope": "SESSION",
   "allowedRails": ["xrpl"],
   "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
+  "authorizedGateway": "rTrustGateway...",
+  "velocityLimit": { "maxPayments": 120, "windowSeconds": 3600 },
   "policyHash": "sha256(...)",
   "expiresAt": "2026-03-08T14:00:00Z",
   "issuer": "did:web:operator.example.com",
@@ -395,7 +401,7 @@ Trust Gateway → XRPL Settlement → Receipt (txHash)
 - The Trust Gateway verifies the SBA signature and checks that the payment amount ≤ `SBA.authorization.maxAmountMinor`
 - The gateway checks that rail and asset are within `SBA.authorization.allowedRails` / `allowedAssets`
 
-The `maxAmountMinor` limit is expressed in the **on-chain asset's atomic units**. The session authority converts the fiat budget to on-chain units at SBA issuance time. Verifiers apply this check statelessly against the current payment with no currency conversion required. See [SignedBudgetAuthorization](./SignedBudgetAuthorization.md#stateless-verification-model) for the full model.
+The `maxAmountMinor` limit is expressed in the **on-chain asset's atomic units**. The session authority converts the fiat budget to on-chain units at SBA issuance time. The Trust Gateway checks each payment against `maxAmountMinor` **and** maintains durable cumulative spend against PA-signed `budgetMinor` (see [Trust Model — Gateway durable spend state](./trust-model.md#gateway-durable-spend-state-must)). See [SignedBudgetAuthorization](./SignedBudgetAuthorization.md#budget-and-verification-roles) for the split of responsibilities.
 
 These relationships ensure that each stage of MPCP cryptographically and logically constrains the following stage, preventing unauthorized mutations or spending outside policy limits.
 
@@ -454,11 +460,14 @@ Verification rules:
 
 - `SBA.authorization.grantId` MUST reference a valid PolicyGrant
 - artifacts MUST NOT be expired
+- **Conformance:** the PolicyGrant MUST satisfy [MPCP conformance](./PolicyGrant.md#mpcp-conformance-mandatory-xrpl) (`allowedRails`, `authorizedGateway`, `velocityLimit`, no `revocationEndpoint`). Non-conforming grants → **reject settlement**.
+- **Authorized gateway:** the Trust Gateway's own XRPL account MUST equal `PolicyGrant.authorizedGateway`. On mismatch → **reject settlement** (e.g. `GATEWAY_NOT_AUTHORIZED`).
 - **Grant liveness (XRPL):** when `PolicyGrant.activeGrantCredentialIssuer` is present, the
   Trust Gateway MUST verify on-chain that an active XLS-70 Credential exists for this grant
   on the subject's XRPL account (see [PolicyGrant — Revocation](./PolicyGrant.md#revocation)).
   If the credential is absent or expired → **reject settlement** with
   `ACTIVE_GRANT_CREDENTIAL_MISSING`.
+- **Gateway credential (optional):** when `gatewayCredentialIssuer` and `gatewayCredentialType` are present, the Trust Gateway MUST verify its account holds the matching on-chain credential (see [PolicyGrant — Gateway credential binding](./PolicyGrant.md#gateway-credential-binding-optional)); otherwise → **reject settlement** (e.g. `GATEWAY_NOT_CREDENTIALED`).
 
 If lineage is invalid → **reject settlement**.
 
@@ -470,15 +479,25 @@ Confirm the payment parameters match the authorized constraints.
 
 Checks include:
 
-- rail match: payment rail ∈ `SBA.allowedRails`
+- rail match: payment rail ∈ `SBA.allowedRails` (conforming grants: `SBA.allowedRails` MUST be `["xrpl"]` only)
 - asset match: payment asset ∈ `SBA.allowedAssets` — `kind` and all kind-specific fields must match exactly. See [Asset Matching](#asset).
 - destination match
 - amount ≤ authorized limit (`payment.amount ≤ SBA.maxAmountMinor`) — both values are in the on-chain asset's atomic units; no currency conversion is required at verification time
 - purpose match (when applicable): if `PolicyGrant.allowedPurposes` is present and the settlement request includes a `purpose` field, the gateway SHOULD verify `purpose ∈ PolicyGrant.allowedPurposes`. Reject with `PURPOSE_NOT_ALLOWED` on mismatch. See [PolicyGrant — Purpose Enforcement](./PolicyGrant.md#purpose-enforcement).
 - destination enforcement: if `PolicyGrant.destinationAllowlist` is present, the gateway MUST verify `payment.destination ∈ PolicyGrant.destinationAllowlist`. If `PolicyGrant.merchantCredentialIssuer` is present, the gateway MUST verify the destination holds a matching on-chain credential. When both are present, a destination satisfying **either** mechanism is approved. Reject with `DESTINATION_NOT_ALLOWED` or `DESTINATION_NOT_CREDENTIALED` on mismatch. See [PolicyGrant — Destination Enforcement](./PolicyGrant.md#destination-enforcement).
+- **Velocity:** the gateway MUST enforce `PolicyGrant.velocityLimit` before submit (see [PolicyGrant — Velocity limit enforcement](./PolicyGrant.md#velocity-limit-enforcement)). Reject with `VELOCITY_LIMIT_EXCEEDED` on violation.
 - policyHash consistency: the gateway confirms `PolicyGrant.policyHash` matches the expected policy for this deployment context. A verifier MAY recompute it as `SHA256("MPCP:Policy:<version>:" || canonicalJson(policyDocument))` when the policy document is available.
 
-**Budget verification is stateless.** The gateway checks only that the current payment does not exceed the authorized envelope. The session authority is responsible for tracking cumulative spending across the scope. Gateways MUST NOT maintain a ledger of prior session payments.
+**Budget ceiling (durable state):** The Trust Gateway MUST enforce the PA-signed `budgetMinor`
+ceiling using **durable** cumulative spend state per grant (disk, database, or equivalent — not
+solely process memory). Before accepting a settlement after restart or failover, the gateway MUST
+reconstruct cumulative spend from that durable store **or** from on-chain XRPL history (e.g. sum
+of successful `Payment` transactions carrying the `mpcp/grant-id` memo for this `grantId`). If
+reconstruction is not possible, the gateway MUST **refuse settlement** until spend state is
+confirmed (e.g. `GATEWAY_SPEND_STATE_UNAVAILABLE`). See [Trust Model — Gateway durable spend state](./trust-model.md#gateway-durable-spend-state-must).
+
+The session authority still tracks cumulative spending for `SBA.maxAmountMinor` within scope; the
+gateway independently enforces the PA-signed escrow budget and MUST NOT trust the agent's totals.
 
 If any constraint fails → **reject settlement**.
 
@@ -731,17 +750,17 @@ operator deletes that agent's credential — other agents are unaffected. See
 
 ### Cumulative Budget Overspend
 
-The Trust Gateway is stateless and checks only that the current payment amount does not exceed `SBA.maxAmountMinor`. It does not track prior payments in the session.
+The Trust Gateway MUST enforce the PA-signed `budgetMinor` ceiling using **durable** cumulative
+spend tracking (not solely in-memory state). A restart that wipes only RAM MUST NOT reset the
+gateway's view of spend for a grant — see [Trust Model — Gateway durable spend state](./trust-model.md#gateway-durable-spend-state-must).
 
-**Session authority responsibility:** The session authority MUST maintain a running total of amounts spent within the budget scope and MUST only issue new SBAs within the remaining authorized envelope.
+**Session authority responsibility:** The session authority MUST maintain a running total of amounts spent within the budget scope and MUST only issue new SBAs within the remaining authorized envelope (`SBA.maxAmountMinor`).
 
-The reference implementation exposes `cumulativeSpentMinor` in `SettlementVerificationContext` so callers can pass the running total to the gateway for an accurate cumulative check:
+Reference implementations MAY expose `cumulativeSpentMinor` in `SettlementVerificationContext` so
+callers can align session totals with the gateway; the gateway MUST still persist its own
+authoritative spend tally for `budgetMinor`.
 
-```
-if (cumulativeSpentMinor + currentPayment > maxAmountMinor) → budget_exceeded
-```
-
-In offline or air-gapped deployments, the session authority cannot contact the verifier in real time. In these environments, cumulative enforcement relies on trusted wallet hardware maintaining the spending counter locally.
+In offline or air-gapped deployments, the session authority cannot contact the verifier in real time. In these environments, cumulative enforcement relies on trusted wallet hardware maintaining the spending counter locally; the gateway reconciles when online.
 
 ### Policy Authority Key Compromise
 
@@ -798,9 +817,9 @@ mechanism** on the grant.
 revocation** via XLS-70 Credentials — no hosted HTTP service is required for verifiers that can
 query the ledger. See [PolicyGrant — Revocation](./PolicyGrant.md#revocation).
 
-**Legacy HTTP (non-XRPL):** The optional `revocationEndpoint` field supports HTTP revocation
-checks for rails or deployments that do not use XRPL Credentials. See the
-[Human-to-Agent Profile](../profiles/human-agent-profile.md#revocation).
+**Deprecated HTTP revocation:** The `revocationEndpoint` field MUST NOT appear on conforming
+PolicyGrants. Historic artifacts MAY still carry it; verifiers MAY support read-only legacy checks.
+See [PolicyGrant — Revocation](./PolicyGrant.md#revocation).
 
 **Mitigation:** Short-lived grants still limit exposure if revocation signals are unavailable
 (e.g. offline merchants).
@@ -813,12 +832,14 @@ These sections define the core interoperability rules required for MPCP implemen
 
 # Deployment Profiles
 
-MPCP defines deployment profiles based on the actors involved and the connectivity requirements. The Trust Gateway is mandatory in all profiles — the authorization chain ends at the SBA.
+MPCP defines **deployment profiles** based on which actors operate the Policy Authority and how
+much merchants integrate with MPCP artifacts. **Settlement is always XRPL** in conforming v1.0
+deployments — profiles differ in operational topology, not in settlement rail.
 
 | Profile | Description | Typical use |
 |---------|-------------|-------------|
-| Human-Agent | Human signs PolicyGrant (DID key); AI agent issues SBAs; Trust Gateway settles | AI travel/task delegation |
-| Transparent Gateway | Gateway hosts PA internally; budget owner configures via API | SaaS, early-adoption deployments |
+| Human-Agent | Human (or PA on their behalf) signs PolicyGrant; AI agent issues SBAs; Trust Gateway settles on XRPL | AI travel/task delegation |
+| Transparent Gateway | Gateway hosts PA internally; budget owner configures via API; **internal** settlement remains XRPL; outward-facing APIs may adapt to non-MPCP merchants (e.g. x402) | SaaS, early adoption |
 
 See [Human-Agent Profile](../profiles/human-agent-profile.md) and [Transparent Gateway Profile](../profiles/gateway-profile.md) for detailed guidance.
 
@@ -836,7 +857,9 @@ All artifacts SHOULD be represented as UTF-8 JSON documents using the canonical 
 
 An `Asset` is a discriminated union object that fully identifies a payment asset by kind. String-only asset references are not valid — structured `Asset` objects MUST be used in all `allowedAssets` arrays and `asset` fields throughout the protocol.
 
-The `kind` field is the discriminator. Three variants are defined:
+The `kind` field is the discriminator. Three variants are defined. **MPCP v1.0 conformance** uses only **`XRP`** and **`IOU`** (XRPL
+assets). The **`ERC20`** variant is reserved for a future protocol revision and MUST NOT appear in
+conforming v1.0 PolicyGrants or SBAs.
 
 **XRPL IOU**
 
@@ -887,6 +910,8 @@ The `∈` operator used in artifact relationship rules (`payment.asset ∈ SBA.a
   "scope": "SESSION",
   "allowedRails": ["xrpl"],
   "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
+  "authorizedGateway": "rTrustGateway...",
+  "velocityLimit": { "maxPayments": 120, "windowSeconds": 3600 },
   "policyHash": "sha256(...)",
   "expiresAt": "2026-03-08T14:00:00Z",
   "issuer": "did:web:operator.example.com",
@@ -958,6 +983,10 @@ Recommended codes:
 | SUBJECT_ACTOR_MISMATCH | `subjectCredentialIssuer` is set and either `SBA.authorization.actorId` does not equal the credential Subject account, or `subjectId` is `did:xrpl:…:{rAddress}` and `actorId` ≠ `{rAddress}` |
 | OFFLINE_CUMULATIVE_EXCEEDED | Offline acceptance would exceed `PolicyGrant.offlineMaxCumulativePayment` |
 | ACTIVE_GRANT_CREDENTIAL_MISSING | `activeGrantCredentialIssuer` is set but the on-chain active-grant credential for this `grantId` does not exist or is expired (grant revoked) |
+| GATEWAY_NOT_AUTHORIZED | Trust Gateway XRPL address does not match `PolicyGrant.authorizedGateway` |
+| GATEWAY_NOT_CREDENTIALED | `gatewayCredentialIssuer` / `gatewayCredentialType` are set but the gateway account does not hold a matching on-chain credential |
+| GATEWAY_SPEND_STATE_UNAVAILABLE | Gateway cannot reconstruct durable cumulative spend after restart or failover — settlement refused until state is confirmed |
+| VELOCITY_LIMIT_EXCEEDED | Settlement would exceed `PolicyGrant.velocityLimit` for this `grantId` |
 | SCOPE_UNSUPPORTED | Authorization scope is not supported by the verifier |
 
 Error codes SHOULD remain stable across implementations whenever possible to preserve interoperability.

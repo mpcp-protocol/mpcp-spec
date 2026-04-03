@@ -37,9 +37,10 @@ that encode:
 
 - `budgetMinor` — maximum XRP (in drops) the session may spend
 - `expiresAt` — hard grant expiry
-- `allowedRails` — permitted payment rails
+- `allowedRails` — **conforming grants:** exactly `["xrpl"]` only
 - `allowedPurposes` — merchant category allowlist
-- `authorizedGateway` — the single XRPL address permitted to submit payments
+- `authorizedGateway` — the single XRPL address permitted to submit payments (**required** on conforming grants)
+- `velocityLimit` — PA-signed cap on settlement frequency (**required** on conforming grants)
 - `offlineMaxSinglePayment` — per-transaction cap for offline merchant acceptance
 - `budgetEscrowRef` — reference to the on-chain XRPL escrow that pre-reserves the budget
 
@@ -64,6 +65,7 @@ The Trust Gateway is a mandatory **online enforcement actor** in MPCP's XRPL pro
 7. Attaches `mpcp/grant-id` memo to every on-chain payment for audit traceability
 8. Releases the escrow on grant revocation (EscrowFinish with preimage) or expiry (EscrowCancel)
 9. When `subjectCredentialIssuer` is present on the grant, verifies on-chain subject credentials and that `SBA.authorization.actorId` equals the credential Subject's classic address — mitigating **actorId spoofing** across agents that might otherwise share reporting conventions (see [Subject Attestation](./PolicyGrant.md#subject-attestation))
+10. Enforces `PolicyGrant.velocityLimit` — rejects settlements that would exceed the PA-signed payment rate cap (see [Velocity limit enforcement](./PolicyGrant.md#velocity-limit-enforcement))
 
 **What the Gateway cannot do:**
 
@@ -74,6 +76,28 @@ The Trust Gateway is a mandatory **online enforcement actor** in MPCP's XRPL pro
 **Why it is mandatory:** Without the Trust Gateway, an agent could self-report any budget ceiling.
 The gateway enforces the PA-signed limit independently of agent behavior — a compromised or
 prompt-injected agent cannot cause overspending.
+
+---
+
+### Gateway durable spend state (MUST)
+
+The Trust Gateway MUST **persist** cumulative settled amounts (or equivalent durable state) for
+each active `grantId` so that **`budgetMinor` enforcement survives process restarts**. In-memory-only
+counters are insufficient: after restart, the gateway MUST either:
+
+1. **Reload** cumulative spend from durable storage (database, replicated state store, etc.), or
+2. **Reconstruct** cumulative spend from authoritative XRPL history (e.g. sum successful
+   `Payment` transactions that carry the `mpcp/grant-id` memo for this `grantId`), or
+3. **Refuse settlement** (e.g. `GATEWAY_SPEND_STATE_UNAVAILABLE`) until spend state is confirmed
+   by an operator or backfill job.
+
+Until state is restored, the gateway MUST NOT assume zero prior spend. This closes the attack where
+a compromised agent replays spend against a freshly restarted gateway that has lost its counter.
+
+The gateway MUST apply the same durability expectation to **velocity** accounting for
+`PolicyGrant.velocityLimit` (counts of settlements per sliding window).
+
+See [MPCP — Settlement verification Step 2](./mpcp.md#step-2--verify-policy-constraints).
 
 ---
 
@@ -153,7 +177,7 @@ overspending because:
 | Destination enforced | ✅ gateway checks `destinationAllowlist` / credentials | ❌ not enforced (agent-only) |
 | On-chain confirmation | ✅ XRPL receipt | ❌ no settlement yet |
 | Budget escrow verified | ✅ | ❌ |
-| Revocation checked | ✅ gateway checks credential or HTTP on each payment | ⚠️ best-effort (TTL cache; no ledger) |
+| Revocation checked | ✅ gateway checks XRPL active-grant credential when `activeGrantCredentialIssuer` is set | ⚠️ best-effort (TTL cache; no ledger) |
 
 **Offline mode (Option A — Tiered Trust):** Merchants accept reduced guarantees in exchange for
 the ability to operate without a network connection. The `offlineMaxSinglePayment` cap (PA-signed)

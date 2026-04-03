@@ -97,7 +97,7 @@ Example:
     "currency": "USD",
     "minorUnit": 2,
     "maxAmountMinor": "50000000",
-    "allowedRails": ["xrpl", "stripe"],
+    "allowedRails": ["xrpl"],
     "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
     "allowedOperators": ["operator_42", "operator_77"],
     "geoFence": ["sf_zone_a"],
