@@ -81,7 +81,8 @@ An issuer that appears in `approvedIssuers` but not in `issuers` is recognised a
           "use": "sig",
           "kty": "OKP",
           "crv": "Ed25519",
-          "x": "base64url..."
+          "x": "base64url...",
+          "active": true
         }
       ]
     },
@@ -93,7 +94,8 @@ An issuer that appears in `approvedIssuers` but not in `issuers` is recognised a
           "use": "sig",
           "kty": "OKP",
           "crv": "Ed25519",
-          "x": "base64url..."
+          "x": "base64url...",
+          "active": true
         }
       ]
     }
@@ -174,7 +176,7 @@ MPCP implementations MUST support:
 | ECDSA P-256 | `EC` | `P-256` | Required for compatibility with SBA signing in the reference implementation |
 | secp256k1 | `EC` | `secp256k1` | Required for XRPL-based deployments |
 
-All keys MUST include `kid` and `use: "sig"`. Private key material (`d`) MUST NOT be present.
+All keys MUST include `kid` and `use: "sig"`. Private key material (`d`) MUST NOT be present. Keys MAY include `active: boolean` (default `true`). Verifiers MUST reject keys where `active` is `false`. See [Key Revocation](./key-resolution.md#key-revocation).
 
 ---
 
@@ -233,11 +235,13 @@ function resolveFromTrustBundle(issuer, issuerKeyId, loadedBundles):
         entry = bundle.issuers.find(e => e.issuer == issuer)
         if entry is null: continue   # approved but not embedded — fall through
         jwk = entry.keys.find(k => k.kid == issuerKeyId)
-        if jwk: return jwk
+        if jwk:
+            if jwk.active == false: return REVOKED   # key revoked — reject
+            return jwk
     return null   # not found in any bundle
 ```
 
-If multiple non-expired bundles match the issuer, the verifier MUST use the one with the latest `expiresAt`.
+If multiple non-expired bundles match the issuer, the verifier MUST use the one with the latest `expiresAt`. If a key is found with `active: false`, the verifier MUST reject the artifact with `KEY_REVOKED` (see [Key Revocation](./key-resolution.md#key-revocation)).
 
 This function feeds into the broader [Key Resolution](./key-resolution.md) algorithm as the first step, before HTTPS well-known and DID resolution.
 
@@ -283,6 +287,8 @@ Bundle refresh is performed by fetching an updated Trust Bundle document from th
 Verifiers MUST also support an **emergency refresh** mechanism for key compromise scenarios.
 See [Bundle Signer Key Compromise](#bundle-signer-key-compromise) for the full procedure.
 
+High-assurance deployments SHOULD set `expiresAt` to short intervals (hours, not days) to limit the window during which a revoked key remains trusted. See [Key Revocation](./key-resolution.md#key-revocation).
+
 ---
 
 ## Security Considerations
@@ -291,7 +297,8 @@ See [Bundle Signer Key Compromise](#bundle-signer-key-compromise) for the full p
 - Compromise of a bundle signer key allows an attacker to distribute bundles with injected issuer keys — short `expiresAt` windows limit the damage window. See [Bundle Signer Key Compromise](#bundle-signer-key-compromise) for detailed mitigations
 - Root keys MUST be installed securely and MUST NOT be changeable by software update alone in high-assurance deployments
 - Verifiers MUST NOT load unsigned or expired bundles
-- Deployments SHOULD use short Trust Bundle lifetimes (hours, not days) in high-assurance environments to limit the window during which a compromised key or revoked grant remains trusted
+- Trust Bundles that were signed before an issuer key was revoked will continue to include the compromised key until they expire. Deployments SHOULD use short Trust Bundle lifetimes (hours, not days) in high-assurance environments. See [Key Revocation](./key-resolution.md#key-revocation) for guidance on limiting the exposure window
+- Trust Bundle builders SHOULD check the JWKS `active` field and, for XRPL deployments, the on-chain key credential before embedding each key in a new bundle
 
 ---
 

@@ -701,6 +701,33 @@ if (cumulativeSpentMinor + currentPayment > maxAmountMinor) → budget_exceeded
 
 In offline or air-gapped deployments, the session authority cannot contact the verifier in real time. In these environments, cumulative enforcement relies on trusted wallet hardware maintaining the spending counter locally.
 
+### Policy Authority Key Compromise
+
+If a PA signing key is compromised, an attacker can forge PolicyGrants with unlimited budgets.
+MPCP mitigates this with two complementary revocation mechanisms:
+
+1. **JWKS `active` field** — the PA sets `active: false` on the compromised key in its JWKS
+   endpoint. Verifiers MUST reject keys with `active: false`. Verifiers that cache the key set
+   will stop trusting the key on their next fetch.
+2. **XRPL Credential key lifecycle** — the PA issues a self-referencing on-chain credential for
+   each active signing key. On compromise, the PA deletes the credential. Verifiers check the
+   ledger for near-instant (ledger finality ~4s) revocation.
+
+Trust Bundles that embedded the key before revocation remain valid until their `expiresAt`.
+Deployments SHOULD use short Trust Bundle lifetimes in high-assurance environments. See
+[Key Revocation](./key-resolution.md#key-revocation).
+
+### Gateway Seed Compromise
+
+If an attacker obtains the Trust Gateway's XRPL private key, they can submit transactions on
+behalf of the gateway — potentially draining all active escrows simultaneously. Per-grant escrow
+bounds exposure per grant, but aggregate exposure is the sum of all active `budgetMinor` values.
+
+**Mitigations:** Production gateways SHOULD store the private key in an HSM/KMS. The PA SHOULD
+issue an XRPL Credential (XLS-70) to the gateway account; on compromise, the PA deletes the
+credential to revoke the gateway's on-chain authorization. Operators SHOULD monitor for
+on-chain payments without corresponding SBAs. See [Gateway Seed Security](./trust-model.md#gateway-seed-security).
+
 ### Trust Bundle Signer Key Compromise
 
 If the root key used to sign Trust Bundles is compromised, an attacker can distribute
@@ -862,6 +889,7 @@ Recommended codes:
 
 | Code | Meaning |
 |------|---------|
+| KEY_REVOKED | Signing key is revoked (`active: false` in JWKS or on-chain credential deleted) |
 | POLICY_GRANT_SIGNATURE_INVALID | PolicyGrant signature verification failed |
 | SBA_SIGNATURE_INVALID | SBA signature verification failed |
 | POLICY_GRANT_NOT_FOUND | Referenced PolicyGrant does not exist |
