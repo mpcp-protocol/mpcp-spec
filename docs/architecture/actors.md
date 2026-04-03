@@ -48,7 +48,7 @@ An AI agent acting under human authorization, using MPCP to bound its spending a
 - Declares the payment `purpose` in each settlement request so the Trust Gateway can verify it against the PA-signed `allowedPurposes`
 - Sets SBA `destinationAllowlist` as a subset of the PolicyGrant's PA-signed `destinationAllowlist` (when present)
 - Maintains cumulative spend counter across all sessions in the trip/project
-- SHOULD verify grant is not revoked before issuing each SBA — on XRPL, active-grant credential lookup when `activeGrantCredentialIssuer` is set; otherwise legacy `revocationEndpoint` when present (agents are online by design)
+- SHOULD verify grant is not revoked before issuing each SBA — on XRPL, active-grant credential lookup when `activeGrantCredentialIssuer` is set (conforming grants omit `revocationEndpoint`; agents are online by design)
 
 **Contrast with Vehicle Wallet:**
 
@@ -73,14 +73,16 @@ XRPL gateway seed and is the only entity that submits payment transactions on be
 **Responsibilities:**
 
 - Creates an XRPL budget escrow at grant issuance, pre-reserving the full `budgetMinor` XRP
-- Enforces the PA-signed `budgetMinor` as a hard ceiling — maintains an independent spend counter
+- Enforces the PA-signed `budgetMinor` as a hard ceiling — maintains a **durable** independent spend counter (survives restart; see [Trust Model — Gateway durable spend state](../protocol/trust-model.md#gateway-durable-spend-state-must))
+- Enforces PA-signed `velocityLimit` (see [PolicyGrant — Velocity limit enforcement](../protocol/PolicyGrant.md#velocity-limit-enforcement))
 - Verifies each SBA signature before submitting a XRPL Payment transaction
 - Enforces `allowedPurposes` from the PA-signed grant — rejects payments whose declared purpose is not in the allowlist (see [Purpose Enforcement](../protocol/PolicyGrant.md#purpose-enforcement))
 - Enforces `destinationAllowlist` and/or `merchantCredentialIssuer` from the PA-signed grant — rejects payments to unapproved destinations (see [Destination Enforcement](../protocol/PolicyGrant.md#destination-enforcement)); this is the authoritative check against **merchant terminal impersonation** at settlement (see [Threat Model — Merchant terminal impersonation](../protocol/mpcp.md#merchant-terminal-impersonation-interaction-layer))
 - When `subjectCredentialIssuer` is present on the grant, verifies `SBA.authorization.actorId` matches the attested XRPL credential Subject and rejects with `SUBJECT_ACTOR_MISMATCH` or `SUBJECT_NOT_ATTESTED` as defined in [Subject Attestation](../protocol/PolicyGrant.md#subject-attestation)
 - Attaches `mpcp/grant-id` memo to every XRPL payment for on-chain audit traceability
 - Releases the escrow on grant revocation (EscrowFinish with preimage) or expiry (EscrowCancel)
-- Rejects payments if `authorizedGateway` in the PA-signed grant does not match its own address
+- Rejects payments if `authorizedGateway` in the PA-signed grant does not match its own XRPL address (**required** on conforming grants)
+- When `gatewayCredentialIssuer` and `gatewayCredentialType` are present, verifies its XRPL account holds the matching on-chain credential before each settlement (see [Gateway credential binding](../protocol/PolicyGrant.md#gateway-credential-binding-optional))
 
 **Why it is mandatory:** Without the Trust Gateway, a compromised or prompt-injected agent could
 self-report any budget ceiling. The gateway enforces the PA-signed limit independently — it never
@@ -140,7 +142,7 @@ Validates the full authorization chain.
 
 Executes the actual payment.
 
-**Examples:** XRPL + RLUSD, EVM stablecoins, Stripe, hosted providers.
+**Examples:** XRPL native XRP and IOUs (e.g. RLUSD).
 
 MPCP does not replace settlement systems—it **controls authorization above them**.
 

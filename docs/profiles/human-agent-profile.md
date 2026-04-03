@@ -30,7 +30,7 @@ This profile is appropriate when:
 
 - A human wants to delegate bounded spending to an AI agent (travel, subscriptions, event budgets)
 - Payments span multiple sessions or days (use `budgetScope: "TRIP"`)
-- The human may need to cancel mid-delegation — on XRPL use `activeGrantCredentialIssuer` (CredentialDelete); non-XRPL MAY use `revocationEndpoint`
+- The human may need to cancel mid-delegation — use `activeGrantCredentialIssuer` and **CredentialDelete** on XRPL (MPCP v1 does not define HTTP `revocationEndpoint` on conforming grants)
 - Merchant categories should be explicitly constrained (use `allowedPurposes`)
 - Offline-capable verification is required at the merchant side
 
@@ -52,6 +52,8 @@ The PolicyGrant is signed by the human principal's DID key.
   "expiresAt": "2026-04-13T23:59:59Z",
   "allowedPurposes": ["travel:hotel", "travel:flight", "travel:transport"],
   "activeGrantCredentialIssuer": "rPaAddress...",
+  "authorizedGateway": "rTrustGateway...",
+  "velocityLimit": { "maxPayments": 200, "windowSeconds": 86400 },
   "issuer": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK",
   "issuerKeyId": "alice-did-key-1",
   "signature": "..."
@@ -65,8 +67,9 @@ The PolicyGrant is signed by the human principal's DID key.
 | `issuer` | Human's DID (did:key, did:web, etc.) — identifies the policy authority |
 | `issuerKeyId` | Key ID within the DID document used for signing |
 | `allowedPurposes` | Merchant category allowlist — enforced by the AI agent and the Trust Gateway (see [Purpose Enforcement](../protocol/PolicyGrant.md#purpose-enforcement)) |
-| `activeGrantCredentialIssuer` | **XRPL:** PA's XRPL address for the active-grant credential; revocation = `CredentialDelete` (see [PolicyGrant — Revocation](../protocol/PolicyGrant.md#revocation)) |
-| `revocationEndpoint` | **Legacy HTTP** cancellation URL for non-XRPL rails only |
+| `activeGrantCredentialIssuer` | PA's XRPL address for the active-grant credential; revocation = `CredentialDelete` (see [PolicyGrant — Revocation](../protocol/PolicyGrant.md#revocation)) |
+| `authorizedGateway` | **Required** — XRPL address of the Trust Gateway that may settle this grant |
+| `velocityLimit` | **Required** — PA-signed `{ maxPayments, windowSeconds }` cap on settlement rate (see [PolicyGrant — Velocity](../protocol/PolicyGrant.md#velocity-limit-enforcement)) |
 | `scope` | Use `TRIP` for multi-day or multi-session delegations |
 
 ### Policy Authority Server — Common Deployment Pattern
@@ -79,9 +82,9 @@ In this model:
 - The PA server issues the PolicyGrant, signing with a domain key
 - `issuer` is the PA server's domain (e.g. `wallet.alice.example.com`) rather than Alice's personal DID
 - Key resolution uses HTTPS well-known: `https://wallet.alice.example.com/.well-known/mpcp-keys.json`
-- For **XRPL**, the PA SHOULD issue the active-grant credential from `activeGrantCredentialIssuer`
-  and revoke via `CredentialDelete` — no HTTP endpoint required. For **non-XRPL** transitional
-  deployments, the PA MAY host `revocationEndpoint` instead.
+- For conforming grants, the PA SHOULD issue the active-grant credential from
+  `activeGrantCredentialIssuer` and revoke via `CredentialDelete`. The `revocationEndpoint` field
+  MUST NOT appear on conforming PolicyGrants.
 
 ```json
 {
@@ -172,38 +175,21 @@ if (!purposeAllowed) {
 
 ## Revocation
 
-### XRPL Credential (recommended)
+### XRPL Credential (conforming)
 
-When `activeGrantCredentialIssuer` is set, the Trust Gateway and online merchants rely on
-**ledger queries** for grant liveness — not HTTP. See [PolicyGrant — Revocation](../protocol/PolicyGrant.md#revocation).
+Conforming PolicyGrants MUST omit `revocationEndpoint`. When `activeGrantCredentialIssuer` is set,
+the Trust Gateway and online merchants rely on **ledger queries** for grant liveness. See
+[PolicyGrant — Revocation](../protocol/PolicyGrant.md#revocation).
 
-### Legacy HTTP endpoint contract
+### Historic HTTP grants (non-conforming)
 
-When only `revocationEndpoint` is present (non-XRPL):
-
-```
-GET {revocationEndpoint}?grantId={grantId}
-Response: { "revoked": boolean, "revokedAt": "ISO8601" }
-```
+Pre-v1 artifacts MAY carry `revocationEndpoint` without credentials. SDKs MAY still support
+`checkRevocation()` for those grants; such flows are **outside MPCP v1 conformance**.
 
 ### Merchant responsibility
 
-Merchants and service providers SHOULD perform the appropriate check before accepting a payment
-(credential lookup when `activeGrantCredentialIssuer` is set; HTTP when only
-`revocationEndpoint` is set). HTTP checks are a **separate online step** when used.
-
-```javascript
-import { checkRevocation } from "mpcp-service/sdk";
-
-const { revoked, revokedAt } = await checkRevocation(
-  grant.revocationEndpoint,
-  grant.grantId,
-  { timeoutMs: 3000 }
-);
-if (revoked) {
-  // reject payment
-}
-```
+Merchants and service providers SHOULD perform credential lookup when `activeGrantCredentialIssuer`
+is set. For legacy HTTP-only grants, HTTP checks are a separate online step when supported.
 
 ### Offline exception
 
@@ -227,7 +213,7 @@ frequent SBA refresh.
 ### Key compromise
 
 If the human's DID key is compromised:
-1. Revoke all active PolicyGrants (`CredentialDelete` on XRPL, or HTTP revocation where used)
+1. Revoke all active PolicyGrants (`CredentialDelete` on XRPL)
 2. Rotate the DID key or create a new DID
 3. Reissue PolicyGrants under the new key
 
@@ -249,7 +235,7 @@ Revoke the PolicyGrant immediately to stop new SBAs from being issued.
 | Policy authority | Fleet operator (domain key) | Human (DID key) or PA server (domain key) |
 | Subject | Vehicle wallet | AI agent |
 | Connectivity | Offline-first (Trust Bundle) | Online by design |
-| Revocation | Credential + Trust Bundle / HTTP legacy | Credential (XRPL) or HTTP — human cancels delegation |
+| Revocation | Credential + Trust Bundle | Credential (XRPL) — human cancels via CredentialDelete |
 | Budget scope | SESSION (per-shift, multi-merchant) ¹ | TRIP (multi-day, multi-session) |
 | Merchant categories | destinationAllowlist (crypto, PA + gateway-enforced) | allowedPurposes (semantic, agent + gateway-enforced) |
 | Use case | Tolls, EV charging, parking | Travel, subscriptions, event budgets |
@@ -262,7 +248,7 @@ Both profiles use the same MPCP authorization chain and the same Trust Gateway. 
 
 ## See Also
 
-- [PolicyGrant](../protocol/PolicyGrant.md) — `activeGrantCredentialIssuer`, `revocationEndpoint`, `allowedPurposes`
+- [PolicyGrant](../protocol/PolicyGrant.md) — `activeGrantCredentialIssuer`, `authorizedGateway`, `velocityLimit`, `allowedPurposes`
 - [SignedBudgetAuthorization](../protocol/SignedBudgetAuthorization.md) — TRIP scope
 - [Actors](../architecture/actors.md) — AI Agent actor
 - [Comparison with Agent Protocols](../overview/comparison-with-agent-protocols.md)

@@ -46,7 +46,10 @@ Budget Owner
                    (no MPCP knowledge required)
 ```
 
-The gateway runs the full MPCP stack internally. Externally it presents:
+The gateway runs the full MPCP stack internally — **MPCP v1 settlement is XRPL-only** (conforming
+PolicyGrants use `allowedRails: ["xrpl"]`, `authorizedGateway`, and `velocityLimit`). Outward-facing
+APIs (e.g. x402, card rails) are **adapter layers**; they do not define alternate MPCP settlement
+rails. Externally it presents:
 
 - **Inward** (budget owner → gateway): a lightweight session configuration API
 - **Outward** (gateway → merchant): a standard payment protocol such as [x402](https://x402.org)
@@ -177,8 +180,11 @@ Session config  →  internal PolicyGrant
   budget: $800         grantId: ...,
   purposes: [...]  →   policyHash: sha256(canonicalize(session config)),
   expiresAt: ...       allowedPurposes: [...],
-}                      expiresAt: ...,
-                       revocationEndpoint: internal
+}                      allowedRails: ["xrpl"],
+                       authorizedGateway: <gateway XRPL addr>,
+                       velocityLimit: { maxPayments, windowSeconds },
+                       expiresAt: ...,
+                       activeGrantCredentialIssuer: ... (when using on-chain liveness)
                     }
 ```
 

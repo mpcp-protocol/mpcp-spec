@@ -27,8 +27,8 @@ normative for new deployments. Use Credentials instead.
 ## Privacy Model
 
 Policy documents may contain sensitive fields: `subjectId` (identity), `allowedPurposes`
-(behavioural/health/travel categories), spending limits, and `revocationEndpoint` (service
-provider). Publishing these fields to a public, immutable ledger creates a GDPR right-to-erasure
+(behavioural/health/travel categories), spending limits, and gateway or credential addresses.
+Publishing these fields to a public, immutable ledger creates a GDPR right-to-erasure
 conflict.
 
 MPCP defines three `submitMode` values:

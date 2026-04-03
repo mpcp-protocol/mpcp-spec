@@ -107,7 +107,7 @@ The wallet SDK is the integration point for **any actor that creates SBAs** — 
 - **PolicyGrant display** — parse a received grant into human- or agent-readable form
 - **SBA creation and signing** — `createSession(grant, signingKey)` → signs SBAs within authorized scope
 - **Budget enforcement** — tracks cumulative spend, rejects requests that would exceed the grant ceiling
-- **Revocation** — checks XRPL active-grant credential when `activeGrantCredentialIssuer` is set; otherwise legacy `revocationEndpoint` for non-XRPL rails
+- **Revocation** — checks XRPL active-grant credential when `activeGrantCredentialIssuer` is set (conforming grants omit `revocationEndpoint`)
 - **Persistence** — pluggable storage adapters (in-memory, localStorage, React Native AsyncStorage)
 - **Platform support** — browser bundle (Web Crypto API), React Native, Node.js
 

@@ -67,8 +67,10 @@ const grant = createSignedPolicyGrant({
   grantId: crypto.randomUUID(),
   policyHash: yourPolicyHash,
   expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-  allowedRails: ["xrpl", "stripe"],
-  allowedAssets: [{ standard: "ISO4217", code: "USD" }],
+  allowedRails: ["xrpl"],
+  allowedAssets: [{ kind: "IOU", currency: "RLUSD", issuer: "rIssuer..." }],
+  authorizedGateway: "rTrustGateway...",
+  velocityLimit: { maxPayments: 500, windowSeconds: 86400 },
   maxAmountMinor: "50000",
   currency: "USD",
 }, { issuer: "pa.your-domain.com", keyId: "pa-key-1" });
@@ -121,7 +123,7 @@ const session = await createSession(signedGrant, {
 // Throws MpcpGrantRevokedError if the grant has been revoked.
 let sba;
 try {
-  sba = await session.createSba({ amount: "2500", currency: "USD", rail: "stripe" });
+  sba = await session.createSba({ amount: "2500", currency: "USD", rail: "xrpl" });
 } catch (err) {
   if (err instanceof MpcpBudgetExceededError) { /* handle */ }
   if (err instanceof MpcpGrantRevokedError)   { /* handle */ }
@@ -258,7 +260,7 @@ The merchant SDK performs a full MPCP verification chain on every request:
 
 1. **PolicyGrant signature** — verifies the grant was signed by the claimed policy authority (resolves key via `/.well-known/mpcp-keys.json` or Trust Bundle)
 2. **SBA signature** — verifies the agent signed the budget authorization with the key recorded in the grant
-3. **Revocation** — calls the `revocationEndpoint` from the grant (cached by TTL)
+3. **Grant liveness** — when `activeGrantCredentialIssuer` is set, credential lookup on XRPL (cached by TTL); conforming grants have no `revocationEndpoint`
 4. **Budget bounds** — confirms the requested amount does not exceed `maxAmountMinor`, accounting for cumulative spend if `trackSpend: true`
 5. **Destination allowlist** — if `merchantId` is set, confirms it appears in the grant's `destinationAllowlist`
 

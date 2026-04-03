@@ -10,7 +10,7 @@ The system model has three layers:
 |-------|------|----------|
 | **Policy** | Defines spending rules | Fleet operator policy, vendor allowlists, caps |
 | **Authorization** | Bounds runtime spending | PolicyGrant, SBA |
-| **Settlement** | Executes payment | XRPL, EVM, Stripe, hosted |
+| **Settlement** | Executes payment | **XRPL** (MPCP v1.0) |
 
 MPCP operates in the **authorization** layer. It does not replace or implement the settlement layer—it constrains what may be settled.
 
@@ -35,7 +35,7 @@ Each step produces verifiable artifacts. The verifier can independently validate
 1. **Decoupled** — Policy, budget, and settlement are separate concerns
 2. **Verifiable** — Settlement can be checked against authorization chain; on-chain via `mpcp/grant-id` memo
 3. **Offline-capable** — Machine holds chain onboard; offline merchants verify locally via Trust Bundle
-4. **XRPL-primary** — v1.0 profile uses XRPL escrow + RLUSD; other rails supported via future profiles
+4. **XRPL-only (v1.0)** — Conforming deployments use XRPL escrow + XRPL assets (e.g. RLUSD IOU); future spec revisions may register additional rails
 
 ## See Also
 
