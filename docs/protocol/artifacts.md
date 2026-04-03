@@ -37,7 +37,7 @@ The **SBA** defines a signed spending envelope for a session or scope:
 
 - **maxAmountMinor** — Maximum spend for this payment in the policy's minor currency units. The Trust Gateway converts to on-chain asset units at settlement time.
 - **allowedRails**, **allowedAssets** — Must be subsets of PolicyGrant
-- **destinationAllowlist** — Optional list of permitted destination addresses
+- **destinationAllowlist** — Optional list of permitted destination addresses (must be a subset of `PolicyGrant.destinationAllowlist` when present)
 - **budgetScope** — SESSION, DAY, VEHICLE, FLEET, or TRIP (multi-session; see [Human-to-Agent Profile](../profiles/human-agent-profile.md#trip-scope-semantics))
 
 The SBA is cryptographically signed. A verifier checks the signature over `SHA256("MPCP:SBA:1.0:" || canonicalJson(authorization))`.

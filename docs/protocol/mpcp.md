@@ -469,6 +469,8 @@ Checks include:
 - asset match: payment asset ∈ `SBA.allowedAssets` — `kind` and all kind-specific fields must match exactly. See [Asset Matching](#asset).
 - destination match
 - amount ≤ authorized limit (`payment.amount ≤ SBA.maxAmountMinor`) — both values are in the on-chain asset's atomic units; no currency conversion is required at verification time
+- purpose match (when applicable): if `PolicyGrant.allowedPurposes` is present and the settlement request includes a `purpose` field, the gateway SHOULD verify `purpose ∈ PolicyGrant.allowedPurposes`. Reject with `PURPOSE_NOT_ALLOWED` on mismatch. See [PolicyGrant — Purpose Enforcement](./PolicyGrant.md#purpose-enforcement).
+- destination enforcement: if `PolicyGrant.destinationAllowlist` is present, the gateway MUST verify `payment.destination ∈ PolicyGrant.destinationAllowlist`. If `PolicyGrant.merchantCredentialIssuer` is present, the gateway MUST verify the destination holds a matching on-chain credential. When both are present, a destination satisfying **either** mechanism is approved. Reject with `DESTINATION_NOT_ALLOWED` or `DESTINATION_NOT_CREDENTIALED` on mismatch. See [PolicyGrant — Destination Enforcement](./PolicyGrant.md#destination-enforcement).
 - policyHash consistency: the gateway confirms `PolicyGrant.policyHash` matches the expected policy for this deployment context. A verifier MAY recompute it as `SHA256("MPCP:Policy:<version>:" || canonicalJson(policyDocument))` when the policy document is available.
 
 **Budget verification is stateless.** The gateway checks only that the current payment does not exceed the authorized envelope. The session authority is responsible for tracking cumulative spending across the scope. Gateways MUST NOT maintain a ledger of prior session payments.
@@ -665,6 +667,26 @@ Machines cannot bypass policy constraints because every authorization chain must
 PolicyGrant → SBA → Trust Gateway
 ```
 
+### Purpose Bypass (Agent Compromise)
+
+A compromised agent could skip its own `allowedPurposes` check and issue SBAs for unauthorized
+merchant categories. To mitigate this, the Trust Gateway SHOULD enforce `allowedPurposes` from
+the PA-signed PolicyGrant before submitting each settlement transaction. When the settlement
+request includes a `purpose` field, the gateway checks it against `PolicyGrant.allowedPurposes`
+and rejects with `PURPOSE_NOT_ALLOWED` on mismatch. See [PolicyGrant — Purpose Enforcement](./PolicyGrant.md#purpose-enforcement).
+
+### Destination Forgery (Agent Compromise)
+
+A compromised agent could populate the SBA `destinationAllowlist` with an attacker-controlled
+address, directing funds away from legitimate merchants. Because the SBA is agent-signed, the
+agent controls this field unless bounded by the PA-signed PolicyGrant.
+
+**Mitigation:** The PA-signed `destinationAllowlist` on the PolicyGrant provides a tamper-proof
+allowlist. The gateway MUST verify `payment.destination ∈ PolicyGrant.destinationAllowlist`
+before settling. For deployments requiring dynamic merchant management, the PA can issue XRPL
+Credentials (XLS-70) to approved merchants and reference them via `merchantCredentialIssuer`
+and `merchantCredentialType` on the PolicyGrant. See [PolicyGrant — Destination Enforcement](./PolicyGrant.md#destination-enforcement).
+
 ### Cumulative Budget Overspend
 
 The Trust Gateway is stateless and checks only that the current payment amount does not exceed `SBA.maxAmountMinor`. It does not track prior payments in the session.
@@ -840,6 +862,9 @@ Recommended codes:
 | DESTINATION_MISMATCH | Payment destination differs from authorization |
 | AMOUNT_EXCEEDED | Payment amount exceeds authorized limit |
 | TX_REPLAYED | Settlement transaction identifier has already been consumed |
+| PURPOSE_NOT_ALLOWED | Settlement request purpose is not in `PolicyGrant.allowedPurposes` |
+| DESTINATION_NOT_ALLOWED | Payment destination not in `PolicyGrant.destinationAllowlist` and no credential match |
+| DESTINATION_NOT_CREDENTIALED | `merchantCredentialIssuer` is set but destination does not hold a matching on-chain credential |
 | SCOPE_UNSUPPORTED | Authorization scope is not supported by the verifier |
 
 Error codes SHOULD remain stable across implementations whenever possible to preserve interoperability.

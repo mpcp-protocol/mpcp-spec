@@ -58,9 +58,11 @@ The Trust Gateway is a mandatory **online enforcement actor** in MPCP's XRPL pro
 1. Creates the XRPL budget escrow at grant issuance (pre-reserving `budgetMinor` XRP)
 2. Receives the PA-signed `budgetMinor` and enforces it as a hard ceiling for all payments
 3. Holds the XRPL gateway seed — no other actor can submit payments on this gateway's behalf
-4. Verifies the SBA signature and purpose before signing each XRPL Payment transaction
-5. Attaches `mpcp/grant-id` memo to every on-chain payment for audit traceability
-6. Releases the escrow on grant revocation (EscrowFinish with preimage) or expiry (EscrowCancel)
+4. Verifies the SBA signature before signing each XRPL Payment transaction
+5. Enforces `allowedPurposes` from the PA-signed grant — rejects payments whose declared purpose is not in the allowlist (see [Purpose Enforcement](./PolicyGrant.md#purpose-enforcement))
+6. Enforces `destinationAllowlist` and/or `merchantCredentialIssuer` from the PA-signed grant — rejects payments to unapproved destinations (see [Destination Enforcement](./PolicyGrant.md#destination-enforcement))
+7. Attaches `mpcp/grant-id` memo to every on-chain payment for audit traceability
+8. Releases the escrow on grant revocation (EscrowFinish with preimage) or expiry (EscrowCancel)
 
 **What the Gateway cannot do:**
 
@@ -81,17 +83,21 @@ the PolicyGrant and enforced by the gateway:
 
 - SBA `maxAmountMinor` ≤ remaining gateway budget
 - SBA `allowedPurposes` ⊆ PolicyGrant `allowedPurposes`
+- SBA `destinationAllowlist` ⊆ PolicyGrant `destinationAllowlist` (when PA field is present)
 - SBA signed with agent's own key (not the gateway key)
 
 **What the agent cannot do:**
 
 - Submit XRPL payments directly (no access to gateway seed)
 - Exceed the PA-signed ceiling (gateway rejects overspends)
-- Approve a purpose not in the PolicyGrant `allowedPurposes` list
+- Pay for a purpose not in the PolicyGrant `allowedPurposes` list (gateway enforces)
 
-**Agent trust level:** The gateway trusts that the SBA signature is valid and the purpose is
-permitted. It does not trust the agent's self-reported budget state — it maintains its own
-independent spend counter.
+**Agent trust level:** The gateway does not trust the agent's self-reported budget state — it
+maintains its own independent spend counter. The gateway also independently enforces the
+PA-signed `allowedPurposes` against the declared purpose in the settlement request, and
+enforces the PA-signed `destinationAllowlist` (or on-chain merchant credentials) against the
+payment destination, so a compromised agent that skips its own purpose or destination check
+is still blocked at the gateway.
 
 ---
 
@@ -141,6 +147,8 @@ overspending because:
 | PolicyGrant signature valid | ✅ | ✅ |
 | Per-transaction cap enforced | ✅ `budgetMinor` / remaining | ✅ `offlineMaxSinglePayment` |
 | Cumulative budget enforced | ✅ gateway counter + escrow | ❌ not enforced |
+| Purpose enforced | ✅ gateway checks `allowedPurposes` | ❌ not enforced (agent-only) |
+| Destination enforced | ✅ gateway checks `destinationAllowlist` / credentials | ❌ not enforced (agent-only) |
 | On-chain confirmation | ✅ XRPL receipt | ❌ no settlement yet |
 | Budget escrow verified | ✅ | ❌ |
 | Revocation checked | ✅ gateway checks on each payment | ⚠️ best-effort (TTL cache) |

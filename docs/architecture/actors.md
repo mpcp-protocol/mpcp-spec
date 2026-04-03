@@ -40,7 +40,9 @@ An AI agent acting under human authorization, using MPCP to bound its spending a
 
 - Receives a PolicyGrant from a human principal (DID-signed) and acts as its spending subject
 - Acts as **session authority** — creates and signs SBAs (typically with TRIP scope)
-- Enforces `allowedPurposes` before issuing each SBA — refuses payments for disallowed merchant categories
+- Enforces `allowedPurposes` before issuing each SBA — refuses payments for disallowed merchant categories (first line of defense; the Trust Gateway independently enforces the same check)
+- Declares the payment `purpose` in each settlement request so the Trust Gateway can verify it against the PA-signed `allowedPurposes`
+- Sets SBA `destinationAllowlist` as a subset of the PolicyGrant's PA-signed `destinationAllowlist` (when present)
 - Maintains cumulative spend counter across all sessions in the trip/project
 - SHOULD check `revocationEndpoint` before issuing each SBA (agents are online by design)
 
@@ -67,7 +69,9 @@ XRPL gateway seed and is the only entity that submits payment transactions on be
 
 - Creates an XRPL budget escrow at grant issuance, pre-reserving the full `budgetMinor` XRP
 - Enforces the PA-signed `budgetMinor` as a hard ceiling — maintains an independent spend counter
-- Verifies each SBA signature and purpose before submitting a XRPL Payment transaction
+- Verifies each SBA signature before submitting a XRPL Payment transaction
+- Enforces `allowedPurposes` from the PA-signed grant — rejects payments whose declared purpose is not in the allowlist (see [Purpose Enforcement](../protocol/PolicyGrant.md#purpose-enforcement))
+- Enforces `destinationAllowlist` and/or `merchantCredentialIssuer` from the PA-signed grant — rejects payments to unapproved destinations (see [Destination Enforcement](../protocol/PolicyGrant.md#destination-enforcement))
 - Attaches `mpcp/grant-id` memo to every XRPL payment for on-chain audit traceability
 - Releases the escrow on grant revocation (EscrowFinish with preimage) or expiry (EscrowCancel)
 - Rejects payments if `authorizedGateway` in the PA-signed grant does not match its own address

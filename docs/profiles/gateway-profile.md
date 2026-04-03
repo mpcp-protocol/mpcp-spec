@@ -80,7 +80,8 @@ The gateway shifts trust compared to native MPCP:
 | Property | Native MPCP | Transparent Gateway |
 |----------|-------------|---------------------|
 | Budget ceiling enforced | ✓ agent-enforced (SBA independently verifiable) | ✓ gateway-enforced internally |
-| Purpose filtering | ✓ agent-enforced (grant scope in signed artifact) | ✓ gateway-enforced internally |
+| Purpose filtering | ✓ agent + gateway-enforced (PA-signed `allowedPurposes`) | ✓ gateway-enforced internally |
+| Destination enforcement | ✓ agent + gateway-enforced (PA-signed `destinationAllowlist` + XRPL Credentials) | ✓ gateway-enforced internally |
 | Revocation by budget owner | ✓ | ✓ gateway checks endpoint |
 | Cumulative spend tracking | ✓ | ✓ inside gateway |
 | Merchant verifies chain independently | ✓ | ✗ merchant trusts gateway |

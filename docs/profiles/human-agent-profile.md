@@ -64,7 +64,7 @@ The PolicyGrant is signed by the human principal's DID key.
 |-------|-------------|
 | `issuer` | Human's DID (did:key, did:web, etc.) — identifies the policy authority |
 | `issuerKeyId` | Key ID within the DID document used for signing |
-| `allowedPurposes` | Merchant category allowlist — enforced by the AI agent, not the verifier |
+| `allowedPurposes` | Merchant category allowlist — enforced by the AI agent and the Trust Gateway (see [Purpose Enforcement](../protocol/PolicyGrant.md#purpose-enforcement)) |
 | `revocationEndpoint` | URL where the human's wallet accepts cancellation queries |
 | `scope` | Use `TRIP` for multi-day or multi-session delegations |
 
@@ -141,23 +141,27 @@ See [Key Resolution](../protocol/key-resolution.md).
 
 ## `allowedPurposes` — Merchant Category Filter
 
-`allowedPurposes` is an **agent-enforced** constraint, not a cryptographic enforcement by the
-MPCP verifier. It documents the human's intent and appears in the audit trail.
+`allowedPurposes` is enforced at **two levels**: the agent (first line of defense) and the
+Trust Gateway (trusted enforcement point). It is PA-signed and tamper-proof.
 
 **Agent responsibility:** Before issuing an SBA, the agent MUST check whether the merchant
-category (purpose) is in the `allowedPurposes` list. If not, the agent refuses to issue an SBA —
-no payment proceeds.
+category (purpose) is in the `allowedPurposes` list. If not, the agent MUST refuse to issue
+an SBA — no payment proceeds.
 
-**Verifier behavior:** The Trust Gateway does NOT enforce `allowedPurposes`. Operators relying
-on purpose enforcement MUST trust the agent's compliance or implement independent category
-verification.
+**Gateway responsibility:** The Trust Gateway SHOULD enforce `allowedPurposes` from the
+PA-signed grant. When the settlement request includes a `purpose` field, the gateway checks it
+against `PolicyGrant.allowedPurposes` and rejects with `PURPOSE_NOT_ALLOWED` on mismatch.
+This ensures that a compromised agent that bypasses its own check is still blocked.
+
+See [PolicyGrant — Purpose Enforcement](../protocol/PolicyGrant.md#purpose-enforcement) for
+the full specification.
 
 **Example enforcement in agent:**
 
 ```javascript
 const purposeAllowed = grant.allowedPurposes?.includes(merchantCategory) ?? true;
 if (!purposeAllowed) {
-  // refuse to issue SBA
+  // refuse to issue SBA — purpose not permitted by grant
 }
 ```
 
@@ -222,7 +226,7 @@ If the human's DID key is compromised:
 If the agent's SBA signing key is compromised, the attacker is bounded by:
 - The `maxAmountMinor` in the SBA
 - The `expiresAt` in the SBA
-- The `allowedPurposes` and `destinationAllowlist`
+- The `allowedPurposes` and `destinationAllowlist` (both PA-signed on the PolicyGrant and gateway-enforced — see [Destination Enforcement](../protocol/PolicyGrant.md#destination-enforcement))
 
 Revoke the PolicyGrant immediately to stop new SBAs from being issued.
 
@@ -237,7 +241,7 @@ Revoke the PolicyGrant immediately to stop new SBAs from being issued.
 | Connectivity | Offline-first (Trust Bundle) | Online by design |
 | Revocation | `revocationEndpoint` — fleet disables vehicle mid-shift | `revocationEndpoint` — human cancels delegation |
 | Budget scope | SESSION (per-shift, multi-merchant) ¹ | TRIP (multi-day, multi-session) |
-| Merchant categories | destinationAllowlist (crypto) | allowedPurposes (semantic, agent-enforced) |
+| Merchant categories | destinationAllowlist (crypto, PA + gateway-enforced) | allowedPurposes (semantic, agent + gateway-enforced) |
 | Use case | Tolls, EV charging, parking | Travel, subscriptions, event budgets |
 
 ¹ `SESSION` is the recommended scope for fleet shift deployments. `DAY`, `VEHICLE`, and `FLEET` scopes are also defined in the [SBA spec](../protocol/SignedBudgetAuthorization.md) for deployments with different budget reset semantics.
