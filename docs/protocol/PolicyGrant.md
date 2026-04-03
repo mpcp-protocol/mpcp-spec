@@ -125,7 +125,7 @@ See also [SignedBudgetAuthorization — Policy linkage fields](./SignedBudgetAut
 | scope | string | yes | Scope of the grant (SESSION, VEHICLE, FLEET, etc.) |
 | allowedRails | Rail[] | yes | **Conforming grants:** MUST be exactly `["xrpl"]`. MPCP v1 does not define multi-rail settlement. |
 | allowedAssets | Asset[] | conditional | Allowed assets for on-chain rails |
-| maxSpend | object | optional | Spending caps defined by policy |
+| maxSpend | object | optional | **Policy-layer** spending caps (e.g. per-tx / per-session in policy or fiat minor units). Human-readable and tooling; **not** the Trust Gateway on-chain ceiling. See [budgetMinor and maxSpend](#budgetminor-and-maxspend-precedence). |
 | expiresAt | string | yes | ISO 8601 expiration timestamp |
 | requireApproval | boolean | optional | Indicates that further approval is required before payment |
 | reasons | string[] | optional | Policy evaluation reasons |
@@ -136,7 +136,7 @@ See also [SignedBudgetAuthorization — Policy linkage fields](./SignedBudgetAut
 | activeGrantCredentialIssuer | string | optional | XRPL address of the PA (or delegate) that issues the **active grant** XLS-70 Credential. When present, online verifiers (including the Trust Gateway) MUST treat the grant as revoked if that credential does not exist on the subject's XRPL account. **Conforming grants SHOULD set this field** so revocation is ledger-native. See **Revocation** below. |
 | allowedPurposes | string[] | optional | Merchant category allowlist (e.g. `["travel:hotel", "travel:flight"]`). PA-signed. The agent MUST check purpose before issuing each SBA. The Trust Gateway SHOULD enforce purpose when the settlement request includes a `purpose` field. See **Purpose Enforcement** section below. |
 | anchorRef | string | optional | Pointer to an on-chain record of the policy document. Format: `"hcs:{topicId}:{sequenceNumber}"` (Hedera HCS). The historical `xrpl:nft:{tokenId}` pattern is **deprecated** and MUST NOT be used in new deployments; use HCS (or off-chain custody) for policy hash audit and `activeGrantCredentialIssuer` for XRPL grant revocation. See **Policy Document Anchoring** below. |
-| budgetMinor | string | optional | PA-signed budget ceiling in the smallest currency unit (e.g. drops for XRP). The Trust Gateway enforces this as a hard ceiling — it is never read from the UI or agent. |
+| budgetMinor | string | optional | PA-signed **on-chain budget ceiling** in the **settlement asset’s atomic units** (e.g. XRP drops). The Trust Gateway **MUST** enforce this as the hard escrow / cumulative ceiling. See [budgetMinor and maxSpend](#budgetminor-and-maxspend-precedence). |
 | budgetCurrency | string | optional | Currency of `budgetMinor` (e.g. `"XRP"`). |
 | budgetEscrowRef | string | optional | URI reference to the on-chain budget escrow that pre-reserves the full `budgetMinor`. Format: `"{rail}:{mechanism}:{identifier}"` (e.g. `"xrpl:escrow:{account}:{sequence}"`). PA-signed. See [Rails](./rails.md). |
 | authorizedGateway | string | yes | XRPL classic address of the **only** Trust Gateway authorized to submit XRPL payments for this grant. The Trust Gateway MUST reject settlement if its own XRPL address does not match. PA-signed. **Required for MPCP v1 conformance** (see [MPCP conformance](#mpcp-conformance-mandatory-xrpl)). |
@@ -220,6 +220,36 @@ The PolicyGrant stores the **resulting effective constraints**.
 
 ---
 
+## budgetMinor and maxSpend (precedence)
+
+PolicyGrant may carry both **`maxSpend`** (optional) and **`budgetMinor`** (optional but **required
+for meaningful Trust Gateway budget enforcement** on XRPL with escrow). They serve **different
+roles**:
+
+| Field | Role | Enforced by |
+|-------|------|-------------|
+| `budgetMinor` | **Authoritative on-chain ceiling** for the grant, in **atomic settlement units** (drops, etc.), PA-signed | **Trust Gateway** (durable cumulative spend + escrow) |
+| `maxSpend` | **Policy-layer** caps (e.g. `perTxMinor`, `perSessionMinor`) aligned with the **policy document** and operator UX | Session authority / agent **guidance**; documented intent; **not** a substitute for `budgetMinor` at the gateway |
+
+**Precedence:**
+
+1. **Settlement:** The Trust Gateway MUST use **`budgetMinor`** (and escrow) as the **hard** spending
+   ceiling. It MUST **NOT** derive the on-chain ceiling from `maxSpend` alone.
+2. **Consistency:** When both are present, the PA SHOULD ensure **`budgetMinor`**, after any
+   unit conversion to the settlement asset, does **not** exceed the **effective** cap implied by
+   intersected policy (including fleet policy — see [FleetPolicyAuthorization](./FleetPolicyAuthorization.md)).
+   The session authority SHOULD issue SBAs whose **`maxAmountMinor`** stays within both the SBA scope
+   envelope **and** the remaining headroom under **`budgetMinor`**.
+3. **Subset checks:** `SBA.allowedRails` / `SBA.allowedAssets` MUST remain subsets of the PolicyGrant.
+   If `maxSpend` defines comparable numeric limits in the **same units as `SBA.maxAmountMinor`**,
+   implementations SHOULD verify the SBA does not violate those limits; otherwise treat `maxSpend` as
+   **informational** relative to the policy document behind **`policyHash`**.
+
+If `budgetMinor` is omitted, gateway-level cumulative enforcement against a PA-signed escrow budget
+is undefined — **conforming XRPL deployments SHOULD always set `budgetMinor`**.
+
+---
+
 ## Relationship to SBA
 
 A **SignedBudgetAuthorization** must always be a subset of the PolicyGrant.
@@ -229,10 +259,12 @@ For example:
 ```
 SBA.allowedRails ⊆ PolicyGrant.allowedRails
 SBA.allowedAssets ⊆ PolicyGrant.allowedAssets
-SBA.maxAmount ≤ PolicyGrant.maxSpend
 ```
 
-The SBA must reference the same **policyHash** used to produce the PolicyGrant.
+The SBA MUST reference the same **`policyHash`** as the PolicyGrant. Cumulative spend against
+**`PolicyGrant.budgetMinor`** MUST be enforced by the Trust Gateway; **`SBA.maxAmountMinor`** is the
+per-payment envelope within that grant (and within session authority tracking). When **`maxSpend`**
+is present and comparable, the SBA MUST also respect those policy-layer caps.
 
 ---
 

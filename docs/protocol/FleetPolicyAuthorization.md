@@ -70,7 +70,10 @@ SBA → Trust Gateway → XRPL Settlement
 
 Rules:
 
-- **Lowest cap wins**
+- **Lowest cap wins** among caps expressed in **comparable atomic units** — e.g. fleet
+  **`FPA.maxAmountMinor`** vs PA-signed **`PolicyGrant.budgetMinor`** for on-chain cumulative
+  enforcement (not **`PolicyGrant.maxSpend`**, which is policy-layer; see
+  [PolicyGrant — budgetMinor and maxSpend](./PolicyGrant.md#budgetminor-and-maxspend-precedence)).
 - **Allowed rails intersect**
 - **Allowed assets intersect**
 - **Operator must be fleet-approved**
@@ -156,11 +159,19 @@ Example pseudocode:
 ```
 effectiveRails = intersect(FPA.allowedRails, PolicyGrant.allowedRails)
 
- effectiveAssets = intersect(FPA.allowedAssets, PolicyGrant.allowedAssets)
+effectiveAssets = intersect(FPA.allowedAssets, PolicyGrant.allowedAssets)
 
- effectiveCap = min(FPA.maxAmountMinor, PolicyGrant.maxSpend)
+# PA-signed on-chain ceiling for the Trust Gateway (escrow / cumulative). Do NOT substitute PolicyGrant.maxSpend.
+paOnChainCeilingMinor = PolicyGrant.budgetMinor
 
- operatorAllowed = PolicyGrant.operatorId in FPA.allowedOperators
+# Fleet-side cap (same units as FPA.maxAmountMinor when comparing to budgetMinor).
+fleetCapMinor = FPA.maxAmountMinor
+
+# When both are present and in the same atomic units, the stricter cumulative ceiling is the minimum.
+# Gateway enforcement uses paOnChainCeilingMinor; the fleet SHOULD NOT issue grants that exceed fleetCapMinor.
+effectiveCumulativeCeilingMinor = minNumeric(fleetCapMinor, paOnChainCeilingMinor)  # if both defined and comparable
+
+operatorAllowed = PolicyGrant.operatorId in FPA.allowedOperators
 ```
 
 If any constraint fails, the settlement must be rejected.
@@ -177,7 +188,10 @@ The verifier must check:
 4. **operator allowlist compliance**
 5. **rail compatibility**
 6. **asset compatibility**
-7. **spending cap compliance**
+7. **spending cap compliance** — payment and cumulative limits remain within **`FPA.maxAmountMinor`**
+   **and** PA-signed **`PolicyGrant.budgetMinor`** (Trust Gateway durable spend), when those fields
+   are present and comparable. Do **not** use **`PolicyGrant.maxSpend`** as a substitute for the
+   on-chain ceiling (see [PolicyGrant — budgetMinor and maxSpend](./PolicyGrant.md#budgetminor-and-maxspend-precedence)).
 
 Then proceed with standard MPCP verification:
 

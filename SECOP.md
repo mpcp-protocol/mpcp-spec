@@ -35,18 +35,18 @@ Status: **done** | **open**
 | spec-session-dpop | Optional DPoP-style session proof-of-possession for gateway session API | 7b | done |
 | spec-jwk-alg | JWK `alg` RECOMMENDED + version-gated algorithm deprecation process | 8a | done |
 | spec-secp256k1-lows | secp256k1 low-S normalization MUST (malleability) | 8b | done |
-| spec-test-vectors | `test-vectors/` canonical JSON + SHA-256 manifest + `verify_test_vectors.py` | 8c / 10b | done |
+| spec-test-vectors | `test-vectors/` canonical JSON + SHA-256 manifest + `verify_test_vectors.py` + [CONFORMANCE.md](test-vectors/CONFORMANCE.md) + `expected-verification.json` | 8c / 10b | done |
 | spec-merchant-privacy | Gateway-only full PolicyGrant; merchants SBA-only + `grantId`/`policyHash` linkage | 9a | done |
 | spec-linkability-privacy | Cross-merchant linkability threat + future privacy modes | 9b | done |
 | spec-permissioned-domain | XRPL Permissioned Domain as MPCP trust perimeter extension | NEW | open |
-| spec-budget-clarification | Clarify `budgetMinor` vs `maxSpend` relationship | 10a | open |
+| spec-budget-clarification | Clarify `budgetMinor` vs `maxSpend` relationship | 10a | done |
+| spec-fpa-verification-step | Optional FPA step in Trust Gateway algorithm (`mpcp.md` Step 0a + `verification.md`) | 10c | done |
 
 ## Open follow-ups (from review; not yet tracked as done above)
 
 These remain good next spec issues even when not listed in the checklist:
 
 - **1c** — SBA over-authorization guidance (optional `quoteHash`, etc.)
-- **10c** — FPA verification step in pipeline
 - **Diagrams** — Some SVGs still mention `revocationEndpoint`; align with v1 credential-only revocation when touched
 
 ## Normative pointers
@@ -55,4 +55,4 @@ These remain good next spec issues even when not listed in the checklist:
 - Gateway spend + velocity: [Trust Model — Gateway durable spend state](docs/protocol/trust-model.md#gateway-durable-spend-state-must), [PolicyGrant — Velocity limit enforcement](docs/protocol/PolicyGrant.md#velocity-limit-enforcement)
 - Settlement verification steps: [mpcp.md — Settlement Verification](docs/protocol/mpcp.md#settlement-verification)
 - Merchant privacy (SBA-only): [PolicyGrant — Merchant privacy](docs/protocol/PolicyGrant.md#merchant-privacy-and-grant-presentation-policygrant-exposure), [verification — SBA-only context](docs/protocol/verification.md#sba-only-merchant-context)
-- Test vectors: [test-vectors/README.md](test-vectors/README.md)
+- Test vectors: [test-vectors/README.md](test-vectors/README.md), [test-vectors/CONFORMANCE.md](test-vectors/CONFORMANCE.md)
