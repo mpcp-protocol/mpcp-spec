@@ -75,6 +75,42 @@ gateway authorization.
 
 ---
 
+## Merchant privacy and grant presentation (PolicyGrant exposure)
+
+PolicyGrants can carry sensitive or linkable data (`subjectId`, `allowedPurposes`, credential issuer
+addresses, destination policy, etc.). Operators SHOULD **minimize** what each merchant receives.
+
+### Gateway-only PolicyGrant presentation (RECOMMENDED for privacy)
+
+Deployments MAY use **gateway-only PolicyGrant presentation**:
+
+1. **Trust Gateway (settlement path):** MUST receive the **full, PA-signed PolicyGrant** and the
+   **SBA** for every online settlement. The gateway runs the full verification chain (PolicyGrant
+   signature, `policyHash` consistency, SBA ⊆ grant constraints, velocity, credentials, etc.).
+2. **Merchants and other verifiers:** MAY receive **only the SBA** (plus payment quote metadata).
+   The SBA carries **`grantId`** and **`policyHash`** — the **minimum grant linkage** in the SBA
+   payload. No other PolicyGrant fields are required on the wire to the merchant for this mode.
+3. **Assurance trade-off:** A verifier without the PolicyGrant **cannot** verify the PA signature on
+   the grant or cryptographically confirm that SBA constraints are subsets of hidden grant fields.
+   It CAN still verify the **SBA signature** (session authority), **`expiresAt`**, payment envelope
+   fields on the SBA, and treat **`policyHash`** as an opaque commitment to the policy the PA
+   published. **Strong policy enforcement** for fields not present on the SBA relies on the
+   **Trust Gateway** (and on operators not issuing over-broad SBAs).
+4. **Offline merchants:** Without a PolicyGrant, local verification cannot read PA-signed
+   `offlineMaxSinglePayment` from the grant. Operators SHOULD either (a) include necessary caps in
+   **Trust Bundle** or merchant configuration, (b) issue SBAs whose **`maxAmountMinor`** is already
+   within the intended offline cap, or (c) use a **PA-signed redacted excerpt** artifact (separate
+   profile) if offline verifiers must enforce grant caps without seeing the full grant.
+
+### Full-chain presentation (default)
+
+When the merchant receives the **full PolicyGrant** and SBA, verifiers MUST verify both signatures
+and subset constraints as described in [Verification](./verification.md).
+
+See also [SignedBudgetAuthorization — Policy linkage fields](./SignedBudgetAuthorization.md#policy-linkage-fields).
+
+---
+
 ## Structure
 
 ### PolicyGrant (payload)

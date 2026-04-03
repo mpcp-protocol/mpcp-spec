@@ -409,6 +409,9 @@ These relationships ensure that each stage of MPCP cryptographically and logical
 
 # Settlement Verification
 
+The Trust Gateway **always** runs **full-chain** verification (PolicyGrant + SBA). Merchants that
+receive **only the SBA** use the weaker **[SBA-only merchant context](./verification.md#sba-only-merchant-context)** — see [PolicyGrant — Merchant privacy](./PolicyGrant.md#merchant-privacy-and-grant-presentation-policygrant-exposure).
+
 Before submitting settlement, the Trust Gateway verifies:
 
 - PolicyGrant schema validity
@@ -629,6 +632,10 @@ Common in blockchain systems including:
 
 Useful when authorization artifacts must be verified by smart contracts.
 
+**Signature malleability:** ECDSA permits a second valid signature (high-**S** vs low-**S**) for the
+same message and key. Implementations using secp256k1 MUST **reject high-S** signatures and only
+accept **low-S** normalized signatures (see [Hashing — ECDSA secp256k1 (low-S)](./hashing.md#ecdsa-secp256k1-low-s) and BIP-146 / Bitcoin low-S standard).
+
 ### Verification Requirements
 
 Regardless of scheme, signature verification MUST validate:
@@ -735,6 +742,21 @@ An attacker operating a look-alike domain could attempt to serve a forged `/.wel
 MPCP requires HTTPS and **TLS certificate validation** for well-known fetches; verifiers MUST
 validate hostnames and certificate chains. High-value deployments SHOULD use **certificate pinning**
 or equivalent for the PA issuer endpoint. See [Key Resolution — TLS validation and issuer domain spoofing](./key-resolution.md#tls-validation-and-issuer-domain-spoofing).
+
+### Cross-merchant linkability (privacy)
+
+The same SBA and PolicyGrant fields — especially **`grantId`**, **`sessionId`**, and **`actorId`** —
+may appear across multiple merchants. Colluding or data-sharing merchants could **correlate** a
+subject's activity across touchpoints.
+
+**Mitigations today:** Use **short-lived** grants and SBAs, partition budgets per merchant class, and
+prefer **[gateway-only PolicyGrant presentation](./PolicyGrant.md#merchant-privacy-and-grant-presentation-policygrant-exposure)** so merchants never receive the full grant (reducing behavioral fields
+exposed alongside identifiers on the SBA).
+
+**Future extension (explicit):** A future revision MAY define **privacy-preserving payment modes**,
+e.g. per-merchant or per-session **pseudonymous grant aliases**, **rotating actor handles**, or
+**blinded policy commitments** that hide stable identifiers while preserving gateway verifiability.
+Such modes are **not** normative in MPCP v1.0.
 
 ### Agent SBA Signing Key Compromise
 

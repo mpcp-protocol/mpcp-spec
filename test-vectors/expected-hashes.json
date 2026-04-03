@@ -1,0 +1,18 @@
+{
+  "description": "SHA-256 lowercase hex of UTF-8(prefix + canonical_json)",
+  "policyDocument_v1_minimal": {
+    "prefix": "MPCP:Policy:1.0:",
+    "sourceFile": "policy-document-v1-minimal.json",
+    "sha256_hex": "b807638320a19a14cc769ccfa37f82998c850eb863074c3b8170c284dce5a711"
+  },
+  "policyGrantPayload_v1_minimal": {
+    "prefix": "MPCP:PolicyGrant:1.0:",
+    "sourceFile": "policy-grant-payload-v1-minimal.json",
+    "sha256_hex": "7bff66a90f0dfcfe138eab56dd65911bd3fc7a0694641548eaf09b59f63bfdda"
+  },
+  "sbaAuthorization_v1_minimal": {
+    "prefix": "MPCP:SBA:1.0:",
+    "sourceFile": "sba-authorization-v1-minimal.json",
+    "sha256_hex": "67fd584d0eeb2a0f612494e1e8ff63808b472eee769826f88dd0ccc8317a40b6"
+  }
+}

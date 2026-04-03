@@ -31,8 +31,14 @@ Status: **done** | **open**
 | spec-velocity-limit-mandatory | Required `velocityLimit` on conforming PolicyGrants | 6c | done |
 | spec-xrpl-mandatory-v1 | Conformance: `allowedRails` = `["xrpl"]` only; no `revocationEndpoint` on conforming grants | — | done |
 | spec-5a-5b-5c | DID/`actorId` binding; merchant impersonation narrative; TLS pinning for JWKS | 5a–5c | done |
+| spec-gateway-pa-separation | Transparent gateway: PA signing key in separate HSM/KMS + append-only audit log | 7a | done |
+| spec-session-dpop | Optional DPoP-style session proof-of-possession for gateway session API | 7b | done |
+| spec-jwk-alg | JWK `alg` RECOMMENDED + version-gated algorithm deprecation process | 8a | done |
+| spec-secp256k1-lows | secp256k1 low-S normalization MUST (malleability) | 8b | done |
+| spec-test-vectors | `test-vectors/` canonical JSON + SHA-256 manifest + `verify_test_vectors.py` | 8c / 10b | done |
+| spec-merchant-privacy | Gateway-only full PolicyGrant; merchants SBA-only + `grantId`/`policyHash` linkage | 9a | done |
+| spec-linkability-privacy | Cross-merchant linkability threat + future privacy modes | 9b | done |
 | spec-permissioned-domain | XRPL Permissioned Domain as MPCP trust perimeter extension | NEW | open |
-| spec-test-vectors | Canonical JSON + verification test vectors directory | 8c / 10b | open |
 | spec-budget-clarification | Clarify `budgetMinor` vs `maxSpend` relationship | 10a | open |
 
 ## Open follow-ups (from review; not yet tracked as done above)
@@ -40,9 +46,6 @@ Status: **done** | **open**
 These remain good next spec issues even when not listed in the checklist:
 
 - **1c** — SBA over-authorization guidance (optional `quoteHash`, etc.)
-- **7a / 7b** — Transparent gateway: PA key separation; session token hardening (e.g. DPoP-style)
-- **8a / 8b** — JWK `alg` + deprecation; secp256k1 low-S normalization
-- **9a / 9b** — Merchant-visible grant subset; privacy / linkability extensions
 - **10c** — FPA verification step in pipeline
 - **Diagrams** — Some SVGs still mention `revocationEndpoint`; align with v1 credential-only revocation when touched
 
@@ -51,3 +54,5 @@ These remain good next spec issues even when not listed in the checklist:
 - Conformance (XRPL v1): [PolicyGrant — MPCP conformance](docs/protocol/PolicyGrant.md#mpcp-conformance-mandatory-xrpl)
 - Gateway spend + velocity: [Trust Model — Gateway durable spend state](docs/protocol/trust-model.md#gateway-durable-spend-state-must), [PolicyGrant — Velocity limit enforcement](docs/protocol/PolicyGrant.md#velocity-limit-enforcement)
 - Settlement verification steps: [mpcp.md — Settlement Verification](docs/protocol/mpcp.md#settlement-verification)
+- Merchant privacy (SBA-only): [PolicyGrant — Merchant privacy](docs/protocol/PolicyGrant.md#merchant-privacy-and-grant-presentation-policygrant-exposure), [verification — SBA-only context](docs/protocol/verification.md#sba-only-merchant-context)
+- Test vectors: [test-vectors/README.md](test-vectors/README.md)
