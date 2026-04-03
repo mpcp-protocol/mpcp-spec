@@ -29,7 +29,8 @@ All key set documents MUST express public keys as JWK objects. Verifiers MUST ac
   "use": "sig",
   "kty": "OKP",
   "crv": "Ed25519",
-  "x": "base64url-encoded-32-byte-public-key"
+  "x": "base64url-encoded-32-byte-public-key",
+  "active": true
 }
 ```
 
@@ -42,7 +43,8 @@ All key set documents MUST express public keys as JWK objects. Verifiers MUST ac
   "kty": "EC",
   "crv": "secp256k1",
   "x": "base64url-encoded-x-coordinate",
-  "y": "base64url-encoded-y-coordinate"
+  "y": "base64url-encoded-y-coordinate",
+  "active": true
 }
 ```
 
@@ -56,6 +58,7 @@ Required JWK fields for MPCP keys:
 | `crv` | Curve. `"Ed25519"` or `"secp256k1"`. |
 | `x`   | Public key material (base64url-encoded). |
 | `y`   | y-coordinate for EC keys (base64url-encoded). |
+| `active` | Optional boolean (default `true`). When `false`, the key is revoked. Verifiers MUST reject signatures made with a key whose `active` field is `false`. See [Key Revocation](#key-revocation). |
 
 Private key material (`d`) MUST NOT be present in key set documents.
 
@@ -91,7 +94,8 @@ The endpoint MUST be served over HTTPS. Verifiers MUST validate the TLS certific
       "use": "sig",
       "kty": "OKP",
       "crv": "Ed25519",
-      "x": "base64url..."
+      "x": "base64url...",
+      "active": true
     },
     {
       "kid": "policy-auth-key-2",
@@ -99,13 +103,14 @@ The endpoint MUST be served over HTTPS. Verifiers MUST validate the TLS certific
       "kty": "EC",
       "crv": "secp256k1",
       "x": "base64url...",
-      "y": "base64url..."
+      "y": "base64url...",
+      "active": false
     }
   ]
 }
 ```
 
-The document is a plain JSON object. The `keys` array contains one or more JWK entries. An authority MAY publish multiple keys to support key rotation.
+The document is a plain JSON object. The `keys` array contains one or more JWK entries. An authority MAY publish multiple keys to support key rotation. Keys with `active: false` are retained in the document for audit traceability but MUST NOT be used for signature verification. See [Key Revocation](#key-revocation).
 
 ### HTTP Response Requirements
 
@@ -127,16 +132,24 @@ Verifiers MUST attempt resolution in the following priority order:
 function resolvePublicKey(issuer, issuerKeyId):
     # 1. Trust Bundle lookup (offline / pre-distributed)
     jwk = resolveFromTrustBundle(issuer, issuerKeyId)
-    if jwk: return jwk
+    if jwk:
+        if jwk.active == false: raise KEY_REVOKED
+        return jwk
 
     # 2. HTTPS well-known (online)
     url = deriveKeySetUrl(issuer)
     keySetDoc = httpGet(url)               # HTTPS required; TLS validated
     keys = parseKeySet(keySetDoc)
     jwk = keys.find(k => k.kid == issuerKeyId)
-    if jwk: return jwk
+    if jwk:
+        if jwk.active == false: raise KEY_REVOKED
+        return jwk
 
-    # 3. DID resolution (optional, online)
+    # 3. XRPL Credential check (optional, online — see Key Revocation)
+    if xrplKeyCredentialCheckEnabled(issuer):
+        if not verifyKeyCredential(issuer, issuerKeyId): raise KEY_REVOKED
+
+    # 4. DID resolution (optional, online)
     if issuer starts with "did:" and not "did:web:":
         jwk = resolveDid(issuer, issuerKeyId)   # method-specific; see DID section below
         if jwk: return jwk
@@ -144,7 +157,7 @@ function resolvePublicKey(issuer, issuerKeyId):
     raise KEY_NOT_FOUND
 ```
 
-If no resolution path succeeds, the verifier MUST fail the signature check and reject the artifact.
+If no resolution path succeeds, the verifier MUST fail the signature check and reject the artifact. If a key is found but marked as revoked (`active: false`) or lacks a valid on-chain credential, the verifier MUST reject with `KEY_REVOKED`.
 
 ---
 
@@ -283,9 +296,123 @@ if ("error" in result) {
 | Code | Condition |
 |------|-----------|
 | `KEY_NOT_FOUND` | `issuerKeyId` not present in the resolved key set |
+| `KEY_REVOKED` | Key found but `active` is `false`, or XRPL key credential does not exist or is expired |
 | `KEY_SET_FETCH_FAILED` | Well-known endpoint unreachable or returned non-200 |
 | `KEY_SET_INVALID` | Key set document could not be parsed |
 | `KEY_FORMAT_INVALID` | Key entry is not a valid JWK |
+
+---
+
+## Key Revocation
+
+### Overview
+
+If a PA signing key is compromised, an attacker can forge PolicyGrants with unlimited budgets.
+MPCP provides two complementary revocation mechanisms — one off-chain (JWKS `active` field) and
+one on-chain (XRPL Credentials) — to ensure that revoked keys are rejected as quickly as
+possible.
+
+### Mechanism 1: JWKS `active` Field
+
+Every JWK entry in a key set document MAY include an `active` field (boolean, default `true`).
+When a PA rotates or revokes a key, it sets `active: false` for that key in the JWKS endpoint
+response.
+
+**Verifier behaviour (MUST):**
+
+1. After resolving a key via HTTPS well-known or Trust Bundle, check the `active` field.
+2. If `active` is explicitly `false`, reject the artifact with `KEY_REVOKED`.
+3. If `active` is absent or `true`, proceed with verification.
+
+**PA behaviour on compromise:**
+
+1. Set `active: false` on the compromised key in the JWKS endpoint immediately.
+2. Issue new Trust Bundles that either omit the compromised key or include it with
+   `active: false`.
+3. Rotate to a new key (`kid`) for all subsequent grant signing.
+
+**Limitations:** Verifiers that cache the key set document will continue to trust the
+compromised key until the cache expires. Implementations SHOULD use short `Cache-Control`
+`max-age` values (minutes, not hours) for the JWKS endpoint. Trust Bundles that embedded the
+key before revocation remain valid until their `expiresAt` — deployments SHOULD use short
+Trust Bundle lifetimes (hours, not days) for high-assurance environments.
+
+### Mechanism 2: XRPL Credential Key Lifecycle
+
+For deployments on XRPL, the PA can maintain an on-chain credential for each active signing
+key using XLS-70 Credentials. This provides a definitive, ledger-based revocation signal that
+does not depend on JWKS cache expiry.
+
+**Setup:**
+
+1. For each active signing key, the PA issues a `CredentialCreate` transaction to its own
+   XRPL account:
+   - `Issuer` = PA's XRPL address
+   - `Subject` = PA's XRPL address (self-issued)
+   - `CredentialType` = hex-encoded string `"mpcp:pa-signing-key:{kid}"`
+     (e.g. `hex("mpcp:pa-signing-key:policy-auth-key-1")`)
+   - Optional `Expiration` aligned with the key's intended lifetime
+2. PA calls `CredentialAccept` to activate the credential on-ledger.
+
+**Revocation on compromise:**
+
+1. PA submits `CredentialDelete` for the compromised key's credential.
+2. The credential is removed from the ledger immediately.
+3. Any verifier or Trust Bundle builder that checks the ledger will see that the credential
+   no longer exists.
+
+**Verifier behaviour (SHOULD for XRPL deployments):**
+
+After resolving a key via JWKS or Trust Bundle, and before accepting the key for verification,
+the verifier SHOULD check on-chain that the PA holds a valid, non-expired credential for the
+key:
+
+```text
+function verifyKeyCredential(issuer, issuerKeyId):
+    paXrplAddress = resolveXrplAddress(issuer)
+    credentialType = hexEncode("mpcp:pa-signing-key:" + issuerKeyId)
+    credential = lookupCredential(
+        subject: paXrplAddress,
+        issuer:  paXrplAddress,
+        type:    credentialType
+    )
+    return credential exists and is not expired
+```
+
+If the credential does not exist or is expired, the verifier MUST reject the artifact with
+`KEY_REVOKED`.
+
+**Trust Bundle builder behaviour (SHOULD):**
+
+When building or refreshing a Trust Bundle, the builder SHOULD check each included key's
+on-chain credential before embedding it. Keys whose credentials have been deleted MUST NOT
+be included in new Trust Bundles.
+
+### Combining Both Mechanisms
+
+| Mechanism | Speed of revocation | Requires connectivity | Requires XRPL |
+|-----------|--------------------|-----------------------|----------------|
+| JWKS `active: false` | Next JWKS fetch (cache-dependent) | Yes | No |
+| XRPL Credential delete | Immediate (ledger finality ~4s) | Yes | Yes |
+
+For maximum safety, PA operators SHOULD use both mechanisms simultaneously:
+
+1. Set `active: false` in the JWKS endpoint (covers non-XRPL verifiers).
+2. Delete the on-chain credential (covers XRPL-aware verifiers with near-instant effect).
+3. Issue updated Trust Bundles omitting the revoked key (covers offline verifiers on next
+   bundle refresh).
+
+### Trust Bundle Freshness
+
+Trust Bundles that were signed before a key was revoked will continue to include the
+compromised key until they expire. To limit the exposure window:
+
+- Deployments SHOULD set Trust Bundle `expiresAt` to short intervals (hours, not days) in
+  high-assurance environments.
+- Trust Bundle builders SHOULD check both the JWKS `active` field and the on-chain credential
+  for each key before embedding it in a new bundle.
+- Verifiers with connectivity SHOULD supplement Trust Bundle lookups with an on-chain credential
+  check when available.
 
 ---
 
