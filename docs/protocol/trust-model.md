@@ -207,9 +207,86 @@ registered gateway. (See roadmap: Gateway key in Trust Bundle.)
 
 ---
 
+## Gateway Seed Security
+
+### Threat: Gateway Seed Compromise
+
+The Trust Gateway holds an XRPL private key (seed) that controls the gateway account. If an
+attacker obtains this seed, they can submit XRPL transactions on behalf of the gateway —
+draining all active escrows simultaneously.
+
+Per-grant escrow limits exposure per individual grant (each escrow locks only `budgetMinor`
+XRP), but an attacker with the seed can finish or drain every active escrow at once. The
+aggregate exposure is the sum of all active grants' `budgetMinor` values.
+
+### Mitigation 1: HSM / KMS for Key Storage (SHOULD)
+
+Production gateway deployments SHOULD store the XRPL private key in a Hardware Security Module
+(HSM) or cloud Key Management Service (KMS). The key SHOULD never exist in plaintext on disk
+or in environment variables.
+
+Benefits:
+
+- The private key cannot be extracted — signing operations are performed inside the HSM
+- Access to signing is gated by authentication and audit logging
+- Key material survives host compromise (attacker gains shell access but cannot export the key)
+
+Implementations that cannot use an HSM SHOULD at minimum encrypt the key at rest and restrict
+file permissions to the gateway process user.
+
+### Mitigation 2: XRPL Credential-Based Gateway Authorization (SHOULD)
+
+For XRPL deployments, the PA SHOULD issue an on-chain credential to the gateway account using
+XLS-70 Credentials, binding the gateway's authorization to a verifiable on-chain attestation:
+
+- `Issuer` = PA's XRPL address
+- `Subject` = Gateway's XRPL address
+- `CredentialType` = hex-encoded `"mpcp:authorized-gateway"`
+- Optional `Expiration` aligned with the deployment lifecycle
+
+**On compromise:** The PA deletes the gateway credential via `CredentialDelete`. Even though
+the attacker holds the seed, actors that verify the gateway's credential (other gateways,
+Permissioned Domains, monitoring systems) will see that the credential no longer exists and
+reject interactions with the compromised gateway.
+
+This does not prevent the attacker from submitting raw XRPL transactions (the seed still
+controls the account), but it invalidates the gateway's MPCP authorization — new PolicyGrants
+with `authorizedGateway` pointing to the compromised address will not be issued, and actors
+that check the credential will refuse to interact.
+
+### Mitigation 3: On-Chain Monitoring and Alerting (SHOULD)
+
+Gateway operators SHOULD monitor on-chain activity for anomalous payment patterns that may
+indicate seed compromise:
+
+- XRPL payments from the gateway account that do not have a corresponding SBA in the gateway's
+  audit log
+- Payments missing the `mpcp/grant-id` memo, or with memo values that do not match any known
+  active grant
+- Sudden spikes in transaction volume or aggregate spend across grants
+- `EscrowFinish` transactions for grants that the gateway did not initiate
+
+When anomalies are detected, operators SHOULD:
+
+1. Revoke the gateway's on-chain credential (Mitigation 2)
+2. Revoke all active PolicyGrants that reference the compromised `authorizedGateway` address
+3. Rotate to a new gateway account and reissue grants
+
+### Defense-in-Depth Summary
+
+| Layer | Mechanism | Effect |
+|-------|-----------|--------|
+| Prevention | HSM / KMS | Seed cannot be extracted from host |
+| Authorization | XRPL Credential | PA can revoke gateway's on-chain authorization instantly |
+| Containment | Per-grant escrow | Each grant's exposure is bounded by its `budgetMinor` |
+| Detection | On-chain monitoring | Unauthorized transactions are flagged for response |
+
+---
+
 ## See Also
 
 - [Actors](../architecture/actors.md) — Actor definitions including Trust Gateway
 - [PolicyGrant](./PolicyGrant.md) — PA-signed grant fields
 - [Trust Bundles](./trust-bundles.md) — Offline key distribution
 - [Rails](./rails.md) — Rail extensibility and escrow URI scheme
+- [Key Revocation](./key-resolution.md#key-revocation) — PA key revocation mechanisms
