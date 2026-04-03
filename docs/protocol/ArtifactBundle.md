@@ -11,15 +11,21 @@ An **artifact bundle** is a canonical JSON format that packages complete MPCP pa
 
 ## Bundle Format
 
-The bundle is a JSON object with artifact-keyed fields. Required fields:
+The bundle is a JSON object with artifact-keyed fields.
 
-| Field | Type | Description |
-|-------|------|--------------|
-| `policyGrant` | object | Policy grant constraining the session |
-| `sba` | object | SignedBudgetAuthorization artifact |
-| `settlement` | object | Executed settlement result (XRPL txHash + memo) |
+### Full settlement bundle (Trust Gateway and audits)
 
-Optional fields:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `policyGrant` | object | **yes** | Full PA-signed PolicyGrant |
+| `sba` | object | **yes** | SignedBudgetAuthorization |
+| `settlement` | object | **yes** | Executed settlement result (XRPL txHash + memo) |
+
+### Merchant-minimal bundle (privacy)
+
+Bundles MAY **omit** `policyGrant` when using [gateway-only PolicyGrant presentation](./PolicyGrant.md#merchant-privacy-and-grant-presentation-policygrant-exposure). Verifiers MUST follow [SBA-only merchant context](./verification.md#sba-only-merchant-context) and MUST NOT claim PolicyGrant PA signature verification.
+
+### Optional fields
 
 | Field | Type | Description |
 |-------|------|--------------|

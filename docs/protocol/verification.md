@@ -17,6 +17,26 @@ The Trust Gateway verifier runs checks in order:
 
 If any check fails, verification fails with a specific reason. On success, the gateway submits the XRPL transaction and returns the `txHash` receipt.
 
+## Verification contexts
+
+### Full-chain (Trust Gateway or merchant holds PolicyGrant + SBA)
+
+Use the **Verification Pipeline** above. Verifiers MUST validate the PolicyGrant PA signature and
+that SBA fields are subsets of (or consistent with) the grant.
+
+### SBA-only merchant context
+
+When using [gateway-only PolicyGrant presentation](./PolicyGrant.md#merchant-privacy-and-grant-presentation-policygrant-exposure), the merchant receives **only the SBA** (which includes `grantId` and `policyHash`). Verifiers MUST:
+
+- Verify the **SBA signature** using Trust Bundle or configured session-authority keys.
+- Verify **`expiresAt`** and payment envelope fields (`maxAmountMinor`, `allowedRails`, `allowedAssets`, optional `destinationAllowlist` on the SBA).
+- Treat **`policyHash`** as an opaque commitment; MAY compare it to a **published policy registry** if the deployment provides one.
+
+Verifiers MUST **NOT** claim **PolicyGrant signature verification** or hidden **subset** checks
+(`allowedPurposes`, PA-signed `destinationAllowlist` not mirrored on the SBA, `budgetMinor`,
+`velocityLimit`, etc.) in this context — those are enforced by the **Trust Gateway** when the full
+grant is presented at settlement.
+
 ## Clock synchronization and drift
 
 Artifact validity (`expiresAt` on PolicyGrant, SBA, and Trust Bundle) is evaluated against the
@@ -46,7 +66,7 @@ monitoring), not additional protocol fields.
 | PolicyGrant schema | Parses and validates against expected structure |
 | PolicyGrant signature | Signature valid; expiresAt not passed; constraints valid |
 | SBA schema | Parses and validates against expected structure |
-| SBA signature | Signature valid; expiresAt not passed; `authorization.grantId` references a valid PolicyGrant |
+| SBA signature | Signature valid; expiresAt not passed; in full-chain mode, `authorization.grantId` references the presented PolicyGrant |
 | SBA → budget | Current payment amount ≤ `maxAmountMinor`; rail (`["xrpl"]` only), asset, destination in allowlists. Trust Gateway also enforces durable cumulative spend vs `budgetMinor`, `velocityLimit`, and gateway binding. Session authority tracks SBA-scope cumulative totals. |
 | Purpose | When `PolicyGrant.allowedPurposes` is present and settlement request includes `purpose`: verify `purpose ∈ allowedPurposes`. Reject with `PURPOSE_NOT_ALLOWED` on mismatch. |
 | Destination | When `PolicyGrant.destinationAllowlist` is present: verify `payment.destination ∈ destinationAllowlist`. When `PolicyGrant.merchantCredentialIssuer` is present: verify destination holds a matching on-chain credential. If both are set, either match suffices. Reject with `DESTINATION_NOT_ALLOWED` or `DESTINATION_NOT_CREDENTIALED`. |

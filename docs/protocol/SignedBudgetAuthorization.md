@@ -18,6 +18,15 @@ It is issued after a PolicyGrant and presented to the Trust Gateway, which verif
 
 ---
 
+## Policy linkage fields
+
+`grantId` and `policyHash` are the **canonical linkage** from an SBA to its PolicyGrant. They are the
+**only PolicyGrant-origin fields** required inside the SBA payload for binding to PA policy.
+
+Deployments using [gateway-only PolicyGrant presentation](./PolicyGrant.md#merchant-privacy-and-grant-presentation-policygrant-exposure) send the **full PolicyGrant only to the Trust Gateway**; merchants receive the **SBA** (which includes `grantId` and `policyHash`) without a copy of the grant. See [Verification — Verification contexts](./verification.md#verification-contexts).
+
+---
+
 ## Structure
 
 ### BudgetAuthorization (inner payload)
@@ -167,7 +176,7 @@ A verifier MUST:
 
    Then validate the signature over SHA256("MPCP:SBA:<version>:" || canonicalJson(authorization)).
 2. Check `expiresAt` has not passed
-3. When verifying against a payment decision or settlement context: ensure sessionId, policyHash, budgetScope, allowedRails, allowedAssets, optional destination constraints, and amount constraints match
+3. When verifying against a payment decision or settlement context: ensure sessionId, policyHash, budgetScope, allowedRails, allowedAssets, optional destination constraints, and amount constraints match — **except** in [SBA-only merchant context](./verification.md#sba-only-merchant-context), where PolicyGrant subset checks are skipped because the grant is not available.
 
 ---
 

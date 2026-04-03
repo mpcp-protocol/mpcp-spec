@@ -174,6 +174,16 @@ The gateway implements these MPCP components internally, invisible to both sides
 
 When a budget owner creates a session, the gateway mints a PolicyGrant from the session parameters and stores it internally. No external PA server is required.
 
+**PA signing key separation (SHOULD — SECOP 7a):** The key that signs **PolicyGrants** SHOULD be
+stored in a **separate** HSM or KMS from (a) the gateway application runtime and (b) the **XRPL
+settlement** / escrow key. This limits blast radius if the app tier or settlement tier is
+compromised.
+
+**PA signing audit trail (SHOULD — SECOP 7a):** Each PolicyGrant issuance SHOULD append an
+**append-only audit record** (who authorized, timestamp, `issuerKeyId`, `grantId`, and policy
+commitment / `policyHash`) to a log or SIEM **independent** of mutable application logs, so
+operators can detect or reconstruct unauthorized grant minting.
+
 ```
 Session config  →  internal PolicyGrant
 {                    {
@@ -298,6 +308,24 @@ The `sessionToken` granted to an agent controls spending up to the session ceili
 - Transmit over TLS only
 - Scope to a single agent process; do not share across agents
 - Revoke immediately if the token may be compromised
+
+### Optional session proof-of-possession (DPoP-style) (SECOP 7b)
+
+A bearer `sessionToken` alone can be replayed if exfiltrated. Implementations MAY bind session usage
+to a **session-scoped asymmetric key** (Ed25519 RECOMMENDED) held only by the agent:
+
+1. **Registration:** At session creation (or first use), the client generates a **session key pair**
+   and sends the **public key** to the gateway, which stores it alongside the session record.
+2. **Request proof:** Each sensitive request (e.g. `POST /proxy`) sends `Authorization: Bearer
+   <sessionToken>` **and** a proof header such as `X-Mpcp-Session-Proof: <base64url(signature)>`.
+3. **Signed payload:** The signature MUST be over  
+   `SHA256("MPCP:GatewaySession:1.0:" || canonicalJson({ "sessionId": "<id>", "method": "POST", "path": "/proxy", "bodySha256": "<hex of SHA-256 of raw body>", "ts": "<RFC3339>" }))`  
+   using the **session private key** (same canonical JSON rules as [MPCP canonical JSON](../protocol/mpcp.md#canonical-json-definition)).
+4. **Verification:** The gateway rejects the request if the proof is missing, stale beyond a
+   configured skew, or invalid.
+
+A stolen bearer token is then **insufficient** without the session private key. Session private keys
+MUST remain in agent secure storage and MUST NOT be sent to merchants.
 
 ### Revocation latency
 

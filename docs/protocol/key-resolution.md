@@ -29,6 +29,7 @@ All key set documents MUST express public keys as JWK objects. Verifiers MUST ac
   "use": "sig",
   "kty": "OKP",
   "crv": "Ed25519",
+  "alg": "EdDSA",
   "x": "base64url-encoded-32-byte-public-key",
   "active": true
 }
@@ -42,6 +43,7 @@ All key set documents MUST express public keys as JWK objects. Verifiers MUST ac
   "use": "sig",
   "kty": "EC",
   "crv": "secp256k1",
+  "alg": "ES256K",
   "x": "base64url-encoded-x-coordinate",
   "y": "base64url-encoded-y-coordinate",
   "active": true
@@ -60,7 +62,29 @@ Required JWK fields for MPCP keys:
 | `y`   | y-coordinate for EC keys (base64url-encoded). |
 | `active` | Optional boolean (default `true`). When `false`, the key is revoked. Verifiers MUST reject signatures made with a key whose `active` field is `false`. See [Key Revocation](#key-revocation). |
 
+Recommended JWK fields for MPCP keys:
+
+| Field | Description |
+|-------|-------------|
+| `alg` | [RFC 7518](https://www.rfc-editor.org/rfc/rfc7518.html) JWS algorithm for signatures produced with this key. **RECOMMENDED.** Use `"EdDSA"` for Ed25519 (`kty` OKP, `crv` Ed25519) and `"ES256K"` for secp256k1 (`kty` EC, `crv` secp256k1). If `alg` is omitted, verifiers MUST infer the algorithm from `kty` and `crv` as above. If `alg` is present and **conflicts** with `kty`/`crv`, verifiers MUST reject the key. |
+
 Private key material (`d`) MUST NOT be present in key set documents.
+
+### Algorithm deprecation (version-gated)
+
+**MPCP v1.0** normative signing algorithms for artifact verification are **Ed25519** (EdDSA) and
+**secp256k1** (ES256K, **low-S only** — see [Hashing](./hashing.md#ecdsa-secp256k1-low-s)).
+
+Future **minor** specification revisions MAY:
+
+- Register additional algorithms and JWK `alg` values.
+- Mark algorithms as **deprecated** in this document; conforming verifiers **MUST NOT** accept
+  newly issued artifacts signed with a deprecated algorithm after the revision’s effective date.
+- Require key set publishers to set `active: false` on JWKs for deprecated algorithms and to
+  rotate to supported keys.
+
+Implementations SHOULD surface the spec version they implement so operators can enforce alignment
+with PA key rotation.
 
 ---
 
@@ -108,6 +132,7 @@ TLS certificates.
       "use": "sig",
       "kty": "OKP",
       "crv": "Ed25519",
+      "alg": "EdDSA",
       "x": "base64url...",
       "active": true
     },
@@ -116,6 +141,7 @@ TLS certificates.
       "use": "sig",
       "kty": "EC",
       "crv": "secp256k1",
+      "alg": "ES256K",
       "x": "base64url...",
       "y": "base64url...",
       "active": false

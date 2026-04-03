@@ -256,13 +256,15 @@ export async function POST(req: Request) {
 
 ### What the SDK checks
 
-The merchant SDK performs a full MPCP verification chain on every request:
+The merchant SDK performs a full MPCP verification chain on every request **when the PolicyGrant is available** (default):
 
 1. **PolicyGrant signature** — verifies the grant was signed by the claimed policy authority (resolves key via `/.well-known/mpcp-keys.json` or Trust Bundle)
-2. **SBA signature** — verifies the agent signed the budget authorization with the key recorded in the grant
+2. **SBA signature** — verifies the session authority signed the SBA (Trust Bundle / configured SBA keys)
 3. **Grant liveness** — when `activeGrantCredentialIssuer` is set, credential lookup on XRPL (cached by TTL); conforming grants have no `revocationEndpoint`
 4. **Budget bounds** — confirms the requested amount does not exceed `maxAmountMinor`, accounting for cumulative spend if `trackSpend: true`
 5. **Destination allowlist** — if `merchantId` is set, confirms it appears in the grant's `destinationAllowlist`
+
+**Privacy mode (SBA-only):** Deployments MAY send **only the SBA** to merchants so sensitive grant fields are not exposed; the **Trust Gateway** receives the full PolicyGrant at settlement. In that mode the SDK verifies the **SBA** (including `grantId` and `policyHash`) but **does not** verify the PA signature on a grant it never sees. See [PolicyGrant — Merchant privacy](../protocol/PolicyGrant.md#merchant-privacy-and-grant-presentation-policygrant-exposure) and [Verification — SBA-only merchant context](../protocol/verification.md#sba-only-merchant-context).
 
 > **Merchant identity at interaction time:** A compromised or fake terminal could still try to steer the user toward an attacker-controlled destination before an SBA is built. The merchant SDK checks the grant and SBA, but **definitive destination policy** for XRPL settlement is enforced by the **Trust Gateway** (`destinationAllowlist` / `merchantCredentialIssuer` on the PA-signed grant). See [Threat Model — Merchant terminal impersonation](../protocol/mpcp.md#merchant-terminal-impersonation-interaction-layer).
 
