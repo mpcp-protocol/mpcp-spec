@@ -1,0 +1,47 @@
+{
+  "version": "1",
+  "description": "Conformance level coverage for files in this directory; complements expected-hashes.json (L0).",
+  "specReferences": {
+    "verificationPipeline": "../docs/protocol/verification.md",
+    "verificationAlgorithm": "../docs/protocol/mpcp.md#settlement-verification",
+    "step0aFPA": "../docs/protocol/mpcp.md#step-0a--fleet-policy-authorization-optional",
+    "fpaVerification": "../docs/protocol/FleetPolicyAuthorization.md#6-verification-rules",
+    "budgetMinorMaxSpend": "../docs/protocol/PolicyGrant.md#budgetminor-and-maxspend-precedence"
+  },
+  "levels": {
+    "L0_hash": {
+      "summary": "SHA-256 of UTF-8(prefix || canonical_json) matches expected-hashes.json",
+      "mandatoryFor": ["all_artifacts_in_manifest"]
+    },
+    "L1_structure": {
+      "summary": "JSON parses; minimal v1 field presence per fixture (informative)",
+      "mandatoryFor": []
+    },
+    "L2_full_chain": {
+      "summary": "Signatures + linkage + conformance + policy + budget; optional FPA when fleet profile requires it",
+      "mandatoryFor": [],
+      "notes": "Requires signed fixtures or test keys; not satisfied by placeholder signatures in repo JSON alone."
+    }
+  },
+  "artifacts": [
+    {
+      "id": "policyDocument_v1_minimal",
+      "sourceFile": "policy-document-v1-minimal.json",
+      "hashManifestKey": "policyDocument_v1_minimal",
+      "levels": { "L0": true, "L1": true, "L2": false }
+    },
+    {
+      "id": "policyGrantPayload_v1_minimal",
+      "sourceFile": "policy-grant-payload-v1-minimal.json",
+      "hashManifestKey": "policyGrantPayload_v1_minimal",
+      "levels": { "L0": true, "L1": true, "L2": false },
+      "verificationNotes": "L2 must enforce budgetMinor vs maxSpend rules per PolicyGrant.md when both present."
+    },
+    {
+      "id": "sbaAuthorization_v1_minimal",
+      "sourceFile": "sba-authorization-v1-minimal.json",
+      "hashManifestKey": "sbaAuthorization_v1_minimal",
+      "levels": { "L0": true, "L1": true, "L2": false }
+    }
+  ]
+}

@@ -451,6 +451,19 @@ If any signature verification fails → **reject settlement**.
 
 ---
 
+### Step 0a — Fleet Policy Authorization (optional)
+
+Deployments that use **fleet governance** MAY require a **[FleetPolicyAuthorization](./FleetPolicyAuthorization.md) (FPA)** artifact in addition to PolicyGrant and SBA. When fleet policy is **required** for this deployment:
+
+1. Verify the **FPA signature** using domain-separated hashing `MPCP:FPA:1.0:` over the canonical inner `authorization` payload (see [FleetPolicyAuthorization — Signature Model](./FleetPolicyAuthorization.md#signature-model)).
+2. Verify **FPA expiration** and **[§6 Verification Rules](./FleetPolicyAuthorization.md#6-verification-rules)** — including operator, rail, asset intersection, and spending-cap consistency with **`PolicyGrant.budgetMinor`** (not `maxSpend` alone; see [PolicyGrant — budgetMinor and maxSpend](./PolicyGrant.md#budgetminor-and-maxspend-precedence)).
+
+If FPA is required but missing, expired, or fails verification → **reject settlement**.
+
+If the deployment does **not** use fleet governance, omit this step.
+
+---
+
 ### Step 1 — Verify Grant and Budget Lineage
 
 Ensure that the authorization chain is valid.
@@ -1163,7 +1176,7 @@ The FleetPolicyAuthorization artifact defines constraints such as:
 - permitted assets
 - geographic restrictions
 
-During settlement verification, implementations MUST ensure that all MPCP artifacts remain compliant with the constraints imposed by the FleetPolicyAuthorization artifact.
+During settlement verification, when fleet governance applies, the Trust Gateway MUST run the optional **[Step 0a — Fleet Policy Authorization](#step-0a--fleet-policy-authorization-optional)** (signature, expiration, and [§6 rules](./FleetPolicyAuthorization.md#6-verification-rules)) before standard grant/SBA checks.
 
 The full extension specification is defined in [FleetPolicyAuthorization.md](./FleetPolicyAuthorization.md).
 

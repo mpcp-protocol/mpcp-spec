@@ -21,6 +21,10 @@ Per [MPCP canonical JSON](../docs/protocol/mpcp.md#canonical-json-definition):
 
 Expected hexadecimal digests (lowercase) are in `expected-hashes.json`.
 
+**Conformance levels** (L0 hash, L1 structure, L2 full-chain verification) and how they map to the
+spec verification pipeline are documented in [CONFORMANCE.md](./CONFORMANCE.md). A machine-readable
+summary is in [`expected-verification.json`](./expected-verification.json).
+
 ## Verification script
 
 ```bash
