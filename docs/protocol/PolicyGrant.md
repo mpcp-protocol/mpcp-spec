@@ -78,9 +78,10 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | issuer | string | yes | Identifier for the policy authority (e.g. DID, domain, or registry ID). Verifiers use this to resolve the signing key. |
 | issuerKeyId | string | yes | Identifies the specific key used to sign (for deployments with multiple keys per issuer). |
 | signature | string | yes | Cryptographic signature over the canonical JSON of the grant payload (all fields except `signature`). |
-| revocationEndpoint | string | optional | URL of the human/operator wallet's revocation service. If present, merchants SHOULD check this before accepting payment. See **Revocation** section below. |
+| revocationEndpoint | string | optional | **Legacy — HTTP revocation** for non-XRPL rails or transitional deployments. If present, merchants MAY call this URL before accepting payment. **XRPL deployments SHOULD use `activeGrantCredentialIssuer` instead** — see **Revocation** below. |
+| activeGrantCredentialIssuer | string | optional | XRPL address of the PA (or delegate) that issues the **active grant** XLS-70 Credential. When present, online verifiers (including the Trust Gateway) MUST treat the grant as revoked if that credential does not exist on the subject's XRPL account. Replaces HTTP `revocationEndpoint` for XRPL-native flows. See **Revocation** below. |
 | allowedPurposes | string[] | optional | Merchant category allowlist (e.g. `["travel:hotel", "travel:flight"]`). PA-signed. The agent MUST check purpose before issuing each SBA. The Trust Gateway SHOULD enforce purpose when the settlement request includes a `purpose` field. See **Purpose Enforcement** section below. |
-| anchorRef | string | optional | Pointer to an on-chain record of the policy document. Format: `"hcs:{topicId}:{sequenceNumber}"` (Hedera HCS) or `"xrpl:nft:{tokenId}"` (XRPL NFToken). See **Policy Document Anchoring** section below. |
+| anchorRef | string | optional | Pointer to an on-chain record of the policy document. Format: `"hcs:{topicId}:{sequenceNumber}"` (Hedera HCS). The historical `xrpl:nft:{tokenId}` pattern is **deprecated** and MUST NOT be used in new deployments; use HCS (or off-chain custody) for policy hash audit and `activeGrantCredentialIssuer` for XRPL grant revocation. See **Policy Document Anchoring** below. |
 | budgetMinor | string | optional | PA-signed budget ceiling in the smallest currency unit (e.g. drops for XRP). The Trust Gateway enforces this as a hard ceiling — it is never read from the UI or agent. |
 | budgetCurrency | string | optional | Currency of `budgetMinor` (e.g. `"XRP"`). |
 | budgetEscrowRef | string | optional | URI reference to the on-chain budget escrow that pre-reserves the full `budgetMinor`. Format: `"{rail}:{mechanism}:{identifier}"` (e.g. `"xrpl:escrow:{account}:{sequence}"`). PA-signed. See [Rails](./rails.md). |
@@ -113,6 +114,7 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
   "destinationAllowlist": ["rChargingStation1", "rTollBooth42"],
   "merchantCredentialIssuer": "rPAMerchantRegistry",
   "merchantCredentialType": "6D7063703A617070726F7665642D6D65726368616E74",
+  "activeGrantCredentialIssuer": "rPolicyAuthorityXrpl...",
   "offlineMaxSinglePayment": "5000000",
   "offlineMaxSinglePaymentCurrency": "XRP",
   "offlineMaxCumulativePayment": "15000000",
@@ -259,23 +261,56 @@ produced this grant. Two formats are supported:
 
 ```
 "hcs:{topicId}:{sequenceNumber}"   — Hedera Consensus Service message
-"xrpl:nft:{tokenId}"               — XRPL non-transferable NFToken
 ```
 
 **Verifier behavior:** The MPCP verifier passes `anchorRef` through without enforcement. It is
 informational metadata used by auditors, merchants, and dispute resolution tooling.
 
 See [Policy Anchoring](./policy-anchoring.md) for the full anchoring specification, including
-HCS message format, environment variables, and XRPL NFT minting guidance.
+HCS message format and environment variables. **XRPL grant revocation** uses XLS-70 Credentials
+(`activeGrantCredentialIssuer`), not NFToken burn.
 
 ---
 
 ## Revocation
 
-### `revocationEndpoint` (Hosted Revocation)
+MPCP defines two revocation channels. **XRPL-native deployments SHOULD use Credentials only**
+and omit `revocationEndpoint`. Non-XRPL rails MAY use HTTP only.
 
-If the `revocationEndpoint` field is present, verifiers and service providers SHOULD check
-whether the grant has been revoked before accepting a payment.
+### XRPL Credential grant revocation (recommended for XRPL)
+
+When `activeGrantCredentialIssuer` is present, the PA (or a delegate controlling that XRPL
+account) MUST issue an XLS-70 **CredentialCreate** for each active grant, and the grant
+subject (agent / vehicle wallet) MUST **CredentialAccept** it on-ledger.
+
+**Credential binding:**
+
+| Field | Value |
+|-------|-------|
+| `Issuer` | `PolicyGrant.activeGrantCredentialIssuer` (PA XRPL address) |
+| `Subject` | The grant subject's XRPL account — the same on-chain identity that signs or anchors spending for this grant (typically the address in `subjectId` when expressed as an XRPL `r`-address, or as defined by the deployment profile) |
+| `CredentialType` | Hex-encoded UTF-8 string: `mpcp:active-grant:` concatenated with the literal `grantId` (same characters as in the PolicyGrant). Example: `hexEncode(UTF8("mpcp:active-grant:" + grantId))` |
+
+**Revocation:** The PA submits **CredentialDelete** for that credential. After ledger finality,
+the grant MUST be treated as revoked — no HTTP endpoint is consulted.
+
+**Verifier behaviour (MUST when field is present):** Before accepting a payment or settlement,
+online verifiers MUST query the XRPL ledger. If no matching non-expired credential exists for
+(`Subject`, `Issuer`, `CredentialType`) → reject with `ACTIVE_GRANT_CREDENTIAL_MISSING`.
+
+The Trust Gateway performs this check in [MPCP verification Step 1](./mpcp.md#step-1--verify-grant-and-budget-lineage).
+
+**Advantages:** On-chain finality (~4s), no hosted revocation HTTP service, composable with other
+XLS-70 tooling.
+
+**Offline verifiers:** Cannot query the ledger; they remain subject to the usual offline
+revocation limitations (TTL cache, bundle refresh, `expiresAt`).
+
+### Legacy `revocationEndpoint` (HTTP, non-XRPL)
+
+For rails or deployments that do not use XRPL Credentials, the optional `revocationEndpoint`
+URL MAY be used. Verifiers and merchants MAY check whether the grant has been revoked before
+accepting a payment.
 
 **Endpoint contract:**
 
@@ -284,16 +319,12 @@ GET {revocationEndpoint}?grantId={grantId}
 Response: { "revoked": boolean, "revokedAt": "ISO8601" }
 ```
 
-**Verifier behavior:** The MPCP verifier pipeline does **not** call `revocationEndpoint` — it
-remains stateless and synchronous. Callers MUST perform the check as a separate step using
-`checkRevocation()` from the SDK.
+**Verifier behaviour:** The core MPCP verifier pipeline treats this as a separate step (not part
+of the synchronous settlement math). Callers MAY use `checkRevocation()` from the SDK.
 
-**Merchant responsibility:** Merchants with a `revocationEndpoint` in the grant SHOULD call
-it before accepting payment. If the endpoint is unreachable, the merchant makes a risk-based
-decision based on deployment context (see [Human-to-Agent Profile](../profiles/human-agent-profile.md)
-for guidance on offline exceptions).
-
-**Reference implementation:**
+**Merchant responsibility:** If only `revocationEndpoint` is present (no credential issuer),
+merchants SHOULD call it when online. If the endpoint is unreachable, the merchant makes a
+risk-based decision (see [Human-to-Agent Profile](../profiles/human-agent-profile.md)).
 
 ```javascript
 import { checkRevocation } from "mpcp-service/sdk";
@@ -305,40 +336,20 @@ const { revoked, revokedAt, error } = await checkRevocation(
 );
 ```
 
-### XRPL NFT Revocation (On-Chain Revocation)
+### Choosing a mechanism
 
-When `anchorRef` contains an `"xrpl:nft:{tokenId}"` reference, the grant may be revoked by
-**burning the NFToken**. Merchants SHOULD check whether the NFT still exists before accepting
-payment.
+**New XRPL grants** SHOULD set `activeGrantCredentialIssuer` and omit `revocationEndpoint` so
+revocation is ledger-native. **Non-XRPL rails** MAY use `revocationEndpoint` only.
 
-Non-existence of the NFT (after burn) signals revocation. This mechanism requires no hosted
-service — revocation is enforced by the XRPL ledger itself.
+If both fields appear on one grant (e.g. during migration), verifiers that support Credentials
+MUST apply the on-chain check when `activeGrantCredentialIssuer` is present; HTTP is optional
+redundancy, not a substitute for a missing credential.
 
-**Reference implementation:**
+### Deprecated: XRPL NFToken burn
 
-```javascript
-import { checkXrplNftRevocation } from "mpcp-service/sdk";
-
-const tokenId = grant.anchorRef?.replace("xrpl:nft:", "");
-if (tokenId) {
-  const { revoked, error } = await checkXrplNftRevocation(tokenId, { timeoutMs: 5000 });
-  if (revoked) {
-    // Grant has been revoked — reject the payment
-  }
-}
-```
-
-**Comparison:**
-
-| Mechanism | Requires hosted service | Suitable for |
-|-----------|------------------------|--------------|
-| `revocationEndpoint` | Yes | Enterprise, operator-controlled |
-| XRPL NFT burn | No | Consumer, self-sovereign |
-
-Both mechanisms may be present on the same grant. Merchants SHOULD check both when present.
-
-See [Policy Anchoring — XRPL NFT-Backed PolicyGrant](./policy-anchoring.md#xrpl-nft-backed-policygrant)
-for full details.
+Revocation via **burning an NFToken** referenced in `anchorRef` (`xrpl:nft:{tokenId}`) is
+**deprecated** and MUST NOT be specified for new grants. Use `activeGrantCredentialIssuer` and
+CredentialDelete instead. See [Policy Anchoring](./policy-anchoring.md).
 
 ---
 

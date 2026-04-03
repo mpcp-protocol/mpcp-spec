@@ -24,11 +24,11 @@ MPCP development is tracked per-repository. Implementation status for each compo
 
 All core phases complete.
 
-Implemented: canonical serialization · artifact schemas · full verification engine · CLI verifier with explain mode · Hedera HCS and XRPL anchor adapters · `did:xrpl` resolver · XRPL NFT revocation · Trust Bundle signing and verification · `resolveFromTrustBundle` for key lookup · AES-256-GCM encrypted policy anchoring · golden protocol vectors · human-to-agent delegation profile · TRIP budget scope · `checkRevocation` utility.
+Implemented: canonical serialization · artifact schemas · full verification engine · CLI verifier with explain mode · Hedera HCS and XRPL anchor adapters · `did:xrpl` resolver · XRPL Credential-based grant liveness (spec); legacy NFT path deprecated · Trust Bundle signing and verification · `resolveFromTrustBundle` for key lookup · AES-256-GCM encrypted policy anchoring · golden protocol vectors · human-to-agent delegation profile · TRIP budget scope · `checkRevocation` utility.
 
 ### mpcp-policy-authority
 
-All phases complete. Grant issuance, policy custody, revocation endpoint, Trust Bundle issuance and signing, XRPL NFT mint/burn, persistent custody with soft-delete, audit log with webhook dispatch, multi-key admin API.
+All phases complete. Grant issuance, policy custody, revocation (HTTP and/or XRPL Credentials per deployment), Trust Bundle issuance and signing, persistent custody with soft-delete, audit log with webhook dispatch, multi-key admin API.
 
 ### mpcp-wallet-sdk
 

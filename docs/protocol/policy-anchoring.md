@@ -12,12 +12,15 @@ policy document on a distributed ledger to create a tamper-evident, third-party-
 Policy anchoring records the **policy authorization itself**, enabling
 audit of what constraints were in force when a grant was issued.
 
-Two anchoring patterns are defined:
+Anchoring patterns:
 
 | Pattern | When to use |
 |---------|-------------|
 | **HCS Policy Anchoring** | Institutional deployments requiring audit trails; any third party can verify the policy hash |
-| **XRPL NFT-Backed PolicyGrant** | Consumer deployments without a hosted revocation service; burn the NFT to revoke |
+| **XRPL (credentials, not NFT)** | **Grant revocation** on XRPL uses XLS-70 Credentials (`PolicyGrant.activeGrantCredentialIssuer`) — see [PolicyGrant — Revocation](./PolicyGrant.md#revocation). Policy hash anchoring on XRPL uses the same HCS-style commitment patterns where applicable, or off-chain custody with `policyHash`. |
+
+**Deprecated:** NFToken-based anchoring (`xrpl:nft:{tokenId}`) and burn-to-revoke are **not**
+normative for new deployments. Use Credentials instead.
 
 ---
 
@@ -58,7 +61,10 @@ An optional string on `PolicyGrant` pointing to the on-chain record.
 | Format | Example |
 |--------|---------|
 | `hcs:{topicId}:{sequenceNumber}` | `"hcs:0.0.12345:42"` |
-| `xrpl:nft:{tokenId}` | `"xrpl:nft:000800006B55D0F1584E4D2CBD04F60B9E61FFDD2A4E3F9F00000001"` |
+| `xrpl:nft:{tokenId}` | **Deprecated.** Do not issue new grants with this pattern. |
+
+**XRPL revocation** is defined by `activeGrantCredentialIssuer` on the PolicyGrant, not by
+`anchorRef`. See [PolicyGrant](./PolicyGrant.md).
 
 The verifier passes `anchorRef` through without enforcement. It is informational metadata used
 by auditors, merchants, and dispute resolution tooling.
@@ -161,69 +167,25 @@ The response contains a base64-encoded message. Decode and verify:
 
 ---
 
-## XRPL NFT-Backed PolicyGrant
+## XRPL: policy audit and grant revocation (Credentials)
 
-### How it works
+On XRPL, MPCP separates **policy document audit** from **grant liveness**:
 
-1. The policy authority (or wallet holder) mints a non-transferable XRPL NFToken
-2. For `"hash-only"`: the NFT URI encodes the `policyHash` as a hex string
-3. For `"encrypted"`: encrypt the policy document → upload to IPFS → NFT URI = `ipfs://{CID}`
-4. The token ID is encoded as `"xrpl:nft:{tokenId}"` and placed in `anchorRef`
-5. **Revocation** is accomplished by burning the NFToken
+1. **Policy hash audit** — Use Hedera HCS (`anchorRef` with `hcs:...`) or off-chain custody with a
+   published `policyHash` on the grant. This matches the privacy model in this document
+   (`hash-only` default).
 
-### Encrypted XRPL flow (preparation step)
+2. **Grant revocation** — Use **XLS-70 Credentials**, not NFToken burn. At grant issuance the PA
+   issues `CredentialCreate` with `Issuer` = `activeGrantCredentialIssuer`, `Subject` = grant
+   subject XRPL account, and `CredentialType` = `hexUTF8("mpcp:active-grant:" + grantId)`. The
+   subject accepts the credential on-ledger. **Revocation** is `CredentialDelete` by the issuer.
 
-The SDK provides `xrplEncryptAndStorePolicyDocument` to prepare the encrypted blob before minting.
-NFT minting (write side) is handled by `mpcp-policy-authority`.
+3. **Verifiers** — The Trust Gateway and online merchants query the ledger for the credential.
+   Absence implies revocation. No HTTP `revocationEndpoint` is required for this path.
 
-```typescript
-import { xrplEncryptAndStorePolicyDocument } from "mpcp-service/sdk";
-
-const aes256Key = globalThis.crypto.getRandomValues(new Uint8Array(32));
-
-const prep = await xrplEncryptAndStorePolicyDocument(policyDocument, {
-  encryption: { key: aes256Key },
-  ipfsStore: myIpfsClient,  // implements PolicyDocumentIpfsStore
-});
-
-// prep.cid        → IPFS CID of the encrypted blob
-// prep.policyHash → sha256 of the canonical policy document
-// NFT URI = `ipfs://${prep.cid}`
-// after minting: anchorRef = `xrpl:nft:${mintedTokenId}`
-```
-
-### IPFS store interface
-
-The SDK does not bundle an IPFS client. Callers inject one:
-
-```typescript
-interface PolicyDocumentIpfsStore {
-  upload(data: Uint8Array, filename?: string): Promise<string>; // returns CID
-}
-```
-
-Compatible with `web3.storage`, `nft.storage`, a local IPFS node, or any content-addressed store.
-
-### Revocation check
-
-```typescript
-import { checkXrplNftRevocation } from "mpcp-service/sdk";
-
-const tokenId = grant.anchorRef?.replace("xrpl:nft:", "");
-if (tokenId) {
-  const { revoked } = await checkXrplNftRevocation(tokenId);
-  if (revoked) { /* grant revoked — NFT burned */ }
-}
-```
-
-### Comparison to `revocationEndpoint`
-
-| Mechanism | Requires hosted service | Finality | Suitable for |
-|-----------|------------------------|----------|--------------|
-| `revocationEndpoint` | Yes | Soft | Enterprise, operator-controlled |
-| XRPL NFT burn | No | Hard (on-chain) | Consumer, self-sovereign |
-
-Both may be present on the same grant. Merchants SHOULD check both when present.
+Historical implementations that minted a non-transferable NFToken and placed `xrpl:nft:{tokenId}`
+in `anchorRef` relied on **burn-to-revoke**. That pattern is **deprecated**; new deployments MUST
+use Credentials as specified in [PolicyGrant — Revocation](./PolicyGrant.md#revocation).
 
 ---
 
@@ -275,10 +237,10 @@ For `"encrypted"` mode, the AES-256 key must be shared out-of-band with authoriz
 (regulators, auditors). The key must be stored securely — loss of the key means the
 on-chain document can never be decrypted. Key rotation requires re-anchoring.
 
-### NFT Burn Finality
+### Credential deletion finality
 
-XRPL NFT burns are final and irreversible. Once a grant is revoked via NFT burn, it cannot
-be un-revoked. Policy authorities MUST ensure the correct token is burned.
+XRPL `CredentialDelete` is final on-ledger. A new grant requires a new credential issuance. Policy
+authorities MUST target the correct (`Subject`, `Issuer`, `CredentialType`) tuple.
 
 ### Immutability and GDPR
 
@@ -292,8 +254,8 @@ ledger cannot be deleted. For GDPR compliance:
 
 ### Offline Merchants
 
-If `anchorRef` contains an XRPL NFT reference and the XRPL network is temporarily unavailable,
-merchants SHOULD apply the same offline exception policy as for `revocationEndpoint` (see
+Offline merchants cannot query XRPL for credential status. They SHOULD apply the same
+risk-based policy as for HTTP revocation when connectivity is absent (see
 [Human-to-Agent Profile](../profiles/human-agent-profile.md)).
 
 ---

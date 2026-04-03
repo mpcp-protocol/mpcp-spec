@@ -93,13 +93,15 @@ This integrates naturally with MPCP's key resolution pipeline and with fleet ope
 
 ---
 
-## NFT-Based Policy Anchoring and Revocation
+## Credentials-Based Grant Revocation (XLS-70)
 
-XRPL supports non-transferable NFTokens. MPCP uses these for two purposes:
+XRPL **Credentials** (XLS-70) let the PA attest on-chain that a specific `grantId` is active for a
+subject account. **Revocation** is a `CredentialDelete` — final, queryable, and **no hosted HTTP
+revocation service** is required for online verifiers.
 
-**Policy anchoring** — The policy document hash can be minted as an NFT at grant issuance, creating a tamper-evident on-chain record that any auditor can verify independently.
-
-**On-chain revocation** — Burning the NFT signals grant revocation. Merchants using Trust Bundles for offline verification can check NFT existence without contacting any hosted revocation service. The ledger is the revocation oracle.
+**Policy audit** remains hash-first (Hedera HCS `anchorRef` or off-chain custody with
+`policyHash` on the grant). NFToken-based anchoring and burn-to-revoke were **deprecated** in
+favour of Credentials; see [PolicyGrant — Revocation](../protocol/PolicyGrant.md#revocation).
 
 ---
 
@@ -140,7 +142,7 @@ XRPL satisfies all four natively. Future profiles may define how other rails sat
 | Memo field | Yes | On-chain grant-id audit trail |
 | RLUSD stablecoin | Yes | Fiat-denominated operational budgets |
 | did:xrpl identity | Yes | PA key resolution without external infrastructure |
-| NFT policy anchor | Yes | Tamper-evident policy record + burn-to-revoke |
+| XLS-70 Credentials | Yes | On-chain grant liveness + `CredentialDelete` revocation |
 | Sub-cent fees | Yes | Viable for parking, tolls, micro-payments |
 
 XRPL is not the only possible settlement layer for MPCP — it is the one that maps most naturally to the protocol's requirements in v1.0. Other rails may be added as MPCP profiles mature.

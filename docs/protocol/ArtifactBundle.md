@@ -23,7 +23,7 @@ Optional fields:
 
 | Field | Type | Description |
 |-------|------|--------------|
-| `ledgerAnchor` | object | On-chain attestation (HCS or XRPL NFT anchor ref) |
+| `ledgerAnchor` | object | On-chain attestation (e.g. HCS `anchorRef`; XRPL grant liveness via Credentials per PolicyGrant) |
 | `policyGrantPublicKeyPem` | string | PolicyGrant signing public key PEM — makes bundle self-contained |
 | `sbaPublicKeyPem` | string | SBA signing public key PEM — makes bundle self-contained |
 

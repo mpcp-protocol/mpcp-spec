@@ -454,6 +454,11 @@ Verification rules:
 
 - `SBA.authorization.grantId` MUST reference a valid PolicyGrant
 - artifacts MUST NOT be expired
+- **Grant liveness (XRPL):** when `PolicyGrant.activeGrantCredentialIssuer` is present, the
+  Trust Gateway MUST verify on-chain that an active XLS-70 Credential exists for this grant
+  on the subject's XRPL account (see [PolicyGrant — Revocation](./PolicyGrant.md#revocation)).
+  If the credential is absent or expired → **reject settlement** with
+  `ACTIVE_GRANT_CREDENTIAL_MISSING`.
 
 If lineage is invalid → **reject settlement**.
 
@@ -623,13 +628,13 @@ Replay protection is enforced through **SBA ID uniqueness** and **transaction bi
 
 ### SBA ID Uniqueness
 
-Each **SBA** contains a `budgetId`. The Trust Gateway MUST NOT accept the same SBA for more than one settlement submission.
+Each **SBA** contains a `budgetId`. The Trust Gateway **MUST NOT** accept the same `budgetId` for more than one settlement submission (equivalently: the same SBA MUST NOT settle twice).
 
-The operator backend SHOULD record `(sba.budgetId, settlementTxId)` at settlement acceptance to prevent the same SBA from being applied to a second settlement.
+The Trust Gateway (or its operator backend) **MUST** persist `(sba.budgetId, settlementTxId)` when a settlement is accepted so that a second submission with the same `budgetId` is rejected.
 
 ### Transaction Binding
 
-After settlement execution, the operator backend SHOULD record the settlement transaction identifier against the SBA `budgetId`.
+After settlement execution, the operator backend **MUST** record the settlement transaction identifier against the SBA `budgetId`.
 
 Examples:
 
@@ -660,7 +665,7 @@ The Trust Gateway verifies that the payment parameters (rail, asset, amount, des
 Expired or previously used authorizations cannot be reused due to:
 
 - expiration checks on all artifacts (gateway-enforced, stateless)
-- `(budgetId, settlementTxId)` binding recorded by the operator backend at settlement acceptance
+- `(budgetId, settlementTxId)` binding **MUST** be recorded by the Trust Gateway (or operator backend) at settlement acceptance; duplicate `budgetId` submissions **MUST** be rejected
 
 ### Policy Bypass
 
@@ -764,11 +769,19 @@ Verification ensures that executed settlement transactions match authorized para
 
 ## Grant Revocation
 
-MPCP does not define a revocation mechanism for PolicyGrants or SBAs. Once issued, an artifact remains valid until its `expiresAt` timestamp passes.
+PolicyGrants remain valid until `expiresAt` unless revoked earlier by a **normative revocation
+mechanism** on the grant.
 
-**Mitigation:** Issue short-lived grants (recommended: < 15 minutes for high-risk sessions). In scenarios where immediate revocation is required, the session authority should decline to issue new SBAs; the current grant will expire naturally.
+**XRPL profile (recommended):** The PA-signed `activeGrantCredentialIssuer` field enables **on-chain
+revocation** via XLS-70 Credentials — no hosted HTTP service is required for verifiers that can
+query the ledger. See [PolicyGrant — Revocation](./PolicyGrant.md#revocation).
 
-**Revocation extension:** The `revocationEndpoint` field on PolicyGrant supports real-time revocation checks. See the [Human-to-Agent Profile](../profiles/human-agent-profile.md#revocation) for the full revocation contract.
+**Legacy HTTP (non-XRPL):** The optional `revocationEndpoint` field supports HTTP revocation
+checks for rails or deployments that do not use XRPL Credentials. See the
+[Human-to-Agent Profile](../profiles/human-agent-profile.md#revocation).
+
+**Mitigation:** Short-lived grants still limit exposure if revocation signals are unavailable
+(e.g. offline merchants).
 
 ---
 
@@ -921,6 +934,7 @@ Recommended codes:
 | DESTINATION_NOT_CREDENTIALED | `merchantCredentialIssuer` is set but destination does not hold a matching on-chain credential |
 | SUBJECT_NOT_ATTESTED | `subjectCredentialIssuer` is set but the agent does not hold a matching on-chain credential |
 | OFFLINE_CUMULATIVE_EXCEEDED | Offline acceptance would exceed `PolicyGrant.offlineMaxCumulativePayment` |
+| ACTIVE_GRANT_CREDENTIAL_MISSING | `activeGrantCredentialIssuer` is set but the on-chain active-grant credential for this `grantId` does not exist or is expired (grant revoked) |
 | SCOPE_UNSUPPORTED | Authorization scope is not supported by the verifier |
 
 Error codes SHOULD remain stable across implementations whenever possible to preserve interoperability.
@@ -990,8 +1004,10 @@ The `anchorRef` field on PolicyGrant points to an on-chain record:
 
 ```text
 "hcs:{topicId}:{sequenceNumber}"   — Hedera HCS message
-"xrpl:nft:{tokenId}"               — XRPL non-transferable NFToken
 ```
+
+The historical `xrpl:nft:{tokenId}` pattern is **deprecated**. **XRPL grant revocation** uses
+`activeGrantCredentialIssuer` and XLS-70 Credentials — see [PolicyGrant — Revocation](./PolicyGrant.md#revocation).
 
 This provides:
 

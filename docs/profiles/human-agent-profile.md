@@ -30,7 +30,7 @@ This profile is appropriate when:
 
 - A human wants to delegate bounded spending to an AI agent (travel, subscriptions, event budgets)
 - Payments span multiple sessions or days (use `budgetScope: "TRIP"`)
-- The human may need to cancel mid-delegation (use `revocationEndpoint`)
+- The human may need to cancel mid-delegation — on XRPL use `activeGrantCredentialIssuer` (CredentialDelete); non-XRPL MAY use `revocationEndpoint`
 - Merchant categories should be explicitly constrained (use `allowedPurposes`)
 - Offline-capable verification is required at the merchant side
 
@@ -51,7 +51,7 @@ The PolicyGrant is signed by the human principal's DID key.
   "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
   "expiresAt": "2026-04-13T23:59:59Z",
   "allowedPurposes": ["travel:hotel", "travel:flight", "travel:transport"],
-  "revocationEndpoint": "https://wallet.alice.example.com/revoke",
+  "activeGrantCredentialIssuer": "rPaAddress...",
   "issuer": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK",
   "issuerKeyId": "alice-did-key-1",
   "signature": "..."
@@ -65,7 +65,8 @@ The PolicyGrant is signed by the human principal's DID key.
 | `issuer` | Human's DID (did:key, did:web, etc.) — identifies the policy authority |
 | `issuerKeyId` | Key ID within the DID document used for signing |
 | `allowedPurposes` | Merchant category allowlist — enforced by the AI agent and the Trust Gateway (see [Purpose Enforcement](../protocol/PolicyGrant.md#purpose-enforcement)) |
-| `revocationEndpoint` | URL where the human's wallet accepts cancellation queries |
+| `activeGrantCredentialIssuer` | **XRPL:** PA's XRPL address for the active-grant credential; revocation = `CredentialDelete` (see [PolicyGrant — Revocation](../protocol/PolicyGrant.md#revocation)) |
+| `revocationEndpoint` | **Legacy HTTP** cancellation URL for non-XRPL rails only |
 | `scope` | Use `TRIP` for multi-day or multi-session delegations |
 
 ### Policy Authority Server — Common Deployment Pattern
@@ -78,13 +79,15 @@ In this model:
 - The PA server issues the PolicyGrant, signing with a domain key
 - `issuer` is the PA server's domain (e.g. `wallet.alice.example.com`) rather than Alice's personal DID
 - Key resolution uses HTTPS well-known: `https://wallet.alice.example.com/.well-known/mpcp-keys.json`
-- The `revocationEndpoint` is also hosted by the PA server, which tracks revocation state
+- For **XRPL**, the PA SHOULD issue the active-grant credential from `activeGrantCredentialIssuer`
+  and revoke via `CredentialDelete` — no HTTP endpoint required. For **non-XRPL** transitional
+  deployments, the PA MAY host `revocationEndpoint` instead.
 
 ```json
 {
   "issuer": "wallet.alice.example.com",
   "issuerKeyId": "pa-grant-key-1",
-  "revocationEndpoint": "https://wallet.alice.example.com/revoke"
+  "activeGrantCredentialIssuer": "rPaAliceWallet..."
 }
 ```
 
@@ -169,7 +172,14 @@ if (!purposeAllowed) {
 
 ## Revocation
 
-### Endpoint contract
+### XRPL Credential (recommended)
+
+When `activeGrantCredentialIssuer` is set, the Trust Gateway and online merchants rely on
+**ledger queries** for grant liveness — not HTTP. See [PolicyGrant — Revocation](../protocol/PolicyGrant.md#revocation).
+
+### Legacy HTTP endpoint contract
+
+When only `revocationEndpoint` is present (non-XRPL):
 
 ```
 GET {revocationEndpoint}?grantId={grantId}
@@ -178,9 +188,9 @@ Response: { "revoked": boolean, "revokedAt": "ISO8601" }
 
 ### Merchant responsibility
 
-Merchants and service providers with the `revocationEndpoint` field SHOULD call this endpoint
-before accepting a payment. The check is a **separate online step** — the MPCP verifier pipeline
-remains stateless and synchronous.
+Merchants and service providers SHOULD perform the appropriate check before accepting a payment
+(credential lookup when `activeGrantCredentialIssuer` is set; HTTP when only
+`revocationEndpoint` is set). HTTP checks are a **separate online step** when used.
 
 ```javascript
 import { checkRevocation } from "mpcp-service/sdk";
@@ -197,7 +207,7 @@ if (revoked) {
 
 ### Offline exception
 
-If the merchant cannot reach the revocation endpoint (network unavailable, timeout), the
+If the merchant cannot reach the revocation service (no ledger access, HTTP timeout, etc.), the
 merchant makes a risk-based decision. The MPCP spec recommends:
 
 - **Online merchants** (hotels, airlines): block on revocation endpoint failure
@@ -217,7 +227,7 @@ frequent SBA refresh.
 ### Key compromise
 
 If the human's DID key is compromised:
-1. Revoke all active PolicyGrants via `revocationEndpoint`
+1. Revoke all active PolicyGrants (`CredentialDelete` on XRPL, or HTTP revocation where used)
 2. Rotate the DID key or create a new DID
 3. Reissue PolicyGrants under the new key
 
@@ -239,7 +249,7 @@ Revoke the PolicyGrant immediately to stop new SBAs from being issued.
 | Policy authority | Fleet operator (domain key) | Human (DID key) or PA server (domain key) |
 | Subject | Vehicle wallet | AI agent |
 | Connectivity | Offline-first (Trust Bundle) | Online by design |
-| Revocation | `revocationEndpoint` — fleet disables vehicle mid-shift | `revocationEndpoint` — human cancels delegation |
+| Revocation | Credential + Trust Bundle / HTTP legacy | Credential (XRPL) or HTTP — human cancels delegation |
 | Budget scope | SESSION (per-shift, multi-merchant) ¹ | TRIP (multi-day, multi-session) |
 | Merchant categories | destinationAllowlist (crypto, PA + gateway-enforced) | allowedPurposes (semantic, agent + gateway-enforced) |
 | Use case | Tolls, EV charging, parking | Travel, subscriptions, event budgets |
@@ -252,7 +262,7 @@ Both profiles use the same MPCP authorization chain and the same Trust Gateway. 
 
 ## See Also
 
-- [PolicyGrant](../protocol/PolicyGrant.md) — `revocationEndpoint`, `allowedPurposes` fields
+- [PolicyGrant](../protocol/PolicyGrant.md) — `activeGrantCredentialIssuer`, `revocationEndpoint`, `allowedPurposes`
 - [SignedBudgetAuthorization](../protocol/SignedBudgetAuthorization.md) — TRIP scope
 - [Actors](../architecture/actors.md) — AI Agent actor
 - [Comparison with Agent Protocols](../overview/comparison-with-agent-protocols.md)

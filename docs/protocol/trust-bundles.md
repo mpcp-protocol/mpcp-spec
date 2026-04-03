@@ -270,7 +270,10 @@ artifact → issuer → lookup key in bundle → verify signature → check expi
 
 ### Revocation in Offline Mode
 
-PolicyGrants may carry a `revocationEndpoint`. Offline verifiers cannot call this endpoint. Deployments that use offline verification MUST accept the risk that a revoked grant may be accepted — the revoked grant will remain valid until its `expiresAt` expires or the bundle is refreshed and revocation state is checked.
+PolicyGrants may carry `activeGrantCredentialIssuer` (XRPL) or a legacy `revocationEndpoint`
+(HTTP). Offline verifiers cannot query either. Deployments that use offline verification MUST
+accept the risk that a revoked grant may be accepted — the grant remains valid until
+`expiresAt` or the bundle is refreshed and revocation state is re-checked when online.
 
 Embedded revocation lists (CRL, bloom filter) are a [planned future extension](#future-extensions). Until that mechanism is available, deployments with strict revocation requirements MUST use online verification.
 

@@ -64,7 +64,7 @@ For dispute resolution, collect the following bundle per disputed payment:
 | SBA | Machine wallet / merchant storage |
 | XRPL transaction | Ledger (filtered by `mpcp/grant-id` memo) |
 | Policy document (optional) | PA custodian — hash must match `policyGrant.policyHash` |
-| Revocation check result | `revocationEndpoint` at time of authorization |
+| Revocation check result | On-chain credential status or `revocationEndpoint` response at time of authorization |
 
 ## Failure Reasons
 
@@ -81,12 +81,13 @@ For dispute resolution, collect the following bundle per disputed payment:
 | `purpose_not_allowed` | Payment purpose not in `PolicyGrant.allowedPurposes` |
 | `budget_exceeded` | Sum of on-chain payments > `budgetMinor` (Trust Gateway failure) |
 | `grant_revoked` | Revocation endpoint returned `{ revoked: true }` |
+| `active_grant_credential_missing` | On-chain active-grant credential absent or expired (`ACTIVE_GRANT_CREDENTIAL_MISSING`) |
 | `offline_cumulative_exceeded` | Offline acceptance would exceed `PolicyGrant.offlineMaxCumulativePayment` |
 | `offline_sba_replay` | Same SBA / `budgetId` was already accepted at this verifier (local deduplication) |
 
 ## See Also
 
-- [Policy Anchoring](../protocol/policy-anchoring.md) — HCS and XRPL NFT anchoring
+- [Policy Anchoring](../protocol/policy-anchoring.md) — HCS anchoring; XRPL Credentials for revocation
 - [Trust Model](../protocol/trust-model.md) — Escrow as proof-of-reservation; on-chain audit
 - [Rails](../protocol/rails.md) — `mpcp/grant-id` memo format
 - [ArtifactBundle](../protocol/ArtifactBundle.md) — Packaging artifacts for audit

@@ -46,7 +46,7 @@ An AI agent acting under human authorization, using MPCP to bound its spending a
 - Declares the payment `purpose` in each settlement request so the Trust Gateway can verify it against the PA-signed `allowedPurposes`
 - Sets SBA `destinationAllowlist` as a subset of the PolicyGrant's PA-signed `destinationAllowlist` (when present)
 - Maintains cumulative spend counter across all sessions in the trip/project
-- SHOULD check `revocationEndpoint` before issuing each SBA (agents are online by design)
+- SHOULD verify grant is not revoked before issuing each SBA — on XRPL, active-grant credential lookup when `activeGrantCredentialIssuer` is set; otherwise legacy `revocationEndpoint` when present (agents are online by design)
 
 **Contrast with Vehicle Wallet:**
 
