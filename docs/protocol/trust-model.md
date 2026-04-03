@@ -151,7 +151,7 @@ overspending because:
 | Destination enforced | ✅ gateway checks `destinationAllowlist` / credentials | ❌ not enforced (agent-only) |
 | On-chain confirmation | ✅ XRPL receipt | ❌ no settlement yet |
 | Budget escrow verified | ✅ | ❌ |
-| Revocation checked | ✅ gateway checks on each payment | ⚠️ best-effort (TTL cache) |
+| Revocation checked | ✅ gateway checks credential or HTTP on each payment | ⚠️ best-effort (TTL cache; no ledger) |
 
 **Offline mode (Option A — Tiered Trust):** Merchants accept reduced guarantees in exchange for
 the ability to operate without a network connection. The `offlineMaxSinglePayment` cap (PA-signed)

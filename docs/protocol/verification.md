@@ -12,6 +12,7 @@ The Trust Gateway verifier runs checks in order:
 4. **Policy** — Budget limits, rail/asset/destination constraints, expiration
 5. **Purpose** — When `PolicyGrant.allowedPurposes` is present and the settlement request includes a `purpose` field, verify `purpose ∈ allowedPurposes`. See [PolicyGrant — Purpose Enforcement](./PolicyGrant.md#purpose-enforcement).
 6. **Destination** — When `PolicyGrant.destinationAllowlist` or `PolicyGrant.merchantCredentialIssuer` is present, verify the payment destination is approved. See [PolicyGrant — Destination Enforcement](./PolicyGrant.md#destination-enforcement).
+7. **Grant liveness (XRPL Credential)** — When `PolicyGrant.activeGrantCredentialIssuer` is present, verify the active-grant XLS-70 Credential exists on the subject's XRPL account for this `grantId`. Reject with `ACTIVE_GRANT_CREDENTIAL_MISSING` if absent or expired. See [PolicyGrant — Revocation](./PolicyGrant.md#revocation).
 
 If any check fails, verification fails with a specific reason. On success, the gateway submits the XRPL transaction and returns the `txHash` receipt.
 
@@ -48,6 +49,7 @@ monitoring), not additional protocol fields.
 | SBA → budget | Current payment amount ≤ `maxAmountMinor`; rail, asset, destination in allowlists. Check is stateless — session authority manages cumulative budget tracking. |
 | Purpose | When `PolicyGrant.allowedPurposes` is present and settlement request includes `purpose`: verify `purpose ∈ allowedPurposes`. Reject with `PURPOSE_NOT_ALLOWED` on mismatch. |
 | Destination | When `PolicyGrant.destinationAllowlist` is present: verify `payment.destination ∈ destinationAllowlist`. When `PolicyGrant.merchantCredentialIssuer` is present: verify destination holds a matching on-chain credential. If both are set, either match suffices. Reject with `DESTINATION_NOT_ALLOWED` or `DESTINATION_NOT_CREDENTIALED`. |
+| Grant liveness | When `PolicyGrant.activeGrantCredentialIssuer` is present: verify on-chain active-grant credential for this `grantId`. Reject with `ACTIVE_GRANT_CREDENTIAL_MISSING` if revoked. |
 
 ## Usage
 

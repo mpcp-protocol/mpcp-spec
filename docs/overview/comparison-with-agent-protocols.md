@@ -13,7 +13,7 @@ MPCP is the right authorization layer for human-to-agent spending delegation.
 | **Offline** | Yes — pre-loaded chain, local verification | No — HTTP round-trip | No — online mandate exchange | No | No |
 | **Settlement rails** | Any (XRPL, EVM, Stripe, hosted) | Stablecoins (USDC, EURC) | Cards, x402 | Rail-agnostic (unspecified) | Unspecified |
 | **Approval flow** | Budget granted upstream; agent spends within bounds | Pay per API call | User signs Cart or Intent mandate | Capability exchange | Payment negotiation |
-| **Human revocation** | Yes — `revocationEndpoint` | No | Yes (mandate expiry) | N/A | N/A |
+| **Human revocation** | Yes — XRPL Credentials and/or `revocationEndpoint` | No | Yes (mandate expiry) | N/A | N/A |
 | **Focus** | Bounded autonomy, verification, auditability | Micropayments, no API keys | Accountability, authenticity, user control | Agent interoperability | Agent payment flows |
 
 ---

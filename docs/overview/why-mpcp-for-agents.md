@@ -108,7 +108,7 @@ cryptographic spending layer on top.
 | Situation | MPCP fit |
 |-----------|---------|
 | Agent books travel across multiple days | TRIP scope SBA covers the whole trip |
-| Human needs to cancel mid-delegation | `revocationEndpoint` → `checkRevocation()` |
+| Human needs to cancel mid-delegation | XRPL: `CredentialDelete` on active-grant credential; non-XRPL: `revocationEndpoint` → `checkRevocation()` |
 | Agent should only pay for certain categories | `allowedPurposes` filter |
 | Merchant needs offline-capable verification | PolicyGrant + SBA chain verifies locally via Trust Bundle |
 | Agent spending must be auditable | On-chain `mpcp/grant-id` memo + PolicyGrant + SBA bundle |
@@ -120,6 +120,6 @@ cryptographic spending layer on top.
 
 - [Human-to-Agent Delegation Profile](../profiles/human-agent-profile.md) — full deployment guide
 - [Comparison with Agent Protocols](comparison-with-agent-protocols.md) — x402, AP2, ACP, TAPC
-- [PolicyGrant](../protocol/PolicyGrant.md) — `revocationEndpoint`, `allowedPurposes` fields
+- [PolicyGrant](../protocol/PolicyGrant.md) — `activeGrantCredentialIssuer`, `revocationEndpoint`, `allowedPurposes`
 - [SignedBudgetAuthorization](../protocol/SignedBudgetAuthorization.md) — TRIP scope
 - [Actors](../architecture/actors.md) — AI Agent actor

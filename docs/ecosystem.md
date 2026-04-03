@@ -77,7 +77,7 @@ The canonical SDK. All other components depend on it. It provides:
 
 - Artifact construction: `createPolicyGrant`, `createSignedPolicyGrant`, `createSba`
 - Verification: `verifyPolicyGrant`, `verifySignedBudgetAuthorization`, `verifySettlement`
-- On-chain adapters: `hederaHcsAnchorPolicyDocument`, `checkXrplNftRevocation`, `resolveXrplDid`
+- On-chain adapters: `hederaHcsAnchorPolicyDocument`, active-grant credential verification, `resolveXrplDid`
 - Revocation utilities: `checkRevocation`
 - Schemas and canonical JSON hashing
 
@@ -91,7 +91,7 @@ The production Policy Authority is the trust anchor for a deployment. It:
 
 - Stores policy documents and issues `PolicyGrant` artifacts signed with its key
 - Exposes `GET /revoke?grantId=` — the revocation endpoint that goes into every grant
-- Optionally anchors policy documents on Hedera HCS or XRPL NFT for tamper-evident audit trails
+- Optionally anchors policy documents on Hedera HCS for tamper-evident audit trails; XRPL grant liveness uses XLS-70 Credentials
 - Manages soft-delete retention for policy document custody
 
 For many deployments the policy authority will be embedded directly in an existing platform (an AI agent platform, an enterprise IAM system, a crypto wallet provider) rather than deployed as a standalone service. The `mpcp-policy-authority` repository is a ready-to-deploy reference implementation of this role.
@@ -107,7 +107,7 @@ The wallet SDK is the integration point for **any actor that creates SBAs** — 
 - **PolicyGrant display** — parse a received grant into human- or agent-readable form
 - **SBA creation and signing** — `createSession(grant, signingKey)` → signs SBAs within authorized scope
 - **Budget enforcement** — tracks cumulative spend, rejects requests that would exceed the grant ceiling
-- **Revocation** — checks `revocationEndpoint` (and optionally XRPL NFT status) before each transaction
+- **Revocation** — checks XRPL active-grant credential when `activeGrantCredentialIssuer` is set; otherwise legacy `revocationEndpoint` for non-XRPL rails
 - **Persistence** — pluggable storage adapters (in-memory, localStorage, React Native AsyncStorage)
 - **Platform support** — browser bundle (Web Crypto API), React Native, Node.js
 
@@ -136,7 +136,7 @@ The end-to-end flow across all components:
 1. POLICY AUTHORITY
    POST /policies        { policyDocument }   → { policyHash }
    POST /grants          { policyHash, ... }  → SignedPolicyGrant
-        (optional: anchor on Hedera HCS or XRPL NFT)
+        (optional: anchor policy hash on Hedera HCS; XRPL grant liveness via XLS-70 Credentials)
 
 2. WALLET / AGENT  (mpcp-wallet-sdk)
    parseGrant(signedGrant)                    → display / consent prompt
