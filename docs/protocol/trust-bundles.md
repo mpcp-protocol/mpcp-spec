@@ -49,7 +49,7 @@ A Trust Bundle MUST be a JSON document containing:
 
 - An **issuer identity set** (`approvedIssuers`): the complete list of issuer DIDs authorised for this bundle's scope
 - An **embedded key set** (`issuers`): the subset of approved issuers whose key material is pre-distributed in this bundle
-- **Bundle metadata**: scope, expiry, and the identity of the bundle signer
+- **Bundle metadata**: scope, expiry, optional issuance time (`issuedAt`), and the identity of the bundle signer
 - A **signature** over the canonical bundle payload
 
 An issuer that appears in `approvedIssuers` but not in `issuers` is recognised as trusted but its keys are not embedded — verifiers MUST resolve its keys via DID or well-known if connectivity is available, or reject the artifact if offline.
@@ -100,6 +100,7 @@ An issuer that appears in `approvedIssuers` but not in `issuers` is recognised a
       ]
     }
   ],
+  "issuedAt": "2026-05-25T00:00:00Z",
   "expiresAt": "2026-06-01T00:00:00Z",
   "signature": "base64url..."
 }
@@ -153,6 +154,12 @@ Array of issuer entries with embedded key material. Each entry contains:
 - `keys` — array of public keys in JWK format
 
 Issuers present in `approvedIssuers` but absent from `issuers` have no embedded keys; verifiers resolve their keys dynamically if online, or reject the artifact if offline.
+
+### `issuedAt`
+
+Optional but **SHOULD** be present. ISO 8601 timestamp when the bundle was issued (before signing).
+It is included in the signed payload. Verifiers MAY compare `issuedAt` to the device wall clock
+as a sanity check — see [Clock sanity checks](#clock-sanity-checks-for-bundles).
 
 ### `expiresAt`
 
@@ -267,6 +274,22 @@ PolicyGrants may carry a `revocationEndpoint`. Offline verifiers cannot call thi
 
 Embedded revocation lists (CRL, bloom filter) are a [planned future extension](#future-extensions). Until that mechanism is available, deployments with strict revocation requirements MUST use online verification.
 
+### Offline SBA replay
+
+**Risk:** An attacker or misconfigured agent could present the **same** SBA (same `budgetId`) to
+multiple offline merchants, or repeatedly to one merchant that does not remember past
+acceptances. Offline merchants do not share a global ledger of consumed SBAs.
+
+**Mitigation (SHOULD):** Each offline verifier SHOULD maintain a local set (or bounded cache) of
+recently seen `budgetId` values (or full SBA fingerprints) for the grants it accepts. If an
+incoming SBA reuses an identifier already in the set, the verifier SHOULD reject it as a replay.
+
+This is a **per-device** defense only — two physically separate merchants cannot detect duplicate
+presentation of the same SBA without additional infrastructure. That trade-off is inherent to
+offline operation. This specification does **not** add a `nonce` or `sequence` field to the SBA
+for offline ordering; deployments that need stronger cross-merchant ordering MUST use online
+verification or out-of-band coordination.
+
 ---
 
 ## Lifecycle
@@ -275,6 +298,9 @@ Trust Bundles MUST:
 
 - carry a defined `expiresAt`
 - be periodically refreshed when connectivity is available
+
+Bundle issuers SHOULD include `issuedAt` so verifiers can enforce maximum validity windows and
+clock sanity checks (see [Maximum bundle lifetime, stale bundles, and degraded mode](#maximum-bundle-lifetime-stale-bundles-and-degraded-mode)).
 
 Implementations SHOULD:
 
@@ -288,6 +314,57 @@ Verifiers MUST also support an **emergency refresh** mechanism for key compromis
 See [Bundle Signer Key Compromise](#bundle-signer-key-compromise) for the full procedure.
 
 High-assurance deployments SHOULD set `expiresAt` to short intervals (hours, not days) to limit the window during which a revoked key remains trusted. See [Key Revocation](./key-resolution.md#key-revocation).
+
+---
+
+## Maximum bundle lifetime, stale bundles, and degraded mode
+
+### Stale bundle risk
+
+A merchant that continues to operate with an **outdated** Trust Bundle may trust issuer keys that
+have been rotated, revoked, or compromised. The exposure window is bounded by `expiresAt`, but
+long-lived bundles increase stale-key risk.
+
+### Recommended maximum validity window
+
+Deployments SHOULD cap the wall-clock span from bundle issuance to `expiresAt` according to risk:
+
+| Deployment profile | Recommended max (`expiresAt` − `issuedAt`) |
+|--------------------|-------------------------------------------|
+| High-value / regulated (e.g. fleet EV, tolls) | **7 days** or less |
+| Lower-assurance IoT or long-interval connectivity | **30 days** or less |
+
+These are operational guidelines, not protocol hard limits. Operators MAY choose shorter windows
+for stricter assurance.
+
+### Behaviour when a bundle expires
+
+When the current time is past `expiresAt`, the verifier MUST NOT use the bundle for new offline
+verifications.
+
+Implementations SHOULD enter **degraded mode** when the active bundle expires or is withdrawn:
+for example, reject all new offline payment attempts, accept only reduced limits, or require
+immediate operator intervention. The exact degraded behaviour is deployment-specific but MUST
+be documented in the deployment's security policy.
+
+### Refresh on reconnect
+
+When connectivity returns, the verifier MUST attempt to fetch a fresh Trust Bundle before
+resuming full offline service. For XRPL deployments, the verifier SHOULD also check the bundle
+signer's on-chain key credential (see [Mitigation 3: On-Chain Freshness Signal](#mitigation-3-on-chain-freshness-signal-should-for-xrpl-deployments) under *Bundle Signer Key Compromise*). If the credential no longer exists, the verifier MUST discard the stale bundle and MUST NOT trust it until a new signed bundle is obtained.
+
+---
+
+## Clock sanity checks for bundles
+
+Trust Bundle verification uses the verifier's wall clock for `expiresAt` and optional `issuedAt`
+checks. See [Clock synchronization and drift](./verification.md#clock-synchronization-and-drift)
+for general guidance.
+
+When `issuedAt` is present, verifiers MAY reject a bundle if the local clock differs from
+`issuedAt` by more than the deployment's **clock drift tolerance** (see Verification doc,
+typically on the order of **5 minutes**). This detects gross clock skew or manipulation; it is
+not a substitute for secure time on the device.
 
 ---
 

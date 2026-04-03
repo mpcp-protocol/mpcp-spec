@@ -146,7 +146,7 @@ overspending because:
 | SBA signature valid | ✅ | ✅ |
 | PolicyGrant signature valid | ✅ | ✅ |
 | Per-transaction cap enforced | ✅ `budgetMinor` / remaining | ✅ `offlineMaxSinglePayment` |
-| Cumulative budget enforced | ✅ gateway counter + escrow | ❌ not enforced |
+| Cumulative budget enforced | ✅ gateway counter + escrow | ⚠️ optional `offlineMaxCumulativePayment` per verifier; otherwise not enforced offline |
 | Purpose enforced | ✅ gateway checks `allowedPurposes` | ❌ not enforced (agent-only) |
 | Destination enforced | ✅ gateway checks `destinationAllowlist` / credentials | ❌ not enforced (agent-only) |
 | On-chain confirmation | ✅ XRPL receipt | ❌ no settlement yet |
@@ -155,9 +155,23 @@ overspending because:
 
 **Offline mode (Option A — Tiered Trust):** Merchants accept reduced guarantees in exchange for
 the ability to operate without a network connection. The `offlineMaxSinglePayment` cap (PA-signed)
-limits exposure: a compromised agent cannot present an SBA above this cap and get it accepted
-offline. Cumulative overspend across many offline transactions remains a theoretical risk; it
-is bounded by the escrow amount once the gateway comes back online.
+limits exposure per transaction. **Offline cumulative overspend** (named risk): without
+`offlineMaxCumulativePayment`, total offline acceptance across many merchants can exceed
+`budgetMinor` until on-chain reconciliation. Operators SHOULD set `offlineMaxCumulativePayment`
+≤ `budgetMinor` and SHOULD size `offlineMaxSinglePayment` for the expected number of offline
+touchpoints. See [PolicyGrant — Offline cumulative exposure](./PolicyGrant.md#offline-cumulative-exposure).
+
+**Offline SBA replay:** Distinct offline merchants do not share state. An intercepted SBA could
+in principle be presented multiple times at different devices. Merchants SHOULD reject duplicate
+`budgetId` values they have already accepted (local deduplication). This mitigates replay at a
+single device only; it does not add new fields to the SBA. See [Trust Bundles — Offline SBA replay](./trust-bundles.md#offline-sba-replay).
+
+**Stale Trust Bundle:** Operating past `expiresAt` or with an outdated bundle may trust revoked
+or compromised keys. Verifiers MUST reject expired bundles; deployments SHOULD use maximum
+bundle lifetime policies and **degraded mode** when a bundle expires. See [Trust Bundles](./trust-bundles.md#maximum-bundle-lifetime-stale-bundles-and-degraded-mode).
+
+**Clock manipulation:** Artifact expiry checks depend on verifier wall clock. See
+[Verification — Clock synchronization and drift](./verification.md#clock-synchronization-and-drift).
 
 ---
 

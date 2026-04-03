@@ -488,6 +488,9 @@ Check expiration fields:
 
 If any artifact is expired → **reject settlement**.
 
+Comparisons use the verifier's wall clock; deployments SHOULD apply a clock drift tolerance as
+described in [Verification — Clock synchronization and drift](./verification.md#clock-synchronization-and-drift).
+
 ---
 
 ### Step 4 — Submit and Return Receipt
@@ -917,6 +920,7 @@ Recommended codes:
 | DESTINATION_NOT_ALLOWED | Payment destination not in `PolicyGrant.destinationAllowlist` and no credential match |
 | DESTINATION_NOT_CREDENTIALED | `merchantCredentialIssuer` is set but destination does not hold a matching on-chain credential |
 | SUBJECT_NOT_ATTESTED | `subjectCredentialIssuer` is set but the agent does not hold a matching on-chain credential |
+| OFFLINE_CUMULATIVE_EXCEEDED | Offline acceptance would exceed `PolicyGrant.offlineMaxCumulativePayment` |
 | SCOPE_UNSUPPORTED | Authorization scope is not supported by the verifier |
 
 Error codes SHOULD remain stable across implementations whenever possible to preserve interoperability.
