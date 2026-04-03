@@ -695,6 +695,28 @@ before settling. For deployments requiring dynamic merchant management, the PA c
 Credentials (XLS-70) to approved merchants and reference them via `merchantCredentialIssuer`
 and `merchantCredentialType` on the PolicyGrant. See [PolicyGrant — Destination Enforcement](./PolicyGrant.md#destination-enforcement).
 
+### Merchant terminal impersonation (interaction layer)
+
+A malicious or compromised **merchant terminal** (QR code, NFC tag, payment link, or in-person
+challenge) could present a payment destination controlled by an attacker. The **agent or wallet
+cannot**, by itself, cryptographically prove that the terminal belongs to an approved merchant
+before it constructs an SBA.
+
+**Mitigation:** Destination assurance is enforced at **settlement** by the Trust Gateway (and by
+offline verifiers where applicable): the gateway MUST reject payments whose destination is not
+allowed under the PA-signed `destinationAllowlist` and/or `merchantCredentialIssuer` /
+`merchantCredentialType` constraints. The agent SHOULD still apply the same allowlist subset
+when present (defense in depth). Deployments that need **stronger interaction-layer assurance**
+MAY require merchants to present a signed challenge or attestation verifiable against the Trust
+Bundle or an on-chain merchant credential before the agent offers payment.
+
+### Issuer HTTPS endpoint spoofing
+
+An attacker operating a look-alike domain could attempt to serve a forged `/.well-known/mpcp-keys.json`.
+MPCP requires HTTPS and **TLS certificate validation** for well-known fetches; verifiers MUST
+validate hostnames and certificate chains. High-value deployments SHOULD use **certificate pinning**
+or equivalent for the PA issuer endpoint. See [Key Resolution — TLS validation and issuer domain spoofing](./key-resolution.md#tls-validation-and-issuer-domain-spoofing).
+
 ### Agent SBA Signing Key Compromise
 
 If an agent's SBA signing key is compromised, the attacker can forge SBAs up to the remaining
@@ -932,7 +954,8 @@ Recommended codes:
 | PURPOSE_NOT_ALLOWED | Settlement request purpose is not in `PolicyGrant.allowedPurposes` |
 | DESTINATION_NOT_ALLOWED | Payment destination not in `PolicyGrant.destinationAllowlist` and no credential match |
 | DESTINATION_NOT_CREDENTIALED | `merchantCredentialIssuer` is set but destination does not hold a matching on-chain credential |
-| SUBJECT_NOT_ATTESTED | `subjectCredentialIssuer` is set but the agent does not hold a matching on-chain credential |
+| SUBJECT_NOT_ATTESTED | `subjectCredentialIssuer` is set but the credential Subject account does not hold a matching on-chain credential |
+| SUBJECT_ACTOR_MISMATCH | `subjectCredentialIssuer` is set and either `SBA.authorization.actorId` does not equal the credential Subject account, or `subjectId` is `did:xrpl:…:{rAddress}` and `actorId` ≠ `{rAddress}` |
 | OFFLINE_CUMULATIVE_EXCEEDED | Offline acceptance would exceed `PolicyGrant.offlineMaxCumulativePayment` |
 | ACTIVE_GRANT_CREDENTIAL_MISSING | `activeGrantCredentialIssuer` is set but the on-chain active-grant credential for this `grantId` does not exist or is expired (grant revoked) |
 | SCOPE_UNSUPPORTED | Authorization scope is not supported by the verifier |

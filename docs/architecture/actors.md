@@ -28,7 +28,9 @@ Resides in each machine (EV, robot, IoT device) and enforces MPCP constraints.
 
 The wallet is the MPCP actor that signs SignedBudgetAuthorizations. Settlement is executed by the Trust Gateway.
 
-> **Note on Actor Identity:** The `actorId` field in SBA artifacts is self-reported by the wallet. Production deployments SHOULD establish actor attestation via device key binding (e.g., a hardware-backed key whose public key is registered with the fleet operator). Without attestation, `actorId` cannot be cryptographically verified and is informational only.
+> **Note on Actor Identity:** The `actorId` field in SBA artifacts is self-reported by the wallet unless bound by stronger policy. Production deployments SHOULD establish actor attestation via device key binding (e.g., a hardware-backed key whose public key is registered with the fleet operator). Without attestation, `actorId` cannot be cryptographically verified and is informational only.
+>
+> **XRPL DID (recommended):** For XRPL deployments using credential-based subject attestation, `PolicyGrant.subjectId` SHOULD use the canonical form `did:xrpl:{network}:{rAddress}` (where `{network}` identifies the intended ledger, e.g. `main` or `test`, and `{rAddress}` is the agent's classic address). This aligns the grant subject with verifiable on-chain identity. The SBA `actorId` MUST then equal the same `{rAddress}` so the Trust Gateway can correlate the signed authorization with the credential **Subject** account.
 >
 > **Per-agent keys (SHOULD):** Each vehicle or agent SHOULD have a unique SBA signing key. Shared keys prevent isolation of a compromised agent — revoking the shared key disrupts all agents using it. For XRPL deployments, the fleet operator SHOULD issue an XLS-70 Credential to each agent's account (`CredentialType = hex("mpcp:fleet-agent")`). The PolicyGrant can bind to the agent via `subjectCredentialIssuer` and `subjectCredentialType`. On compromise of one agent, the operator deletes that agent's credential — other agents are unaffected. See [Subject Attestation](../protocol/PolicyGrant.md#subject-attestation).
 
@@ -74,7 +76,8 @@ XRPL gateway seed and is the only entity that submits payment transactions on be
 - Enforces the PA-signed `budgetMinor` as a hard ceiling — maintains an independent spend counter
 - Verifies each SBA signature before submitting a XRPL Payment transaction
 - Enforces `allowedPurposes` from the PA-signed grant — rejects payments whose declared purpose is not in the allowlist (see [Purpose Enforcement](../protocol/PolicyGrant.md#purpose-enforcement))
-- Enforces `destinationAllowlist` and/or `merchantCredentialIssuer` from the PA-signed grant — rejects payments to unapproved destinations (see [Destination Enforcement](../protocol/PolicyGrant.md#destination-enforcement))
+- Enforces `destinationAllowlist` and/or `merchantCredentialIssuer` from the PA-signed grant — rejects payments to unapproved destinations (see [Destination Enforcement](../protocol/PolicyGrant.md#destination-enforcement)); this is the authoritative check against **merchant terminal impersonation** at settlement (see [Threat Model — Merchant terminal impersonation](../protocol/mpcp.md#merchant-terminal-impersonation-interaction-layer))
+- When `subjectCredentialIssuer` is present on the grant, verifies `SBA.authorization.actorId` matches the attested XRPL credential Subject and rejects with `SUBJECT_ACTOR_MISMATCH` or `SUBJECT_NOT_ATTESTED` as defined in [Subject Attestation](../protocol/PolicyGrant.md#subject-attestation)
 - Attaches `mpcp/grant-id` memo to every XRPL payment for on-chain audit traceability
 - Releases the escrow on grant revocation (EscrowFinish with preimage) or expiry (EscrowCancel)
 - Rejects payments if `authorizedGateway` in the PA-signed grant does not match its own address

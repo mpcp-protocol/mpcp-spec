@@ -74,6 +74,20 @@ GET https://{issuer-domain}/.well-known/mpcp-keys.json
 
 The endpoint MUST be served over HTTPS. Verifiers MUST validate the TLS certificate. Plaintext HTTP MUST NOT be used.
 
+### TLS validation and issuer domain spoofing
+
+Standard TLS validation (hostname match to certificate SAN/CN, chain to a trusted anchor) mitigates
+most **issuer domain spoofing** attacks (e.g. homoglyph or look-alike domains serving a forged
+`mpcp-keys.json`). Verifiers MUST NOT disable hostname verification or accept self-signed
+certificates unless the deployment uses an explicit, documented trust override (e.g. private PKI).
+
+**High-assurance deployments:** Operators SHOULD additionally use **certificate pinning** (or
+equivalent application-layer trust anchors) for the issuer's HTTPS endpoint when fetching
+`/.well-known/mpcp-keys.json`, so that a mis-issued or fraudulently obtained public CA certificate
+cannot silently substitute keys. Pinning MUST be combined with a rotation strategy (backup pins,
+versioned app updates, or operational procedures) to avoid bricking verifiers when the PA rotates
+TLS certificates.
+
 ### Deriving the URL from `issuer`
 
 | `issuer` format | Derived URL |

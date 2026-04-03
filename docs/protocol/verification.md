@@ -9,7 +9,7 @@ The Trust Gateway verifier runs checks in order:
 1. **Schema** — PolicyGrant and SBA parse and validate against expected structure
 2. **Signatures** — PolicyGrant and SBA signatures are valid (resolve public keys via `issuer` + `issuerKeyId` using the [Key Resolution](./key-resolution.md) algorithm; in offline deployments, keys are resolved from a pre-loaded [Trust Bundle](./trust-bundles.md))
 3. **Linkage** — `SBA.authorization.grantId` references a valid PolicyGrant; constraint subsets are respected
-4. **Policy** — Budget limits, rail/asset/destination constraints, expiration
+4. **Policy** — Budget limits, rail/asset/destination constraints, expiration; when `subjectCredentialIssuer` is present, confirm `authorization.actorId` equals the XRPL classic address of the credential Subject (see [Subject Attestation](./PolicyGrant.md#subject-attestation))
 5. **Purpose** — When `PolicyGrant.allowedPurposes` is present and the settlement request includes a `purpose` field, verify `purpose ∈ allowedPurposes`. See [PolicyGrant — Purpose Enforcement](./PolicyGrant.md#purpose-enforcement).
 6. **Destination** — When `PolicyGrant.destinationAllowlist` or `PolicyGrant.merchantCredentialIssuer` is present, verify the payment destination is approved. See [PolicyGrant — Destination Enforcement](./PolicyGrant.md#destination-enforcement).
 7. **Grant liveness (XRPL Credential)** — When `PolicyGrant.activeGrantCredentialIssuer` is present, verify the active-grant XLS-70 Credential exists on the subject's XRPL account for this `grantId`. Reject with `ACTIVE_GRANT_CREDENTIAL_MISSING` if absent or expired. See [PolicyGrant — Revocation](./PolicyGrant.md#revocation).
