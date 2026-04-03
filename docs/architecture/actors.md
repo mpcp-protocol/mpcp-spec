@@ -29,6 +29,8 @@ Resides in each machine (EV, robot, IoT device) and enforces MPCP constraints.
 The wallet is the MPCP actor that signs SignedBudgetAuthorizations. Settlement is executed by the Trust Gateway.
 
 > **Note on Actor Identity:** The `actorId` field in SBA artifacts is self-reported by the wallet. Production deployments SHOULD establish actor attestation via device key binding (e.g., a hardware-backed key whose public key is registered with the fleet operator). Without attestation, `actorId` cannot be cryptographically verified and is informational only.
+>
+> **Per-agent keys (SHOULD):** Each vehicle or agent SHOULD have a unique SBA signing key. Shared keys prevent isolation of a compromised agent — revoking the shared key disrupts all agents using it. For XRPL deployments, the fleet operator SHOULD issue an XLS-70 Credential to each agent's account (`CredentialType = hex("mpcp:fleet-agent")`). The PolicyGrant can bind to the agent via `subjectCredentialIssuer` and `subjectCredentialType`. On compromise of one agent, the operator deletes that agent's credential — other agents are unaffected. See [Subject Attestation](../protocol/PolicyGrant.md#subject-attestation).
 
 ## AI Agent
 
@@ -58,7 +60,8 @@ An AI agent acting under human authorization, using MPCP to bound its spending a
 **Examples:** Travel booking agent, subscription manager, event budget agent.
 
 > The `actorId` field in SBA artifacts is used for agent identity (e.g. `"ai-trip-planner-v2"`).
-> Agent attestation follows the same key binding recommendations as vehicle wallets.
+> Agent attestation follows the same per-agent key and XRPL Credential recommendations as
+> vehicle wallets. See [Subject Attestation](../protocol/PolicyGrant.md#subject-attestation).
 
 ## Trust Gateway
 
