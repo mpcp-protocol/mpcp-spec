@@ -28,7 +28,7 @@ It is issued after a PolicyGrant and presented to the Trust Gateway, which verif
 | budgetId | string | yes | Unique identifier for this budget |
 | grantId | string | yes | References the `PolicyGrant.grantId` from which this budget was derived. Verifiers use this to resolve the grant and confirm policy chain linkage. |
 | sessionId | string | yes | Session this budget applies to |
-| actorId | string | yes | Actor identifier (vehicle, agent, robot, or any autonomous payment actor) |
+| actorId | string | yes | Actor identifier (vehicle, agent, robot, or any autonomous payment actor). When the PolicyGrant uses XRPL credential-based subject attestation (`subjectCredentialIssuer` / `subjectCredentialType`), `actorId` MUST be the agent's **XRPL classic address** (`r...`) — the same account that holds the on-chain credential — so verifiers can bind the SBA to the attested subject. See [PolicyGrant — Subject Attestation](./PolicyGrant.md#subject-attestation). |
 | scopeId | string | no | Optional scope identifier |
 | policyHash | string | yes | SHA-256 hash of the canonical policy document under which this budget was authorized. Computed as `SHA256("MPCP:Policy:<version>:" \|\| canonicalJson(policyDocument))`. |
 | currency | string | yes | Informational: the fiat reference currency from which this budget was derived (e.g. `"USD"`). Not used in verification arithmetic. |

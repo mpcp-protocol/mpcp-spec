@@ -574,14 +574,35 @@ The PolicyGrant binds to the specific agent via:
 - `subjectCredentialIssuer` — the XRPL address of the credential issuer
 - `subjectCredentialType` — the hex-encoded credential type
 
+**Canonical subject identifier (XRPL):** Deployments using credential-based attestation SHOULD
+encode `subjectId` as `did:xrpl:{network}:{rAddress}` (classic address `r...` on the intended
+ledger, with `{network}` disambiguating mainnet vs testnet or other deployments). This makes the
+grant subject align with a verifiable on-chain identity. When `subjectId` uses another format,
+implementations MUST still use a single unambiguous mapping from grant subject to the XRPL account
+that holds the credential.
+
+**Binding `actorId` to the credential Subject:** When `subjectCredentialIssuer` is present, the
+SBA's `authorization.actorId` MUST equal the XRPL **classic address** of the on-chain credential
+**Subject** (the account that holds the credential). This prevents a compromised agent that shares
+no unique signing key from impersonating another fleet agent's `actorId` while presenting a
+different XRPL settlement identity: the gateway correlates the attested account with the
+self-reported actor field.
+
+When `PolicyGrant.subjectId` uses the `did:xrpl:{network}:{rAddress}` form, `authorization.actorId`
+MUST equal that `{rAddress}`; the gateway MUST reject with `SUBJECT_ACTOR_MISMATCH` if the grant
+binds a DID subject and the SBA's `actorId` does not match the DID's address component.
+
 **Gateway enforcement (SHOULD):** Before accepting SBAs from an agent, the gateway SHOULD
-verify on-chain that the agent's account holds a valid, non-expired credential matching the
-grant's `subjectCredentialIssuer` and `subjectCredentialType`:
+verify on-chain that the account `SBA.authorization.actorId` holds a valid, non-expired credential
+matching the grant's `subjectCredentialIssuer` and `subjectCredentialType`:
 
 ```text
 if PolicyGrant.subjectCredentialIssuer is present:
+    if PolicyGrant.subjectId matches did:xrpl:*:{rAddress}:
+        if SBA.authorization.actorId ≠ rAddress:
+            → reject with SUBJECT_ACTOR_MISMATCH
     credential = lookupCredential(
-        subject: agent.xrplAddress,
+        subject: SBA.authorization.actorId,
         issuer:  PolicyGrant.subjectCredentialIssuer,
         type:    PolicyGrant.subjectCredentialType
     )
@@ -596,11 +617,12 @@ if PolicyGrant.subjectCredentialIssuer is present:
 3. Other agents' credentials are unaffected — they continue operating normally
 4. No grant reissuance needed for uncompromised agents
 
-### Error Code
+### Error codes
 
 | Code | Meaning |
 |------|---------|
-| `SUBJECT_NOT_ATTESTED` | `subjectCredentialIssuer` is set but the agent does not hold a matching on-chain credential |
+| `SUBJECT_NOT_ATTESTED` | `subjectCredentialIssuer` is set but the credential Subject account does not hold a matching on-chain credential |
+| `SUBJECT_ACTOR_MISMATCH` | `subjectCredentialIssuer` is set and either `SBA.authorization.actorId` does not equal the credential Subject account, or `subjectId` is `did:xrpl:…:{rAddress}` and `actorId` ≠ `{rAddress}` |
 
 ---
 

@@ -63,6 +63,7 @@ The Trust Gateway is a mandatory **online enforcement actor** in MPCP's XRPL pro
 6. Enforces `destinationAllowlist` and/or `merchantCredentialIssuer` from the PA-signed grant — rejects payments to unapproved destinations (see [Destination Enforcement](./PolicyGrant.md#destination-enforcement))
 7. Attaches `mpcp/grant-id` memo to every on-chain payment for audit traceability
 8. Releases the escrow on grant revocation (EscrowFinish with preimage) or expiry (EscrowCancel)
+9. When `subjectCredentialIssuer` is present on the grant, verifies on-chain subject credentials and that `SBA.authorization.actorId` equals the credential Subject's classic address — mitigating **actorId spoofing** across agents that might otherwise share reporting conventions (see [Subject Attestation](./PolicyGrant.md#subject-attestation))
 
 **What the Gateway cannot do:**
 
@@ -85,6 +86,7 @@ the PolicyGrant and enforced by the gateway:
 - SBA `allowedPurposes` ⊆ PolicyGrant `allowedPurposes`
 - SBA `destinationAllowlist` ⊆ PolicyGrant `destinationAllowlist` (when PA field is present)
 - SBA signed with agent's own key (not the gateway key)
+- When `subjectCredentialIssuer` is present, `authorization.actorId` MUST be the XRPL classic address of the credential Subject so the gateway can bind the SBA to on-chain attestation
 
 **What the agent cannot do:**
 

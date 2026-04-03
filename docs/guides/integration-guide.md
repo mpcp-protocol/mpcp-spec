@@ -262,6 +262,8 @@ The merchant SDK performs a full MPCP verification chain on every request:
 4. **Budget bounds** — confirms the requested amount does not exceed `maxAmountMinor`, accounting for cumulative spend if `trackSpend: true`
 5. **Destination allowlist** — if `merchantId` is set, confirms it appears in the grant's `destinationAllowlist`
 
+> **Merchant identity at interaction time:** A compromised or fake terminal could still try to steer the user toward an attacker-controlled destination before an SBA is built. The merchant SDK checks the grant and SBA, but **definitive destination policy** for XRPL settlement is enforced by the **Trust Gateway** (`destinationAllowlist` / `merchantCredentialIssuer` on the PA-signed grant). See [Threat Model — Merchant terminal impersonation](../protocol/mpcp.md#merchant-terminal-impersonation-interaction-layer).
+
 ### Existing infrastructure it connects to
 
 - **HTTP framework**: middleware drops into any existing Express, Fastify, or Next.js route. No changes to your routing or controller logic.
