@@ -701,6 +701,17 @@ if (cumulativeSpentMinor + currentPayment > maxAmountMinor) → budget_exceeded
 
 In offline or air-gapped deployments, the session authority cannot contact the verifier in real time. In these environments, cumulative enforcement relies on trusted wallet hardware maintaining the spending counter locally.
 
+### Trust Bundle Signer Key Compromise
+
+If the root key used to sign Trust Bundles is compromised, an attacker can distribute
+fraudulent bundles containing injected issuer keys. Offline merchants will accept forged
+SBAs until the compromised bundle expires.
+
+**Mitigations:** Short bundle lifetimes (hours, not days) limit the exposure window.
+Verifiers MUST support emergency bundle refresh. For XRPL deployments, the bundle signer
+SHOULD maintain an on-chain credential for its signing key; verifiers check this on reconnect
+as a freshness signal. See [Trust Bundles — Bundle Signer Key Compromise](./trust-bundles.md#bundle-signer-key-compromise).
+
 ### Settlement Tampering
 
 Verification ensures that executed settlement transactions match authorized parameters before the session is finalized.
