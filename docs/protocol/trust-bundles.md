@@ -284,6 +284,9 @@ Implementations SHOULD:
 
 Bundle refresh is performed by fetching an updated Trust Bundle document from the bundle issuer's distribution endpoint (deployment-specific) and verifying its signature before replacing the stored bundle.
 
+Verifiers MUST also support an **emergency refresh** mechanism for key compromise scenarios.
+See [Bundle Signer Key Compromise](#bundle-signer-key-compromise) for the full procedure.
+
 High-assurance deployments SHOULD set `expiresAt` to short intervals (hours, not days) to limit the window during which a revoked key remains trusted. See [Key Revocation](./key-resolution.md#key-revocation).
 
 ---
@@ -291,7 +294,7 @@ High-assurance deployments SHOULD set `expiresAt` to short intervals (hours, not
 ## Security Considerations
 
 - Trust Bundles reduce the trust surface by scoping approved issuers to a specific category and geography
-- Compromise of a bundle signer key allows an attacker to distribute bundles with injected issuer keys — short `expiresAt` windows limit the damage window
+- Compromise of a bundle signer key allows an attacker to distribute bundles with injected issuer keys — short `expiresAt` windows limit the damage window. See [Bundle Signer Key Compromise](#bundle-signer-key-compromise) for detailed mitigations
 - Root keys MUST be installed securely and MUST NOT be changeable by software update alone in high-assurance deployments
 - Verifiers MUST NOT load unsigned or expired bundles
 - Trust Bundles that were signed before an issuer key was revoked will continue to include the compromised key until they expire. Deployments SHOULD use short Trust Bundle lifetimes (hours, not days) in high-assurance environments. See [Key Revocation](./key-resolution.md#key-revocation) for guidance on limiting the exposure window
@@ -299,11 +302,153 @@ High-assurance deployments SHOULD set `expiresAt` to short intervals (hours, not
 
 ---
 
+## Bundle Signer Key Compromise
+
+### Threat
+
+The `bundleIssuer` (typically a PA, fleet operator, or consortium root) signs Trust Bundles
+with a root key. If this key is compromised, an attacker can:
+
+1. Create fraudulent Trust Bundles containing injected issuer keys
+2. Distribute them to offline merchants (via the bundle refresh channel)
+3. Merchants accept forged SBAs signed by the attacker's injected keys
+
+Offline merchants have no way to distinguish a legitimate bundle from a forged one until the
+bundle expires or they reconnect and receive a replacement.
+
+### Exposure Window
+
+The exposure is bounded by the bundle's `expiresAt`. A bundle with a 24-hour lifetime limits
+the attacker to 24 hours of forged acceptance. A bundle with a 2-hour lifetime limits it to
+2 hours.
+
+### Mitigation 1: Short Bundle Lifetimes (SHOULD)
+
+High-assurance deployments SHOULD set `expiresAt` to short intervals:
+
+| Environment | Recommended max lifetime |
+|-------------|-------------------------|
+| High-assurance (fleet EV charging, tolls) | 2–6 hours |
+| Standard (parking, general IoT) | 12–24 hours |
+| Low-assurance (testing, development) | Up to 7 days |
+
+Shorter lifetimes reduce the exposure window but increase the refresh frequency. Deployments
+MUST balance security against the connectivity constraints of their merchant devices.
+
+### Mitigation 2: Emergency Bundle Refresh (MUST support)
+
+Verifiers that load Trust Bundles MUST support an emergency refresh mechanism. When a bundle
+signer key is compromised, the operator issues a replacement bundle signed with a new key and
+triggers an out-of-band refresh:
+
+**Refresh procedure:**
+
+1. Operator rotates the bundle signing key — new key is distributed to verifiers via the
+   pre-configured root key set (firmware update, TLS-pinned fetch, or secure channel).
+2. Operator issues a new Trust Bundle signed with the new key, with `expiresAt` set to a
+   short window.
+3. Operator triggers an emergency refresh signal to all verifiers. The signal mechanism is
+   deployment-specific:
+   - Push notification (MQTT, webhook, SMS)
+   - Shortened polling interval (verifier checks every N minutes instead of hours)
+   - Physical intervention (firmware flash for high-assurance devices)
+4. Verifiers fetch the new bundle, verify its signature against the new root key, and replace
+   the compromised bundle.
+
+**Verifier behaviour during key rotation:**
+
+- If the verifier has both an old bundle (signed by the compromised key) and a new bundle
+  (signed by the rotated key), it MUST prefer the new bundle.
+- If the verifier cannot fetch a new bundle and the old bundle has not yet expired, it MAY
+  continue using the old bundle — accepting the residual risk — or it MAY switch to rejecting
+  all offline artifacts until a valid bundle is loaded (fail-closed).
+- Implementations SHOULD expose a configuration flag for fail-closed vs fail-open behaviour
+  during bundle rotation.
+
+### Mitigation 3: On-Chain Freshness Signal (SHOULD for XRPL deployments)
+
+For XRPL deployments, the bundle signer SHOULD maintain an on-chain credential for its active
+bundle signing key using XLS-70 Credentials:
+
+- `Issuer` = Bundle signer's XRPL address
+- `Subject` = Bundle signer's XRPL address (self-issued)
+- `CredentialType` = hex-encoded `"mpcp:trust-bundle-signer:{bundleKeyId}"`
+
+**On compromise:** The signer deletes the credential. Verifiers that reconnect and check the
+ledger see that the credential no longer exists.
+
+**Verifier behaviour on reconnect (SHOULD):**
+
+When a verifier that has been operating offline regains connectivity, it SHOULD check the
+on-chain credential for the bundle signer's key before continuing to trust the loaded bundle:
+
+```text
+function checkBundleFreshness(bundle):
+    signerAddress = resolveXrplAddress(bundle.bundleIssuer)
+    credentialType = hexEncode("mpcp:trust-bundle-signer:" + bundle.bundleKeyId)
+    credential = lookupCredential(
+        subject: signerAddress,
+        issuer:  signerAddress,
+        type:    credentialType
+    )
+    if credential does not exist or is expired:
+        discard bundle — signer key may be compromised
+        trigger emergency refresh
+```
+
+This provides a definitive, ledger-based signal that is independent of the bundle refresh
+channel. Even if the attacker controls the bundle distribution endpoint, they cannot forge
+an on-chain credential deletion.
+
+### Mitigation 4: Embedded Revocation Lists (Future Extension)
+
+Trust Bundles MAY include an optional `revokedGrantIds` field containing a list (or compact
+bloom filter) of revoked `grantId` values. Offline verifiers that receive a bundle with this
+field SHOULD check incoming SBAs against the list and reject any whose `grantId` matches.
+
+```json
+{
+  "version": "1.0",
+  "bundleId": "charging-eu-ionity-v2",
+  "revokedGrantIds": ["grant_7ab3", "grant_9f2c"],
+  ...
+}
+```
+
+Alternatively, a **bloom filter** representation reduces bundle size for large revocation lists:
+
+```json
+{
+  "revokedGrantFilter": {
+    "type": "bloom",
+    "bits": "base64url-encoded-bit-array",
+    "hashCount": 3,
+    "size": 1024
+  }
+}
+```
+
+This mechanism is not yet normative. Implementations that support it SHOULD treat it as a
+best-effort check — false positives from the bloom filter SHOULD trigger an online revocation
+check if connectivity is available, rather than an outright rejection.
+
+### Defense-in-Depth Summary
+
+| Layer | Mechanism | Effect |
+|-------|-----------|--------|
+| Containment | Short `expiresAt` | Limits exposure window to hours |
+| Response | Emergency bundle refresh | Replaces compromised bundle across fleet |
+| Detection | On-chain freshness signal | Verifiers detect key compromise on reconnect |
+| Prevention | HSM for root keys | Signing key cannot be extracted |
+| Future | Embedded revocation lists | Offline grant-level revocation |
+
+---
+
 ## Future Extensions
 
 Trust Bundles MAY be extended in future versions to support:
 
-- **Embedded revocation lists** — CRL or bloom filter of revoked `grantId` values for offline revocation checking
+- **Embedded revocation lists** — CRL or bloom filter of revoked `grantId` values for offline revocation checking. See [Mitigation 4](#mitigation-4-embedded-revocation-lists-future-extension) for a preview of the proposed structure
 - **DID document caching** — pre-resolved DID documents for approved issuers
 - **Verifiable Credential chains** — VC-based bundle attestation for cross-domain trust
 - **Merkle-compressed key sets** — compact representation for constrained devices

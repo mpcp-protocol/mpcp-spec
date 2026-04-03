@@ -728,6 +728,17 @@ issue an XRPL Credential (XLS-70) to the gateway account; on compromise, the PA 
 credential to revoke the gateway's on-chain authorization. Operators SHOULD monitor for
 on-chain payments without corresponding SBAs. See [Gateway Seed Security](./trust-model.md#gateway-seed-security).
 
+### Trust Bundle Signer Key Compromise
+
+If the root key used to sign Trust Bundles is compromised, an attacker can distribute
+fraudulent bundles containing injected issuer keys. Offline merchants will accept forged
+SBAs until the compromised bundle expires.
+
+**Mitigations:** Short bundle lifetimes (hours, not days) limit the exposure window.
+Verifiers MUST support emergency bundle refresh. For XRPL deployments, the bundle signer
+SHOULD maintain an on-chain credential for its signing key; verifiers check this on reconnect
+as a freshness signal. See [Trust Bundles — Bundle Signer Key Compromise](./trust-bundles.md#bundle-signer-key-compromise).
+
 ### Settlement Tampering
 
 Verification ensures that executed settlement transactions match authorized parameters before the session is finalized.
