@@ -38,7 +38,7 @@ Status: **done** | **open**
 | spec-test-vectors | `test-vectors/` canonical JSON + SHA-256 manifest + `verify_test_vectors.py` + [CONFORMANCE.md](test-vectors/CONFORMANCE.md) + `expected-verification.json` | 8c / 10b | done |
 | spec-merchant-privacy | Gateway-only full PolicyGrant; merchants SBA-only + `grantId`/`policyHash` linkage | 9a | done |
 | spec-linkability-privacy | Cross-merchant linkability threat + future privacy modes | 9b | done |
-| spec-permissioned-domain | XRPL Permissioned Domain as MPCP trust perimeter extension | NEW | open |
+| spec-permissioned-domain | **Optional** PA/ecosystem **deployment profile:** XRPL Permissioned Domain as an additional trust perimeter (e.g. closed fleets, small merchant sets). **Not** part of mandatory MPCP v1 XRPL conformance; often impractical for general-purpose agents paying arbitrary public-ledger counterparties. **For now:** may be **mentioned** in narrative docs as future scope only — **no** normative ledger mechanics, verification-algorithm steps, or new PolicyGrant fields until this item is taken up. | NEW | open |
 | spec-budget-clarification | Clarify `budgetMinor` vs `maxSpend` relationship | 10a | done |
 | spec-fpa-verification-step | Optional FPA step in Trust Gateway algorithm (`mpcp.md` Step 0a + `verification.md`) | 10c | done |
 
