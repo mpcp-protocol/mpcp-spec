@@ -76,6 +76,9 @@ For dispute resolution, collect the following bundle per disputed payment:
 | `sba_grant_mismatch` | SBA `grantId` does not match PolicyGrant |
 | `sba_amount_exceeded` | SBA `maxAmountMinor` exceeded the quoted amount |
 | `destination_not_in_allowlist` | Payment destination not in SBA `destinationAllowlist` |
+| `destination_not_allowed` | Payment destination not in PA-signed `PolicyGrant.destinationAllowlist` and no on-chain credential match |
+| `destination_not_credentialed` | `merchantCredentialIssuer` set but destination lacks matching on-chain credential |
+| `purpose_not_allowed` | Payment purpose not in `PolicyGrant.allowedPurposes` |
 | `budget_exceeded` | Sum of on-chain payments > `budgetMinor` (Trust Gateway failure) |
 | `grant_revoked` | Revocation endpoint returned `{ revoked: true }` |
 

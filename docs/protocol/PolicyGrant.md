@@ -79,12 +79,15 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | issuerKeyId | string | yes | Identifies the specific key used to sign (for deployments with multiple keys per issuer). |
 | signature | string | yes | Cryptographic signature over the canonical JSON of the grant payload (all fields except `signature`). |
 | revocationEndpoint | string | optional | URL of the human/operator wallet's revocation service. If present, merchants SHOULD check this before accepting payment. See **Revocation** section below. |
-| allowedPurposes | string[] | optional | Merchant category allowlist (e.g. `["travel:hotel", "travel:flight"]`). Semantic metadata — enforced by the agent, not by the MPCP verifier. Appears in the audit trail. |
+| allowedPurposes | string[] | optional | Merchant category allowlist (e.g. `["travel:hotel", "travel:flight"]`). PA-signed. The agent MUST check purpose before issuing each SBA. The Trust Gateway SHOULD enforce purpose when the settlement request includes a `purpose` field. See **Purpose Enforcement** section below. |
 | anchorRef | string | optional | Pointer to an on-chain record of the policy document. Format: `"hcs:{topicId}:{sequenceNumber}"` (Hedera HCS) or `"xrpl:nft:{tokenId}"` (XRPL NFToken). See **Policy Document Anchoring** section below. |
 | budgetMinor | string | optional | PA-signed budget ceiling in the smallest currency unit (e.g. drops for XRP). The Trust Gateway enforces this as a hard ceiling — it is never read from the UI or agent. |
 | budgetCurrency | string | optional | Currency of `budgetMinor` (e.g. `"XRP"`). |
 | budgetEscrowRef | string | optional | URI reference to the on-chain budget escrow that pre-reserves the full `budgetMinor`. Format: `"{rail}:{mechanism}:{identifier}"` (e.g. `"xrpl:escrow:{account}:{sequence}"`). PA-signed. See [Rails](./rails.md). |
 | authorizedGateway | string | optional | XRPL address of the only Trust Gateway authorized to submit payments against this grant's escrow. The gateway rejects payment requests if its own address does not match. PA-signed. |
+| destinationAllowlist | string[] | optional | PA-signed allowlist of permitted payment destination addresses (e.g. XRPL `r`-addresses). When present, the Trust Gateway MUST verify that the payment destination is in this list before settling. SBA `destinationAllowlist` MUST be a subset. See **Destination Enforcement** section below. |
+| merchantCredentialIssuer | string | optional | XRPL address of the credential issuer for approved merchants. Used with XLS-70 on-chain Credentials for dynamic destination enforcement. See **Destination Enforcement** section below. |
+| merchantCredentialType | string | optional | Hex-encoded credential type that approved merchants must hold (e.g. `hex("mpcp:approved-merchant")`). Used with `merchantCredentialIssuer`. |
 | offlineMaxSinglePayment | string | optional | PA-signed per-transaction cap (in `offlineMaxSinglePaymentCurrency` minor units) for offline merchant acceptance. Offline merchants MUST reject SBAs whose `maxAmountMinor` exceeds this value. Cumulative budget is not enforced offline. |
 | offlineMaxSinglePaymentCurrency | string | optional | Currency of `offlineMaxSinglePayment` (e.g. `"XRP"`). |
 
@@ -102,6 +105,10 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
   "scope": "SESSION",
   "allowedRails": ["xrpl", "stripe"],
   "allowedAssets": [{ "kind": "IOU", "currency": "RLUSD", "issuer": "rIssuer..." }],
+  "allowedPurposes": ["transport:toll", "transport:charging", "transport:parking"],
+  "destinationAllowlist": ["rChargingStation1", "rTollBooth42"],
+  "merchantCredentialIssuer": "rPAMerchantRegistry",
+  "merchantCredentialType": "6D7063703A617070726F7665642D6D65726368616E74",
   "maxSpend": {
     "perTxMinor": "5000",
     "perSessionMinor": "20000"
@@ -324,6 +331,188 @@ Both mechanisms may be present on the same grant. Merchants SHOULD check both wh
 
 See [Policy Anchoring — XRPL NFT-Backed PolicyGrant](./policy-anchoring.md#xrpl-nft-backed-policygrant)
 for full details.
+
+---
+
+## Purpose Enforcement
+
+### Overview
+
+`allowedPurposes` defines the merchant categories a grant permits (e.g. `["transport:toll",
+"transport:charging"]`). It is PA-signed and tamper-proof — a compromised agent cannot modify
+the list.
+
+Purpose enforcement operates at **two levels**:
+
+| Level | Actor | Enforcement | Trust |
+|-------|-------|-------------|-------|
+| Agent-side | Agent / Vehicle Wallet | MUST check before issuing each SBA | Untrusted if agent is compromised |
+| Gateway-side | Trust Gateway | SHOULD check before submitting settlement | Trusted — agent cannot bypass |
+
+### Agent-Side Enforcement (MUST)
+
+Before issuing an SBA, the agent MUST check whether the merchant category (purpose) is in the
+`allowedPurposes` list. If not, the agent MUST refuse to issue an SBA — no payment proceeds.
+
+```javascript
+const purposeAllowed = grant.allowedPurposes?.includes(merchantCategory) ?? true;
+if (!purposeAllowed) {
+  // refuse to issue SBA — purpose not permitted by grant
+}
+```
+
+### Gateway-Side Enforcement (SHOULD)
+
+When the PolicyGrant contains `allowedPurposes`, the Trust Gateway SHOULD enforce purpose
+compliance before submitting each settlement transaction.
+
+The settlement request context (the request from the agent or proxy to the gateway) SHOULD
+include a `purpose` field declaring the merchant category for the payment. When present, the
+gateway checks:
+
+```
+if (policyGrant.allowedPurposes is present)
+    and (settlementRequest.purpose is present):
+  if settlementRequest.purpose ∉ policyGrant.allowedPurposes:
+    → reject with PURPOSE_NOT_ALLOWED
+```
+
+If the settlement request does not include a `purpose` field and the grant has `allowedPurposes`,
+the gateway MAY reject the request or MAY accept it (backward-compatible mode). Implementations
+transitioning to gateway-side enforcement SHOULD log a warning when `purpose` is absent.
+
+### Why Gateway Enforcement Is Needed
+
+`allowedPurposes` was originally specified as agent-enforced only. This is insufficient because
+a compromised agent (prompt injection, model manipulation, software vulnerability) can skip its
+own purpose check, call `createSba()` for any merchant category, and the gateway — without
+purpose enforcement — would sign and submit the payment.
+
+The Trust Gateway is the trust boundary: it holds the settlement keys and the agent cannot
+bypass it. The gateway already enforces budget ceiling, SBA validity, and `authorizedGateway`
+from the PA-signed grant. Adding purpose enforcement closes the last policy bypass vector
+available to a compromised agent.
+
+### Trust Model After Purpose Enforcement
+
+| Enforcement point | What it checks | Trusted? |
+|---|---|---|
+| Agent (first line) | Purpose, budget, revocation | No — can be bypassed if compromised |
+| Trust Gateway | SBA validity, budget ceiling, gateway auth, **purpose** | Yes — holds keys, agent cannot bypass |
+| Merchant | SBA + PolicyGrant signatures (offline), on-chain settlement (online) | Yes — independent party |
+
+A compromised agent that skips purpose checking is still bounded by the gateway: the gateway
+refuses to submit the payment if the declared purpose is not in the PA-signed `allowedPurposes`.
+No XRPL transaction is made.
+
+### Error Code
+
+| Code | Meaning |
+|------|---------|
+| `PURPOSE_NOT_ALLOWED` | Settlement request `purpose` is not in `PolicyGrant.allowedPurposes` |
+
+---
+
+## Destination Enforcement
+
+### Overview
+
+A compromised agent could populate the SBA `destinationAllowlist` with an attacker-controlled
+address, directing funds away from legitimate merchants. Because the SBA is agent-signed, the
+agent controls this field.
+
+MPCP addresses this with **two complementary mechanisms**, both PA-signed and tamper-proof:
+
+1. **Static allowlist** — `destinationAllowlist` on the PolicyGrant
+2. **On-chain credential registry** — `merchantCredentialIssuer` + `merchantCredentialType`
+   fields referencing XRPL Credentials (XLS-70)
+
+Either or both may be present. When both are present, a destination MUST satisfy **at least one**
+mechanism.
+
+### Mechanism 1: PA-Signed Static Allowlist
+
+The `destinationAllowlist` field on the PolicyGrant is an array of permitted payment destination
+addresses (e.g. XRPL `r`-addresses), signed by the PA.
+
+**Agent responsibility:** When issuing an SBA, the agent MUST set
+`SBA.destinationAllowlist ⊆ PolicyGrant.destinationAllowlist`. An SBA that includes a
+destination not in the PA-signed list is invalid.
+
+**Gateway enforcement (MUST):** Before submitting settlement, the Trust Gateway MUST verify:
+
+```
+if PolicyGrant.destinationAllowlist is present:
+  payment.destination ∈ PolicyGrant.destinationAllowlist
+  → reject with DESTINATION_NOT_ALLOWED on mismatch
+```
+
+**When to use:** Deployments where the set of approved merchants is known at grant issuance and
+does not change during the grant's lifetime. Suitable for fleet deployments with a fixed set of
+infrastructure providers.
+
+### Mechanism 2: XRPL Credential Merchant Registry
+
+For deployments where the set of approved merchants changes dynamically (merchants onboard or
+offboard during a grant's lifetime), the PA can use XRPL Credentials (XLS-70) to maintain a
+live, on-chain merchant registry.
+
+**Setup:**
+
+1. PA issues `CredentialCreate` to each approved merchant's XRPL account:
+   - `Issuer` = PA's XRPL address
+   - `Subject` = merchant's XRPL address
+   - `CredentialType` = hex-encoded type string (e.g. `hex("mpcp:approved-merchant")`)
+   - Optional `Expiration` for time-bounded approval
+2. Merchant calls `CredentialAccept` to activate the credential on-ledger
+3. PolicyGrant carries:
+   - `merchantCredentialIssuer`: PA's XRPL address
+   - `merchantCredentialType`: the hex-encoded credential type
+
+**Gateway enforcement (MUST when fields are present):** Before submitting settlement, the Trust
+Gateway MUST verify on-chain that the payment destination account holds a valid, non-expired
+credential matching both `merchantCredentialIssuer` and `merchantCredentialType`:
+
+```
+if PolicyGrant.merchantCredentialIssuer is present:
+  credential = lookupCredential(
+    subject:  payment.destination,
+    issuer:   PolicyGrant.merchantCredentialIssuer,
+    type:     PolicyGrant.merchantCredentialType
+  )
+  if credential does not exist or is expired:
+    → reject with DESTINATION_NOT_CREDENTIALED
+```
+
+**Advantages over static allowlist:**
+
+- PA can add new merchants by issuing credentials without reissuing PolicyGrants
+- PA can remove merchants by deleting credentials — takes effect immediately on-chain
+- Merchant approval is publicly verifiable by any party
+- No grant reissuance needed when the merchant set changes
+
+**When to use:** Deployments where merchants are onboarded dynamically, multi-operator
+ecosystems, or when the PA wants centralized on-chain control over merchant approval.
+
+### Combining Both Mechanisms
+
+When both `destinationAllowlist` and `merchantCredentialIssuer` are present on a PolicyGrant,
+a destination is approved if it satisfies **either** mechanism:
+
+```
+approved = (destination ∈ PolicyGrant.destinationAllowlist)
+        OR (destination holds matching credential on-chain)
+```
+
+This allows deployments to use the static list as a baseline and the credential registry for
+dynamic additions.
+
+### Error Codes
+
+| Code | Meaning |
+|------|---------|
+| `DESTINATION_NOT_ALLOWED` | Payment destination not in `PolicyGrant.destinationAllowlist` and no credential match |
+| `DESTINATION_NOT_CREDENTIALED` | `merchantCredentialIssuer` is set but destination does not hold a matching credential |
 
 ---
 

@@ -10,6 +10,8 @@ The Trust Gateway verifier runs checks in order:
 2. **Signatures** — PolicyGrant and SBA signatures are valid (resolve public keys via `issuer` + `issuerKeyId` using the [Key Resolution](./key-resolution.md) algorithm; in offline deployments, keys are resolved from a pre-loaded [Trust Bundle](./trust-bundles.md))
 3. **Linkage** — `SBA.authorization.grantId` references a valid PolicyGrant; constraint subsets are respected
 4. **Policy** — Budget limits, rail/asset/destination constraints, expiration
+5. **Purpose** — When `PolicyGrant.allowedPurposes` is present and the settlement request includes a `purpose` field, verify `purpose ∈ allowedPurposes`. See [PolicyGrant — Purpose Enforcement](./PolicyGrant.md#purpose-enforcement).
+6. **Destination** — When `PolicyGrant.destinationAllowlist` or `PolicyGrant.merchantCredentialIssuer` is present, verify the payment destination is approved. See [PolicyGrant — Destination Enforcement](./PolicyGrant.md#destination-enforcement).
 
 If any check fails, verification fails with a specific reason. On success, the gateway submits the XRPL transaction and returns the `txHash` receipt.
 
@@ -22,6 +24,8 @@ If any check fails, verification fails with a specific reason. On success, the g
 | SBA schema | Parses and validates against expected structure |
 | SBA signature | Signature valid; expiresAt not passed; `authorization.grantId` references a valid PolicyGrant |
 | SBA → budget | Current payment amount ≤ `maxAmountMinor`; rail, asset, destination in allowlists. Check is stateless — session authority manages cumulative budget tracking. |
+| Purpose | When `PolicyGrant.allowedPurposes` is present and settlement request includes `purpose`: verify `purpose ∈ allowedPurposes`. Reject with `PURPOSE_NOT_ALLOWED` on mismatch. |
+| Destination | When `PolicyGrant.destinationAllowlist` is present: verify `payment.destination ∈ destinationAllowlist`. When `PolicyGrant.merchantCredentialIssuer` is present: verify destination holds a matching on-chain credential. If both are set, either match suffices. Reject with `DESTINATION_NOT_ALLOWED` or `DESTINATION_NOT_CREDENTIALED`. |
 
 ## Usage
 
