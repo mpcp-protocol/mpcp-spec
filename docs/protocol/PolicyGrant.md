@@ -88,6 +88,8 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | destinationAllowlist | string[] | optional | PA-signed allowlist of permitted payment destination addresses (e.g. XRPL `r`-addresses). When present, the Trust Gateway MUST verify that the payment destination is in this list before settling. SBA `destinationAllowlist` MUST be a subset. See **Destination Enforcement** section below. |
 | merchantCredentialIssuer | string | optional | XRPL address of the credential issuer for approved merchants. Used with XLS-70 on-chain Credentials for dynamic destination enforcement. See **Destination Enforcement** section below. |
 | merchantCredentialType | string | optional | Hex-encoded credential type that approved merchants must hold (e.g. `hex("mpcp:approved-merchant")`). Used with `merchantCredentialIssuer`. |
+| subjectCredentialIssuer | string | optional | XRPL address of the credential issuer that attests the subject's identity. When present, the gateway SHOULD verify on-chain that `subjectId`'s XRPL account holds a valid credential from this issuer. See **Subject Attestation** section below. |
+| subjectCredentialType | string | optional | Hex-encoded credential type the subject must hold (e.g. `hex("mpcp:fleet-agent")`). Used with `subjectCredentialIssuer`. |
 | offlineMaxSinglePayment | string | optional | PA-signed per-transaction cap (in `offlineMaxSinglePaymentCurrency` minor units) for offline merchant acceptance. Offline merchants MUST reject SBAs whose `maxAmountMinor` exceeds this value. Cumulative budget is not enforced offline. |
 | offlineMaxSinglePaymentCurrency | string | optional | Currency of `offlineMaxSinglePayment` (e.g. `"XRP"`). |
 
@@ -513,6 +515,75 @@ dynamic additions.
 |------|---------|
 | `DESTINATION_NOT_ALLOWED` | Payment destination not in `PolicyGrant.destinationAllowlist` and no credential match |
 | `DESTINATION_NOT_CREDENTIALED` | `merchantCredentialIssuer` is set but destination does not hold a matching credential |
+
+---
+
+## Subject Attestation
+
+### Overview
+
+The `subjectId` field identifies the entity receiving the grant (vehicle, agent, wallet). By
+default, `subjectId` is self-reported and informational only — it cannot be cryptographically
+verified. This means a compromised agent sharing a signing key with other agents can issue SBAs
+that appear to come from any agent in the fleet.
+
+**Problem:** When multiple agents share the same SBA signing key, revoking a compromised
+agent's grant affects all agents using that key. The fleet operator cannot isolate the
+compromised agent without disrupting the entire fleet.
+
+### Per-Agent Signing Keys (SHOULD)
+
+Each agent or vehicle wallet SHOULD have a **unique SBA signing key**. This ensures:
+
+- Revoking one agent's grant does not affect other agents
+- SBAs can be attributed to a specific agent for audit purposes
+- Compromised agents can be isolated without fleet-wide disruption
+
+Fleet operators SHOULD register each agent's public key in the Trust Bundle or JWKS endpoint
+under a unique `kid` that includes the agent identity (e.g. `"sba-key:vehicle-1284"`).
+
+### XRPL Credential-Based Subject Attestation (SHOULD for XRPL deployments)
+
+For XRPL deployments, the fleet operator or PA SHOULD issue an on-chain credential to each
+agent's XRPL account using XLS-70 Credentials:
+
+- `Issuer` = Fleet operator's or PA's XRPL address
+- `Subject` = Agent's XRPL account
+- `CredentialType` = hex-encoded type (e.g. `hex("mpcp:fleet-agent")` or
+  `hex("mpcp:authorized-agent")`)
+
+The PolicyGrant binds to the specific agent via:
+
+- `subjectCredentialIssuer` — the XRPL address of the credential issuer
+- `subjectCredentialType` — the hex-encoded credential type
+
+**Gateway enforcement (SHOULD):** Before accepting SBAs from an agent, the gateway SHOULD
+verify on-chain that the agent's account holds a valid, non-expired credential matching the
+grant's `subjectCredentialIssuer` and `subjectCredentialType`:
+
+```text
+if PolicyGrant.subjectCredentialIssuer is present:
+    credential = lookupCredential(
+        subject: agent.xrplAddress,
+        issuer:  PolicyGrant.subjectCredentialIssuer,
+        type:    PolicyGrant.subjectCredentialType
+    )
+    if credential does not exist or is expired:
+        → reject with SUBJECT_NOT_ATTESTED
+```
+
+**Isolation on compromise:** When a single agent is compromised, the fleet operator:
+
+1. Deletes the agent's on-chain credential via `CredentialDelete`
+2. The gateway rejects further SBAs from that agent (credential check fails)
+3. Other agents' credentials are unaffected — they continue operating normally
+4. No grant reissuance needed for uncompromised agents
+
+### Error Code
+
+| Code | Meaning |
+|------|---------|
+| `SUBJECT_NOT_ATTESTED` | `subjectCredentialIssuer` is set but the agent does not hold a matching on-chain credential |
 
 ---
 

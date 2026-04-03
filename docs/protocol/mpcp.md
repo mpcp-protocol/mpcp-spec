@@ -687,6 +687,18 @@ before settling. For deployments requiring dynamic merchant management, the PA c
 Credentials (XLS-70) to approved merchants and reference them via `merchantCredentialIssuer`
 and `merchantCredentialType` on the PolicyGrant. See [PolicyGrant — Destination Enforcement](./PolicyGrant.md#destination-enforcement).
 
+### Agent SBA Signing Key Compromise
+
+If an agent's SBA signing key is compromised, the attacker can forge SBAs up to the remaining
+budget. Exposure is bounded by the grant's `budgetMinor` and `expiresAt`. However, if multiple
+agents share the same signing key, revoking the compromised key disrupts the entire fleet.
+
+**Mitigations:** Each agent SHOULD have a unique signing key. For XRPL deployments, the fleet
+operator SHOULD issue an XLS-70 Credential to each agent's account. The PolicyGrant binds to
+the agent via `subjectCredentialIssuer` and `subjectCredentialType`. On compromise, the
+operator deletes that agent's credential — other agents are unaffected. See
+[PolicyGrant — Subject Attestation](./PolicyGrant.md#subject-attestation).
+
 ### Cumulative Budget Overspend
 
 The Trust Gateway is stateless and checks only that the current payment amount does not exceed `SBA.maxAmountMinor`. It does not track prior payments in the session.
@@ -904,6 +916,7 @@ Recommended codes:
 | PURPOSE_NOT_ALLOWED | Settlement request purpose is not in `PolicyGrant.allowedPurposes` |
 | DESTINATION_NOT_ALLOWED | Payment destination not in `PolicyGrant.destinationAllowlist` and no credential match |
 | DESTINATION_NOT_CREDENTIALED | `merchantCredentialIssuer` is set but destination does not hold a matching on-chain credential |
+| SUBJECT_NOT_ATTESTED | `subjectCredentialIssuer` is set but the agent does not hold a matching on-chain credential |
 | SCOPE_UNSUPPORTED | Authorization scope is not supported by the verifier |
 
 Error codes SHOULD remain stable across implementations whenever possible to preserve interoperability.
