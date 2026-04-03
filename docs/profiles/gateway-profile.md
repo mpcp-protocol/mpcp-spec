@@ -274,6 +274,17 @@ Because merchants trust the gateway for payment validity, a compromised or disho
 - Signed receipts allow budget owners to detect gateway misbehavior after the fact
 - Level 1 passthrough headers allow budget owners to cryptographically verify what the gateway signed
 
+### Gateway key protection
+
+For native MPCP deployments, the Trust Gateway holds an XRPL private key that controls escrow
+and payment transactions. Compromise of this key allows an attacker to drain all active
+escrows. See [Gateway Seed Security](../protocol/trust-model.md#gateway-seed-security) for
+the full threat analysis. Key recommendations:
+
+- The gateway private key SHOULD be stored in an HSM or cloud KMS — never in plaintext on disk
+- The PA SHOULD issue an XRPL Credential to the gateway account; on compromise, the PA deletes the credential to instantly revoke on-chain authorization
+- Operators SHOULD monitor for on-chain payments without corresponding SBAs in the audit trail
+
 ### Budget owner session token security
 
 The `sessionToken` granted to an agent controls spending up to the session ceiling. It should be treated with the same care as a payment credential:

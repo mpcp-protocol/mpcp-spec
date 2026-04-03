@@ -717,6 +717,17 @@ Trust Bundles that embedded the key before revocation remain valid until their `
 Deployments SHOULD use short Trust Bundle lifetimes in high-assurance environments. See
 [Key Revocation](./key-resolution.md#key-revocation).
 
+### Gateway Seed Compromise
+
+If an attacker obtains the Trust Gateway's XRPL private key, they can submit transactions on
+behalf of the gateway — potentially draining all active escrows simultaneously. Per-grant escrow
+bounds exposure per grant, but aggregate exposure is the sum of all active `budgetMinor` values.
+
+**Mitigations:** Production gateways SHOULD store the private key in an HSM/KMS. The PA SHOULD
+issue an XRPL Credential (XLS-70) to the gateway account; on compromise, the PA deletes the
+credential to revoke the gateway's on-chain authorization. Operators SHOULD monitor for
+on-chain payments without corresponding SBAs. See [Gateway Seed Security](./trust-model.md#gateway-seed-security).
+
 ### Settlement Tampering
 
 Verification ensures that executed settlement transactions match authorized parameters before the session is finalized.
