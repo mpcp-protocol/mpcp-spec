@@ -81,6 +81,8 @@ For dispute resolution, collect the following bundle per disputed payment:
 | `purpose_not_allowed` | Payment purpose not in `PolicyGrant.allowedPurposes` |
 | `budget_exceeded` | Sum of on-chain payments > `budgetMinor` (Trust Gateway failure) |
 | `grant_revoked` | Revocation endpoint returned `{ revoked: true }` |
+| `offline_cumulative_exceeded` | Offline acceptance would exceed `PolicyGrant.offlineMaxCumulativePayment` |
+| `offline_sba_replay` | Same SBA / `budgetId` was already accepted at this verifier (local deduplication) |
 
 ## See Also
 

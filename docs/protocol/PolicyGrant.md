@@ -90,8 +90,10 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
 | merchantCredentialType | string | optional | Hex-encoded credential type that approved merchants must hold (e.g. `hex("mpcp:approved-merchant")`). Used with `merchantCredentialIssuer`. |
 | subjectCredentialIssuer | string | optional | XRPL address of the credential issuer that attests the subject's identity. When present, the gateway SHOULD verify on-chain that `subjectId`'s XRPL account holds a valid credential from this issuer. See **Subject Attestation** section below. |
 | subjectCredentialType | string | optional | Hex-encoded credential type the subject must hold (e.g. `hex("mpcp:fleet-agent")`). Used with `subjectCredentialIssuer`. |
-| offlineMaxSinglePayment | string | optional | PA-signed per-transaction cap (in `offlineMaxSinglePaymentCurrency` minor units) for offline merchant acceptance. Offline merchants MUST reject SBAs whose `maxAmountMinor` exceeds this value. Cumulative budget is not enforced offline. |
+| offlineMaxSinglePayment | string | optional | PA-signed per-transaction cap (in `offlineMaxSinglePaymentCurrency` minor units) for offline merchant acceptance. Offline merchants MUST reject SBAs whose `maxAmountMinor` exceeds this value. Cumulative offline exposure across merchants is only bounded when `offlineMaxCumulativePayment` is present; see **Offline cumulative exposure** below. |
 | offlineMaxSinglePaymentCurrency | string | optional | Currency of `offlineMaxSinglePayment` (e.g. `"XRP"`). |
+| offlineMaxCumulativePayment | string | optional | PA-signed maximum total amount (in `offlineMaxCumulativePaymentCurrency` minor units) that offline verifiers MAY cumulatively accept for this grant across all offline transactions at this verifier. Merchants SHOULD sum accepted amounts per `grantId` and reject when the next acceptance would exceed this cap. See **Offline cumulative exposure** below. |
+| offlineMaxCumulativePaymentCurrency | string | optional | Currency of `offlineMaxCumulativePayment` (e.g. `"XRP"`). If absent while `offlineMaxCumulativePayment` is present, implementations SHOULD use `offlineMaxSinglePaymentCurrency`. |
 
 ---
 
@@ -111,6 +113,10 @@ Downstream artifacts must be **subsets of the PolicyGrant constraints**.
   "destinationAllowlist": ["rChargingStation1", "rTollBooth42"],
   "merchantCredentialIssuer": "rPAMerchantRegistry",
   "merchantCredentialType": "6D7063703A617070726F7665642D6D65726368616E74",
+  "offlineMaxSinglePayment": "5000000",
+  "offlineMaxSinglePaymentCurrency": "XRP",
+  "offlineMaxCumulativePayment": "15000000",
+  "offlineMaxCumulativePaymentCurrency": "XRP",
   "maxSpend": {
     "perTxMinor": "5000",
     "perSessionMinor": "20000"
@@ -584,6 +590,44 @@ if PolicyGrant.subjectCredentialIssuer is present:
 | Code | Meaning |
 |------|---------|
 | `SUBJECT_NOT_ATTESTED` | `subjectCredentialIssuer` is set but the agent does not hold a matching on-chain credential |
+
+---
+
+## Offline cumulative exposure
+
+### Risk
+
+Without a cumulative offline cap, an agent can present SBAs to many offline merchants in
+sequence. Each merchant enforces only `offlineMaxSinglePayment` per transaction. The **total**
+offline spend can therefore exceed `budgetMinor` until the gateway reconciles on-chain.
+
+### Mitigation: `offlineMaxCumulativePayment`
+
+When the PA includes `offlineMaxCumulativePayment`, offline verifiers that enforce this field
+MUST maintain a running total of amounts already accepted for each `grantId` (in the grant's
+offline minor units) and MUST reject a new SBA if accepting it would make the cumulative total
+exceed `offlineMaxCumulativePayment`.
+
+Currency for the cumulative cap is `offlineMaxCumulativePaymentCurrency`, or
+`offlineMaxSinglePaymentCurrency` if the former is absent.
+
+Operators SHOULD set `offlineMaxCumulativePayment` ≤ `budgetMinor` (or lower, to reflect risk
+tolerance). Operators SHOULD size `offlineMaxSinglePayment` with the **expected number of
+offline touchpoints** per grant in mind — a small per-tx cap with many merchants can still
+produce large aggregate exposure if no cumulative field is used.
+
+### Per-verifier scope
+
+The cumulative total is tracked **per offline verifier** (per device). Distinct merchants do
+not share state; a fleet-wide cumulative bound requires synchronized infrastructure outside
+the scope of this specification. The PA SHOULD set `offlineMaxCumulativePayment` assuming
+worst-case fan-out across independent verifiers when modeling exposure.
+
+### Error code
+
+| Code | Meaning |
+|------|---------|
+| `OFFLINE_CUMULATIVE_EXCEEDED` | Acceptance would exceed `PolicyGrant.offlineMaxCumulativePayment` |
 
 ---
 

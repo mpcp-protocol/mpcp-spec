@@ -15,6 +15,28 @@ The Trust Gateway verifier runs checks in order:
 
 If any check fails, verification fails with a specific reason. On success, the gateway submits the XRPL transaction and returns the `txHash` receipt.
 
+## Clock synchronization and drift
+
+Artifact validity (`expiresAt` on PolicyGrant, SBA, and Trust Bundle) is evaluated against the
+verifier's notion of **current time**.
+
+**Online verifiers (SHOULD):** Use an NTP-synchronized or otherwise trusted time source. The
+Trust Gateway and Policy Authority servers SHOULD not rely solely on unsynchronized host clocks.
+
+**Offline or embedded verifiers (SHOULD):** Use a hardware-backed real-time clock (RTC) where
+available. Pure software clocks are easier to manipulate.
+
+**Drift tolerance:** When comparing timestamps, implementations SHOULD allow a configurable
+**clock drift tolerance**. A default tolerance of **±300 seconds (5 minutes)** is RECOMMENDED
+unless a deployment's security policy specifies otherwise — i.e. treat an artifact as not yet
+expired if `now + tolerance < expiresAt`, and as expired if `now − tolerance > expiresAt`
+(using consistent comparison semantics for the deployment).
+
+**Threat model:** A malicious actor with OS-level control can skew local time and make expired
+artifacts appear valid or vice versa. MPCP assumes the verifier's execution environment is
+within the deployment's trust boundary; mitigations are operational (secure boot, RTC, NTP,
+monitoring), not additional protocol fields.
+
 ## What Is Verified
 
 | Check | Description |
