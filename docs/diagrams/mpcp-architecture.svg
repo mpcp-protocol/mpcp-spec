@@ -223,7 +223,7 @@
   <text x="1494" y="377" text-anchor="middle" class="bSub" fill="#64748b">(optional, at grant issuance)</text>
   <line x1="1368" y1="385" x2="1620" y2="385" stroke="#334155" stroke-width="1" stroke-dasharray="4 3"/>
   <text x="1368" y="403" class="detail">• Hedera HCS — policy hash on-chain</text>
-  <text x="1368" y="421" class="detail">• XRPL NFT — burn to revoke</text>
+  <text x="1368" y="421" class="detail">• XRPL XLS-70 — credential liveness</text>
   <text x="1368" y="439" class="detail">• AES-256-GCM encrypted anchoring</text>
 
   <!-- ================================================================
