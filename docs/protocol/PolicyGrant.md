@@ -350,7 +350,7 @@ Verifiers resolve the public key (as JWK) using `issuer` and `issuerKeyId` via t
 ## Policy Document Anchoring
 
 The `anchorRef` field is an optional pointer to an on-chain record of the policy document that
-produced this grant. Two formats are supported:
+produced this grant. The conforming format is:
 
 ```
 "hcs:{topicId}:{sequenceNumber}"   — Hedera Consensus Service message
