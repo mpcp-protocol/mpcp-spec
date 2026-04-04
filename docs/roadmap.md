@@ -8,12 +8,12 @@ MPCP development is tracked per-repository. Implementation status for each compo
 
 | Repository | Role | Status |
 |------------|------|--------|
-| mpcp-reference | Protocol core — canonical SDK, verifier, schemas, anchoring adapters, golden vectors | Complete |
+| mpcp-reference | Protocol core — canonical SDK, verifier, schemas, anchoring adapters, golden vectors | Complete (Phase 1–6) |
 | mpcp-policy-authority | Deployable policy authority service — grant issuance, revocation, Trust Bundle issuance, on-chain anchoring | Complete |
-| mpcp-wallet-sdk | Wallet SDK — session management, SBA signing, budget enforcement (Node.js + browser) | Complete |
-| mpcp-merchant-sdk | Merchant SDK — SBA verification, revocation caching, spend tracking, framework adapters (Express / Fastify / Next.js / Edge) | Complete |
+| mpcp-wallet-sdk | Wallet SDK — session management, SBA signing, budget enforcement (Node.js + browser) | Archived — superseded by `mpcp-gateway-client` |
+| mpcp-merchant-sdk | Merchant SDK — SBA verification, revocation caching, spend tracking, framework adapters (Express / Fastify / Next.js / Edge) | Archived — gateway enforcement + `mpcp-service` |
 | mpcp-gateway | Transparent payment gateway — speaks x402 externally, enforces MPCP internally; bridges non-MPCP agents to MPCP merchants | Complete (P1–P10) |
-| mpcp-gateway-client | Agent-side fetch wrapper — `GatewayClient` + `session.fetch()`; soft-limit continuation; LangChain / Vercel AI / AutoGen adapters | Active (P1–P3) |
+| mpcp-gateway-client | Agent-side fetch wrapper — `GatewayClient` + `session.fetch()`; receipts; Trust Bundle; React hooks; framework adapters | Complete (P1–P6) |
 | mpcp-spec | Protocol specification, architecture docs, guides | this site |
 
 ---
@@ -22,9 +22,9 @@ MPCP development is tracked per-repository. Implementation status for each compo
 
 ### mpcp-reference
 
-All core phases complete.
+All phases (1–6) complete.
 
-Implemented: canonical serialization · artifact schemas · full verification engine · CLI verifier with explain mode · Hedera HCS and XRPL anchor adapters · `did:xrpl` resolver · XRPL Credential-based grant liveness (spec); legacy NFT path deprecated · Trust Bundle signing and verification · `resolveFromTrustBundle` for key lookup · AES-256-GCM encrypted policy anchoring · golden protocol vectors · human-to-agent delegation profile · TRIP budget scope · `checkRevocation` utility.
+Implemented: canonical serialization · artifact schemas · full verification engine · CLI verifier with explain mode · Hedera HCS and XRPL anchor adapters · `did:xrpl` resolver · XRPL Credential-based grant liveness (spec); legacy NFT path deprecated · Trust Bundle signing and verification · `resolveFromTrustBundle` for key lookup · AES-256-GCM encrypted policy anchoring · golden protocol vectors · human-to-agent delegation profile · TRIP budget scope · `checkRevocation` utility · XRPL stablecoin profile (RLUSD) · Layer-1 ecosystem evaluation · machine wallet guardrails documentation · fleet payment demos · MPCP conformance badge (L0–L3 tiers).
 
 ### mpcp-policy-authority
 
@@ -65,17 +65,17 @@ Deferred items (each a standalone PR): PostgreSQL adapter, Redis session cache, 
 
 ### mpcp-gateway-client
 
-P1–P3 complete. P4 (receipts + audit) planned.
+P1–P6 complete.
 
 Implemented:
 
 - **P1** — Core client: `GatewayClient`, `createSession`, `session.fetch()` wrapper, session CRUD; zero runtime deps; TypeScript + ESM
 - **P2** — Soft-limit continuation: `onSoftLimit` callback; `continueSession()`; automatic retry on user approval
 - **P3** — Framework adapters: `GatewayFetchTool` (LangChain), `gatewayFetchTool()` (Vercel AI SDK), `gatewayFetchFn()` (generic function-calling / AutoGen)
-
-Planned:
-
-- **P4** — Receipts + audit: `getReceipts()`, `verifyReceipt()` (Ed25519), `fetchGatewayKeys()`
+- **P3b** — React hooks: `usePolicyGrant`, `useGatewaySession` (`mpcp-gateway-client/react`)
+- **P4** — Receipts + audit: `getReceipts()`, `verifyReceipt()` (Ed25519), `fetchGatewayKeys()`; `mpcp-gateway-client/receipts` entry point
+- **P5** — Ecosystem consolidation: `mpcp-wallet-sdk` and `mpcp-merchant-sdk` superseded; migration docs; archive notices
+- **P6** — Trust Bundle: `fetchGatewayTrustBundle()`, typed `TrustBundle`; aligns with `mpcp-gateway` P6
 
 ---
 
@@ -85,6 +85,4 @@ Spec changes accompany each reference implementation PR that introduces new prot
 
 Upcoming spec work:
 
-- `mpcp-gateway-client` P4 (receipts + audit) — spec alignment when implemented
-- `mpcp-wallet-sdk` PR7 (React Native bundle) — spec alignment when implemented
-- `mpcp-reference` Phase 6 pending PRs (PR21–PR25) — payment profiles, L1 evaluation, conformance badge
+- `mpcp-wallet-sdk` PR7 (React Native bundle) — spec alignment when implemented (low priority; repo archived)
