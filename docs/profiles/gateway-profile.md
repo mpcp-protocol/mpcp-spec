@@ -8,7 +8,7 @@ A deployment pattern for adopting MPCP without requiring SDK integration on eith
 
 Integrating MPCP natively requires effort on both sides of every payment:
 
-- **Budget owner side**: run a Policy Authority server, publish policies, issue PolicyGrants, and integrate the wallet-sdk into the spending agent
+- **Budget owner side**: run a Policy Authority server, publish policies, issue PolicyGrants, and integrate the gateway client into the spending agent
 - **Merchant side**: integrate the merchant-sdk, accept SBA artifacts, and verify the authorization chain
 
 This friction is the right design for deployments that need **end-to-end cryptographic verification** — fleet vehicles, embedded devices, or AI agents operating across many independent merchants with no pre-existing trust relationship.
